@@ -1,0 +1,34 @@
+{
+  "music": [
+    {
+      "id": "song",
+      "label": "Song",
+      "labelKey": "markdown.examples.song",
+      "code": "song: Imagine"
+    },
+    {
+      "id": "playlist",
+      "label": "Playlist",
+      "labelKey": "markdown.examples.playlist",
+      "code": "playlist: Pre-2000\nlimit: 5"
+    },
+    {
+      "id": "artist",
+      "label": "Artist",
+      "labelKey": "markdown.examples.artist",
+      "code": "artist: John Lennon\nlimit: 5"
+    },
+    {
+      "id": "automatic",
+      "label": "Automatic lookup",
+      "labelKey": "markdown.examples.automatic",
+      "code": "Imagine"
+    },
+    {
+      "id": "resume",
+      "label": "Current or last played song",
+      "labelKey": "markdown.examples.resume",
+      "code": ""
+    }
+  ]
+}

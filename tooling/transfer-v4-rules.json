@@ -1,0 +1,96 @@
+{
+  "sourceRevision": "d935272e79dcc485e5414f254746456ebef1d7be",
+  "plugins": {
+    "music": [
+      {
+        "id": "tracks-v1",
+        "source": "songs.jsonl",
+        "format": "jsonl",
+        "dataset": "tracks",
+        "sqlPrecedence": {
+          "marker": "legacy:tracks-v1",
+          "emptyWithoutMarker": "reject"
+        }
+      },
+      {
+        "id": "artists-v1",
+        "source": "artists.jsonl",
+        "format": "jsonl",
+        "dataset": "artists",
+        "transforms": [
+          {
+            "operation": "explode",
+            "column": "aliases",
+            "targetDataset": "artist_aliases",
+            "valueColumn": "alias"
+          }
+        ],
+        "sqlPrecedence": {
+          "marker": "legacy:artists-v1",
+          "emptyWithoutMarker": "reject"
+        }
+      },
+      {
+        "id": "playlists-v1",
+        "source": "playlists.jsonl",
+        "format": "jsonl",
+        "dataset": "playlists",
+        "transforms": [
+          {
+            "operation": "explode",
+            "column": "songIds",
+            "targetDataset": "playlist_tracks",
+            "valueColumn": "trackId",
+            "positionColumn": "position"
+          }
+        ],
+        "sqlPrecedence": {
+          "marker": "legacy:playlists-v1",
+          "emptyWithoutMarker": "reject"
+        }
+      },
+      {
+        "id": "history-v1",
+        "source": "songHistory.jsonl",
+        "format": "jsonl",
+        "dataset": "play_events",
+        "transforms": [
+          {
+            "operation": "hash",
+            "column": "id",
+            "fields": [
+              "songId",
+              "playedAt",
+              "playlistId"
+            ],
+            "prefix": "transferred_play_",
+            "includeSourcePosition": true,
+            "onlyIfMissing": true
+          }
+        ],
+        "sqlPrecedence": {
+          "marker": "legacy:history-v1",
+          "emptyWithoutMarker": "reject"
+        }
+      },
+      {
+        "id": "queue-v1",
+        "source": "queue.jsonl",
+        "format": "jsonl",
+        "dataset": "queue",
+        "transforms": [
+          {
+            "operation": "sequence",
+            "column": "position"
+          }
+        ],
+        "sqlPrecedence": {
+          "marker": null,
+          "emptyWithoutMarker": "reject"
+        }
+      }
+    ]
+  },
+  "sqlSchemas": {},
+  "fileStoreSchemas": {}
+}

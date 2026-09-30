@@ -1,0 +1,17 @@
+{
+  "apiVersion": 5,
+  "id": "music",
+  "name": "Music",
+  "version": "3.0.3",
+  "description": "Music library and player with workspace-aware browser, panel, and player views that never roll back live playlists, queues, or playback.",
+  "author": [
+    "nausicaa"
+  ],
+  "authorUrl": [
+    "https://github.com/nausicaa-io"
+  ],
+  "license": "MIT",
+  "minAppVersion": "0.1.0",
+  "isDesktopOnly": true,
+  "enabled": true
+}

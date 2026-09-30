@@ -1,0 +1,670 @@
+{
+  "icon": "icon.svg",
+  "main": "runtime/index.js",
+  "indexState": "scoped",
+  "uiSlots": {
+    "left_sidebar": "music.panel",
+    "right_sidebar": "music.player",
+    "main_workspace": "music.page",
+    "footer": "music.nowPlaying"
+  },
+  "slotDefaults": {
+    "left_sidebar": {
+      "order": 210
+    },
+    "right_sidebar": {
+      "order": 10
+    }
+  },
+  "datasets": [
+    {
+      "id": "tracks",
+      "store": "durable",
+      "version": 2,
+      "title": "Tracks",
+      "primaryKey": [
+        "id"
+      ],
+      "columns": {
+        "id": {
+          "type": "text"
+        },
+        "title": {
+          "type": "text"
+        },
+        "artist": {
+          "type": "text"
+        },
+        "artists": {
+          "type": "json",
+          "nullable": true
+        },
+        "album": {
+          "type": "text",
+          "nullable": true
+        },
+        "file": {
+          "type": "text"
+        },
+        "duration": {
+          "type": "real",
+          "nullable": true
+        },
+        "favorite": {
+          "type": "boolean",
+          "nullable": true
+        },
+        "addedAt": {
+          "type": "datetime",
+          "nullable": true
+        },
+        "details": {
+          "type": "json",
+          "nullable": true
+        }
+      },
+      "indexes": [
+        {
+          "id": "file",
+          "columns": [
+            "file"
+          ],
+          "unique": true
+        }
+      ],
+      "titleKey": "auto.3dd1a4d18fea"
+    },
+    {
+      "id": "artists",
+      "store": "durable",
+      "version": 1,
+      "title": "Artists",
+      "primaryKey": [
+        "id"
+      ],
+      "columns": {
+        "id": {
+          "type": "text"
+        },
+        "name": {
+          "type": "text"
+        },
+        "image": {
+          "type": "text",
+          "nullable": true
+        },
+        "bio": {
+          "type": "text",
+          "nullable": true
+        }
+      },
+      "indexes": [
+        {
+          "id": "name",
+          "columns": [
+            "name"
+          ],
+          "unique": true
+        }
+      ],
+      "titleKey": "auto.1528d87e634e"
+    },
+    {
+      "id": "artist_aliases",
+      "store": "durable",
+      "version": 1,
+      "title": "Artist aliases",
+      "primaryKey": [
+        "artistId",
+        "alias"
+      ],
+      "columns": {
+        "artistId": {
+          "type": "text"
+        },
+        "alias": {
+          "type": "text"
+        }
+      },
+      "relations": [
+        {
+          "kind": "foreign-key",
+          "columns": [
+            "artistId"
+          ],
+          "targetDataset": "artists",
+          "targetColumns": [
+            "id"
+          ],
+          "onDelete": "cascade"
+        }
+      ],
+      "titleKey": "auto.e9936a1da29d"
+    },
+    {
+      "id": "track_artists",
+      "store": "durable",
+      "version": 1,
+      "title": "Track artists",
+      "primaryKey": [
+        "trackId",
+        "artistId"
+      ],
+      "columns": {
+        "trackId": {
+          "type": "text"
+        },
+        "artistId": {
+          "type": "text"
+        },
+        "position": {
+          "type": "integer"
+        }
+      },
+      "relations": [
+        {
+          "kind": "foreign-key",
+          "columns": [
+            "trackId"
+          ],
+          "targetDataset": "tracks",
+          "targetColumns": [
+            "id"
+          ],
+          "onDelete": "cascade"
+        },
+        {
+          "kind": "foreign-key",
+          "columns": [
+            "artistId"
+          ],
+          "targetDataset": "artists",
+          "targetColumns": [
+            "id"
+          ],
+          "onDelete": "cascade"
+        }
+      ],
+      "titleKey": "auto.a217306acc42"
+    },
+    {
+      "id": "playlists",
+      "store": "durable",
+      "version": 1,
+      "title": "Playlists",
+      "primaryKey": [
+        "id"
+      ],
+      "columns": {
+        "id": {
+          "type": "text"
+        },
+        "name": {
+          "type": "text"
+        },
+        "cover": {
+          "type": "text",
+          "nullable": true
+        }
+      },
+      "titleKey": "auto.77b69f32c878"
+    },
+    {
+      "id": "playlist_tracks",
+      "store": "durable",
+      "version": 1,
+      "title": "Playlist tracks",
+      "primaryKey": [
+        "playlistId",
+        "position"
+      ],
+      "columns": {
+        "playlistId": {
+          "type": "text"
+        },
+        "trackId": {
+          "type": "text"
+        },
+        "position": {
+          "type": "integer"
+        }
+      },
+      "indexes": [
+        {
+          "id": "playlist_position",
+          "columns": [
+            "playlistId",
+            "position"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "kind": "foreign-key",
+          "columns": [
+            "playlistId"
+          ],
+          "targetDataset": "playlists",
+          "targetColumns": [
+            "id"
+          ],
+          "onDelete": "cascade"
+        },
+        {
+          "kind": "foreign-key",
+          "columns": [
+            "trackId"
+          ],
+          "targetDataset": "tracks",
+          "targetColumns": [
+            "id"
+          ],
+          "onDelete": "cascade"
+        }
+      ],
+      "titleKey": "auto.8d737a3a77ed"
+    },
+    {
+      "id": "play_events",
+      "store": "durable",
+      "version": 1,
+      "title": "Play history",
+      "primaryKey": [
+        "id"
+      ],
+      "columns": {
+        "id": {
+          "type": "text"
+        },
+        "songId": {
+          "type": "text"
+        },
+        "playedAt": {
+          "type": "datetime"
+        },
+        "playlistId": {
+          "type": "text",
+          "nullable": true
+        }
+      },
+      "indexes": [
+        {
+          "id": "played_at",
+          "columns": [
+            "playedAt"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "kind": "foreign-key",
+          "columns": [
+            "songId"
+          ],
+          "targetDataset": "tracks",
+          "targetColumns": [
+            "id"
+          ],
+          "onDelete": "cascade"
+        }
+      ],
+      "titleKey": "auto.807a3067e832"
+    },
+    {
+      "id": "queue",
+      "store": "cache",
+      "version": 1,
+      "title": "Playback queue",
+      "primaryKey": [
+        "position"
+      ],
+      "columns": {
+        "position": {
+          "type": "integer"
+        },
+        "songId": {
+          "type": "text"
+        }
+      },
+      "relations": [
+        {
+          "kind": "logical",
+          "column": "songId"
+        }
+      ],
+      "titleKey": "auto.740ad8475bda"
+    }
+  ],
+  "settingsSchema": {
+    "fields": [
+      {
+        "key": "musicPath",
+        "label": "Music folder",
+        "type": "text",
+        "default": "",
+        "description": "Vault-relative folder scanned for songs (media files become library entries).",
+        "labelKey": "auto.a71420a4b1e3",
+        "descriptionKey": "auto.a09fad4110cb",
+        "placeholder": "Lifestyle/music",
+        "validate": "vault-folder",
+        "required": true,
+        "placeholderKey": "auto.948daacb2c7c"
+      }
+    ]
+  },
+  "settingsView": "music.settings",
+  "drivers": [
+    "media"
+  ],
+  "provides": [
+    {
+      "id": "agent.toolProvider",
+      "kind": "service",
+      "version": "1.0.0"
+    },
+    {
+      "id": "metadata.plugin",
+      "kind": "extension",
+      "version": "1.0.0"
+    },
+    {
+      "id": "workspace.viewState",
+      "kind": "extension",
+      "version": "1.0.0"
+    },
+    {
+      "id": "workspace.surface",
+      "kind": "extension",
+      "version": "1.0.0"
+    },
+    {
+      "id": "metadataPanel.segment",
+      "kind": "extension",
+      "version": "1.0.0"
+    },
+    {
+      "id": "workspace.details",
+      "kind": "extension",
+      "version": "1.0.0"
+    },
+    {
+      "id": "workspace.bookmark",
+      "kind": "service",
+      "version": "1.0.0"
+    }
+  ],
+  "guardPresets": {
+    "schemaVersion": 1,
+    "defaultPreset": "recommended",
+    "presets": [
+      {
+        "id": "recommended",
+        "label": "Recommended",
+        "version": 1,
+        "description": "Playback and library reads run freely; playlist edits ask first.",
+        "entries": {
+          "tools": {
+            "music_play": {
+              "decision": "allow"
+            },
+            "music_library": {
+              "decision": "allow"
+            },
+            "music_control": {
+              "decision": "allow"
+            },
+            "play_music": {
+              "decision": "allow"
+            }
+          },
+          "commands": {
+            "create-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": true
+            },
+            "delete-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": true
+            },
+            "add-to-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": true
+            },
+            "remove-from-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": true
+            },
+            "rename-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": true
+            },
+            "clear-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": true
+            }
+          }
+        }
+      },
+      {
+        "id": "ask-for-writes",
+        "label": "Ask for writes",
+        "version": 1,
+        "description": "Every playlist or library change confirms.",
+        "entries": {
+          "commands": {
+            "create-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": false
+            },
+            "delete-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": false
+            },
+            "add-to-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": false
+            },
+            "remove-from-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": false
+            },
+            "rename-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": false
+            },
+            "clear-playlist": {
+              "decision": "confirm",
+              "allowPreApproval": false
+            }
+          }
+        }
+      },
+      {
+        "id": "read-only",
+        "label": "Read-only",
+        "version": 1,
+        "description": "Playback allowed; no playlist edits.",
+        "entries": {
+          "commands": {
+            "create-playlist": {
+              "decision": "deny"
+            },
+            "delete-playlist": {
+              "decision": "deny"
+            },
+            "add-to-playlist": {
+              "decision": "deny"
+            },
+            "remove-from-playlist": {
+              "decision": "deny"
+            },
+            "rename-playlist": {
+              "decision": "deny"
+            },
+            "clear-playlist": {
+              "decision": "deny"
+            }
+          }
+        }
+      },
+      {
+        "id": "blocked",
+        "label": "Blocked",
+        "version": 1,
+        "description": "No music actions at all.",
+        "entries": {
+          "tools": {
+            "music_play": {
+              "decision": "deny"
+            },
+            "music_library": {
+              "decision": "deny"
+            },
+            "music_control": {
+              "decision": "deny"
+            },
+            "play_music": {
+              "decision": "deny"
+            }
+          },
+          "commands": {
+            "play": {
+              "decision": "deny"
+            },
+            "pause": {
+              "decision": "deny"
+            },
+            "resume": {
+              "decision": "deny"
+            },
+            "skip": {
+              "decision": "deny"
+            },
+            "back": {
+              "decision": "deny"
+            },
+            "stop": {
+              "decision": "deny"
+            },
+            "shuffle": {
+              "decision": "deny"
+            },
+            "seek": {
+              "decision": "deny"
+            },
+            "volume": {
+              "decision": "deny"
+            },
+            "queue": {
+              "decision": "deny"
+            },
+            "now": {
+              "decision": "deny"
+            },
+            "library": {
+              "decision": "deny"
+            },
+            "search": {
+              "decision": "deny"
+            },
+            "artists": {
+              "decision": "deny"
+            },
+            "songs": {
+              "decision": "deny"
+            },
+            "playlists": {
+              "decision": "deny"
+            },
+            "playlist": {
+              "decision": "deny"
+            },
+            "playlist-next": {
+              "decision": "deny"
+            },
+            "playlist-last": {
+              "decision": "deny"
+            },
+            "playlist-shuffle": {
+              "decision": "deny"
+            },
+            "selected-playlist-play": {
+              "decision": "deny"
+            },
+            "selected-playlist-next": {
+              "decision": "deny"
+            },
+            "selected-playlist-last": {
+              "decision": "deny"
+            },
+            "selected-playlist-shuffle": {
+              "decision": "deny"
+            },
+            "refresh": {
+              "decision": "deny"
+            },
+            "open-page": {
+              "decision": "deny"
+            },
+            "toggle": {
+              "decision": "deny"
+            },
+            "create-playlist": {
+              "decision": "deny"
+            },
+            "delete-playlist": {
+              "decision": "deny"
+            },
+            "add-to-playlist": {
+              "decision": "deny"
+            },
+            "remove-from-playlist": {
+              "decision": "deny"
+            },
+            "rename-playlist": {
+              "decision": "deny"
+            },
+            "clear-playlist": {
+              "decision": "deny"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "runtime": {
+    "ui": "runtime/index.js",
+    "backend": "runtime/backend.js"
+  },
+  "locales": {
+    "en": "runtime/locales/en.json",
+    "de": "runtime/locales/de.json",
+    "es": "runtime/locales/es.json",
+    "fr": "runtime/locales/fr.json",
+    "zh-CN": "runtime/locales/zh-CN.json"
+  },
+  "permissions": {
+    "storage": {
+      "vault": true
+    }
+  },
+  "datasetMigrations": [
+    {
+      "id": "track-details-v2",
+      "store": "durable",
+      "fromVersion": 1,
+      "toVersion": 2,
+      "steps": [
+        {
+          "operation": "add-column",
+          "dataset": "tracks",
+          "column": "details",
+          "definition": {
+            "type": "json",
+            "nullable": true
+          }
+        }
+      ]
+    }
+  ]
+}

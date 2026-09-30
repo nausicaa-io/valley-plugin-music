@@ -1,0 +1,629 @@
+{
+  "datasets": {
+    "tracks": [
+      {
+        "id": "pre-2000-so-what",
+        "title": "So What",
+        "artist": "Miles Davis",
+        "album": "Kind of Blue",
+        "file": "Archive/Media/Pre-2000/so_what--miles_davis.mp3",
+        "duration": 563.572
+      },
+      {
+        "id": "pre-2000-like-a-rolling-stone",
+        "title": "Like a Rolling Stone",
+        "artist": "Bob Dylan",
+        "album": "Highway 61 Revisited",
+        "file": "Archive/Media/Pre-2000/like_a_rolling_stone--bob_dylan.mp3",
+        "duration": 359.893
+      },
+      {
+        "id": "pre-2000-space-oddity",
+        "title": "Space Oddity",
+        "artist": "David Bowie",
+        "album": "David Bowie",
+        "file": "Archive/Media/Pre-2000/space_oddity--david_bowie.mp4",
+        "duration": 305.017
+      },
+      {
+        "id": "pre-2000-imagine",
+        "title": "Imagine",
+        "artist": "John Lennon",
+        "album": "Imagine",
+        "file": "Archive/Media/Pre-2000/imagine--john_lennon.mp4",
+        "duration": 233.895
+      },
+      {
+        "id": "pre-2000-speak-to-me",
+        "title": "Speak to Me",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/speak_to_me--pink_floyd.mp3",
+        "duration": 71.03
+      },
+      {
+        "id": "pre-2000-breathe",
+        "title": "Breathe",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/breathe--pink_floyd.mp3",
+        "duration": 165.941
+      },
+      {
+        "id": "pre-2000-on-the-run",
+        "title": "On the Run",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/on_the_run--pink_floyd.mp3",
+        "duration": 213.601
+      },
+      {
+        "id": "pre-2000-time",
+        "title": "Time",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/time--pink_floyd.mp3",
+        "duration": 425.889
+      },
+      {
+        "id": "pre-2000-the-great-gig-in-the-sky",
+        "title": "The Great Gig in the Sky",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/the_great_gig_in_the_sky--pink_floyd.mp3",
+        "duration": 284.05
+      },
+      {
+        "id": "pre-2000-money",
+        "title": "Money",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/money--pink_floyd.mp3",
+        "duration": 382.247
+      },
+      {
+        "id": "pre-2000-us-and-them",
+        "title": "Us and Them",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/us_and_them--pink_floyd.mp3",
+        "duration": 470.355
+      },
+      {
+        "id": "pre-2000-any-colour-you-like",
+        "title": "Any Colour You Like",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/any_colour_you_like--pink_floyd.mp3",
+        "duration": 205.729
+      },
+      {
+        "id": "pre-2000-brain-damage",
+        "title": "Brain Damage",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/brain_damage--pink_floyd.mp3",
+        "duration": 230.516
+      },
+      {
+        "id": "pre-2000-eclipse",
+        "title": "Eclipse",
+        "artist": "Pink Floyd",
+        "album": "The Dark Side of the Moon",
+        "file": "Archive/Media/Pre-2000/eclipse--pink_floyd.mp3",
+        "duration": 126.735
+      },
+      {
+        "id": "pre-2000-dreams",
+        "title": "Dreams",
+        "artist": "Marianne Beaulieu",
+        "album": "Marianne Beaulieu",
+        "file": "Archive/Media/Pre-2000/dreams--marianne_beaulieu.mp4",
+        "duration": 204.114
+      },
+      {
+        "id": "pre-2000-running-up-that-hill",
+        "title": "Running Up That Hill",
+        "artist": "Marianne Beaulieu",
+        "album": "Marianne Beaulieu",
+        "file": "Archive/Media/Pre-2000/running_up_that_hill--marianne_beaulieu.mp4",
+        "duration": 284.954
+      },
+      {
+        "id": "pre-2000-fuori-dal-mondo",
+        "title": "Fuori Dal Mondo",
+        "artist": "Ludovico Einaudi",
+        "album": "Eden Roc",
+        "file": "Archive/Media/Pre-2000/fuori_dal_mondo--ludovico_einaudi.mp3",
+        "duration": 299.253
+      },
+      {
+        "id": "field-recording-01",
+        "title": "Field recording 01",
+        "artist": "Open Sound Archive 1",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-01.wav",
+        "duration": 0.1,
+        "favorite": true,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-02",
+        "title": "Field recording 02",
+        "artist": "Open Sound Archive 2",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-02.wav",
+        "duration": 0.1,
+        "favorite": true,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-03",
+        "title": "Field recording 03",
+        "artist": "Open Sound Archive 3",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-03.wav",
+        "duration": 0.1,
+        "favorite": true,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-04",
+        "title": "Field recording 04",
+        "artist": "Open Sound Archive 4",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-04.wav",
+        "duration": 0.1,
+        "favorite": true,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-05",
+        "title": "Field recording 05",
+        "artist": "Open Sound Archive 5",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-05.wav",
+        "duration": 0.1,
+        "favorite": true,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-06",
+        "title": "Field recording 06",
+        "artist": "Open Sound Archive 1",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-06.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-07",
+        "title": "Field recording 07",
+        "artist": "Open Sound Archive 2",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-07.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-08",
+        "title": "Field recording 08",
+        "artist": "Open Sound Archive 3",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-08.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-09",
+        "title": "Field recording 09",
+        "artist": "Open Sound Archive 4",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-09.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-10",
+        "title": "Field recording 10",
+        "artist": "Open Sound Archive 5",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-10.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-11",
+        "title": "Field recording 11",
+        "artist": "Open Sound Archive 1",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-11.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-12",
+        "title": "Field recording 12",
+        "artist": "Open Sound Archive 2",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-12.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-13",
+        "title": "Field recording 13",
+        "artist": "Open Sound Archive 3",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-13.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-14",
+        "title": "Field recording 14",
+        "artist": "Open Sound Archive 4",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-14.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-15",
+        "title": "Field recording 15",
+        "artist": "Open Sound Archive 5",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-15.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-16",
+        "title": "Field recording 16",
+        "artist": "Open Sound Archive 1",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-16.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-17",
+        "title": "Field recording 17",
+        "artist": "Open Sound Archive 2",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-17.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-18",
+        "title": "Field recording 18",
+        "artist": "Open Sound Archive 3",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-18.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-19",
+        "title": "Field recording 19",
+        "artist": "Open Sound Archive 4",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-19.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-20",
+        "title": "Field recording 20",
+        "artist": "Open Sound Archive 5",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-20.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-21",
+        "title": "Field recording 21",
+        "artist": "Open Sound Archive 1",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-21.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-22",
+        "title": "Field recording 22",
+        "artist": "Open Sound Archive 2",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-22.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-23",
+        "title": "Field recording 23",
+        "artist": "Open Sound Archive 3",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-23.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-24",
+        "title": "Field recording 24",
+        "artist": "Open Sound Archive 4",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-24.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-25",
+        "title": "Field recording 25",
+        "artist": "Open Sound Archive 5",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-25.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-26",
+        "title": "Field recording 26",
+        "artist": "Open Sound Archive 1",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-26.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-27",
+        "title": "Field recording 27",
+        "artist": "Open Sound Archive 2",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-27.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-28",
+        "title": "Field recording 28",
+        "artist": "Open Sound Archive 3",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-28.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-29",
+        "title": "Field recording 29",
+        "artist": "Open Sound Archive 4",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-29.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      },
+      {
+        "id": "field-recording-30",
+        "title": "Field recording 30",
+        "artist": "Open Sound Archive 5",
+        "album": "Public Habitat Recordings",
+        "file": "Archive/Media/field-recording-30.wav",
+        "duration": 0.1,
+        "favorite": false,
+        "addedAt": "2026-08-01T00:00:00.000Z"
+      }
+    ],
+    "artists": [
+      {
+        "id": "open-sound-archive-1",
+        "name": "Open Sound Archive 1",
+        "bio": "Synthetic public fixture artist for offline development."
+      },
+      {
+        "id": "open-sound-archive-2",
+        "name": "Open Sound Archive 2",
+        "bio": "Synthetic public fixture artist for offline development."
+      },
+      {
+        "id": "open-sound-archive-3",
+        "name": "Open Sound Archive 3",
+        "bio": "Synthetic public fixture artist for offline development."
+      },
+      {
+        "id": "open-sound-archive-4",
+        "name": "Open Sound Archive 4",
+        "bio": "Synthetic public fixture artist for offline development."
+      },
+      {
+        "id": "open-sound-archive-5",
+        "name": "Open Sound Archive 5",
+        "bio": "Synthetic public fixture artist for offline development."
+      }
+    ],
+    "playlists": [
+      {
+        "id": "field-sampler",
+        "name": "Field sampler"
+      },
+      {
+        "id": "pre-2000",
+        "name": "Pre-2000"
+      }
+    ],
+    "play_events": [],
+    "artist_aliases": [],
+    "track_artists": [],
+    "playlist_tracks": [
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-01",
+        "position": 0
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-02",
+        "position": 1
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-03",
+        "position": 2
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-04",
+        "position": 3
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-05",
+        "position": 4
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-06",
+        "position": 5
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-07",
+        "position": 6
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-08",
+        "position": 7
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-09",
+        "position": 8
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-10",
+        "position": 9
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-11",
+        "position": 10
+      },
+      {
+        "playlistId": "field-sampler",
+        "trackId": "field-recording-12",
+        "position": 11
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-so-what",
+        "position": 0
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-like-a-rolling-stone",
+        "position": 1
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-space-oddity",
+        "position": 2
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-imagine",
+        "position": 3
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-speak-to-me",
+        "position": 4
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-breathe",
+        "position": 5
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-on-the-run",
+        "position": 6
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-time",
+        "position": 7
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-the-great-gig-in-the-sky",
+        "position": 8
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-money",
+        "position": 9
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-us-and-them",
+        "position": 10
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-any-colour-you-like",
+        "position": 11
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-brain-damage",
+        "position": 12
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-eclipse",
+        "position": 13
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-dreams",
+        "position": 14
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-running-up-that-hill",
+        "position": 15
+      },
+      {
+        "playlistId": "pre-2000",
+        "trackId": "pre-2000-fuori-dal-mondo",
+        "position": 16
+      }
+    ]
+  }
+}
