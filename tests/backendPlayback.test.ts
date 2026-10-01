@@ -1,5 +1,8 @@
+import Ajv from 'ajv'
+import { register } from '../src/backend'
 import { describe, expect, it, vi } from 'vitest'
 import { createMockValleyApi } from '@valley/plugin-testkit'
+import type { PluginBackendApi, PluginBackendOperationContext } from '@valley/plugin-sdk'
 import type { ValleyPluginManifest } from '@valley/plugin-sdk/types'
 import { connectPlayback } from './playbackFixture'
 import { parsePlaybackAction, playbackPosition } from '../src/playback'
@@ -17,6 +20,34 @@ function fixture() {
 }
 
 describe('persistent Music queue', () => {
+
+  it('validates every admitted playback result against its declared output schema', async () => {
+    const f = fixture()
+    const operations = new Map<string, (value: unknown, context: PluginBackendOperationContext) => unknown>()
+    const api = { ...f.api, pluginId: 'music', playback: { createLocalPlayer: async () => f.player }, files: { release: async () => {} }, rpc: {
+      emit() {}, handle: () => () => {}, handleOperation: (name: string, handler: (value: unknown, context: PluginBackendOperationContext) => unknown) => { operations.set(name, handler); return () => {} }
+    } } as unknown as PluginBackendApi
+    const dispose = register(api)
+    const context = { id: 'playback-output', api, cancellation: new AbortController().signal } as PluginBackendOperationContext
+    try {
+      const schemas = new Map(config.runtime.services.flatMap(service => service.metadata.commands.map(command => [command.id, new Ajv({ strict: false, strictSchema: true, allErrors: true, validateFormats: false, allowUnionTypes: true, ownProperties: true }).compile(command.outputSchema)] as const)))
+      const actions = [
+        { type: 'start', ids: ['fern', 'moss', 'canopy'], index: 0 }, { type: 'pause' }, { type: 'resume' }, { type: 'toggle' },
+        { type: 'next' }, { type: 'previous' }, { type: 'seek', value: 25 }, { type: 'volume', value: 0.5 },
+        { type: 'repeat' }, { type: 'shuffle' }, { type: 'flush' }, { type: 'add', ids: ['fern', 'moss'], where: 'end' },
+        { type: 'reorder', from: 1, to: 2 }, { type: 'playQueued', index: 1 }, { type: 'remove', index: 1 }, { type: 'stop' }, { type: 'clear' }
+      ]
+      for (const action of actions) {
+        const result = await operations.get('command.playback.action')!(action, context)
+        const validate = schemas.get(`playback.${action.type}`)!
+        expect(validate(result), action.type + ': ' + JSON.stringify(validate.errors)).toBe(true)
+        expect(validate({}), action.type).toBe(false)
+      }
+      const snapshot = await operations.get('command.playback.snapshot')!({}, context)
+      expect(schemas.get('playback.snapshot')!(snapshot)).toBe(true)
+    } finally { await dispose() }
+  })
+
   it('interpolates using only local elapsed time, freezes stale or paused samples and clamps duration', () => {
     const sample = { position: 40, duration: 90, rate: 2, playing: true, buffering: false, sampleAgeMs: 250 }
     expect(playbackPosition(sample, 9_000_000, 9_000_500)).toBe(41.5)
@@ -42,6 +73,21 @@ describe('persistent Music queue', () => {
     await f.backend.dispose()
   })
 
+  it('uses the admitted API for player actions, datasets and persisted settings', async () => {
+    const f = fixture()
+    await f.backend.read()
+    const scopedLoad = vi.fn(f.player.load)
+    const scopedDataset = vi.fn(f.api.data.dataset.bind(f.api.data))
+    const scopedSet = vi.fn(f.api.settings.set.bind(f.api.settings))
+    const createLocalPlayer = vi.fn(async () => ({ ...f.player, load: scopedLoad }))
+    const owner = { data: { ...f.api.data, dataset: scopedDataset }, settings: { ...f.api.settings, set: scopedSet }, playback: { createLocalPlayer } } as unknown as Pick<PluginBackendApi, 'data' | 'settings' | 'playback'>
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 }, undefined, owner)
+    expect(createLocalPlayer).toHaveBeenCalledOnce()
+    expect(scopedLoad).toHaveBeenCalledOnce()
+    expect(scopedDataset).toHaveBeenCalledWith('music.tracks')
+    expect(scopedSet).toHaveBeenCalled()
+    await f.backend.dispose()
+  })
   it('deduplicates ended events and continues repeat-one with a fresh generation', async () => {
     const f = fixture()
     await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss'], index: 0 })

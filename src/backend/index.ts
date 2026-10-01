@@ -1,4 +1,5 @@
 import type { PluginBackendApi } from '@valley/plugin-sdk'
+import { libraryHandlers } from './library'
 import { MusicPlayback } from './playback'
 import { parsePlaybackAction } from '../playback'
 
@@ -15,6 +16,9 @@ export function register(api: PluginBackendApi): () => Promise<void> {
     return value
   }
   const off = [
+    ...Object.entries(libraryHandlers()).map(([method, handler]) => api.rpc.handleOperation(method, handler)),
+    api.rpc.handleOperation('command.playback.snapshot', (_value, context) => { context.cancellation.throwIfAborted(); return playback.read() }),
+    api.rpc.handleOperation('command.playback.action', (value, context) => playback.dispatch(parsePlaybackAction(value), context.cancellation, context.api)),
     api.rpc.handle('playback.snapshot', () => playback.read()),
     api.rpc.handle('playback.action', value => playback.dispatch(parsePlaybackAction(value))),
     api.rpc.handle('audio.open', async (value) => {

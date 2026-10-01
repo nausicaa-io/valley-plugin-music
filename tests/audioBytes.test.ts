@@ -18,7 +18,7 @@ function fixture(content: Uint8Array) {
     settings: { get: () => ({}) },
     data: { dataset: () => ({ query: async () => ({ rows: [] }), subscribe: () => () => {} }) },
     playback: { createLocalPlayer: async () => ({ sessionId: 'test', getSnapshot: async () => null, onChange: () => () => {}, onAction: () => () => {}, dispose: async () => {} }) },
-    rpc: { emit: () => {}, handle: (method: string, handler: (payload: unknown) => unknown) => { handlers.set(method, handler); return () => { handlers.delete(method) } } }
+    rpc: { emit: () => {}, handleOperation: () => () => {}, handle: (method: string, handler: (payload: unknown) => unknown) => { handlers.set(method, handler); return () => { handlers.delete(method) } } }
   } as unknown as PluginBackendApi)
   const api = { backend: { call: vi.fn(async (method: string, payload: unknown) => handlers.get(method)!(payload)) } } as unknown as Pick<ValleyPluginApi, 'backend'>
   return { api, files, dispose }

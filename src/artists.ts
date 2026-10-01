@@ -18,6 +18,33 @@ export function normalizeArtistName(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
+export function sameArtist(left: Artist | null, right: Artist | null): boolean {
+  const stable = (artist: Artist | null) => artist && { id: artist.id, name: artist.name, image: artist.image ?? null, bio: artist.bio ?? null, aliases: [...(artist.aliases ?? [])].sort() }
+  return JSON.stringify(stable(left)) === JSON.stringify(stable(right))
+}
+
+export function patchArtistMetadata(artist: Artist, values: { name?: string; image?: string | null; bio?: string | null }): Artist {
+  const next = { ...artist }
+  if (values.name !== undefined) {
+    const name = values.name.trim()
+    if (!name) throw new Error('Artist name cannot be empty')
+    if (normalizeArtistName(artist.name) !== normalizeArtistName(name) && !(artist.aliases ?? []).some(alias => normalizeArtistName(alias) === normalizeArtistName(artist.name))) next.aliases = [...(artist.aliases ?? []), artist.name]
+    next.name = name
+  }
+  if (values.image !== undefined) { if (values.image) next.image = values.image; else delete next.image }
+  if (values.bio !== undefined) { if (values.bio?.trim()) next.bio = values.bio.trim(); else delete next.bio }
+  return next
+}
+
+export function mergeArtistMetadata(source: Artist, target: Artist): Artist {
+  const aliases = [...(target.aliases ?? [])]
+  for (const name of [source.name, ...(source.aliases ?? [])]) {
+    const norm = normalizeArtistName(name)
+    if (norm && norm !== normalizeArtistName(target.name) && !aliases.some(alias => normalizeArtistName(alias) === norm)) aliases.push(name)
+  }
+  return { ...target, aliases, ...(!target.bio && source.bio ? { bio: source.bio } : {}), ...(!target.image && source.image ? { image: source.image } : {}) }
+}
+
 /** De-duplicate names case-insensitively, preserving first-seen casing/order. */
 function dedupeNames(names: string[]): string[] {
   const out: string[] = []

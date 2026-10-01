@@ -1,3 +1,4 @@
+import { MusicLibrary, conflict } from './library'
 import { uiText } from './localization'
 import type { DataRecord } from '@valley/plugin-sdk/types'
 import type { DatasetBatchOperation, DatasetKey, DatasetRecord, DatasetTransactionOperation, DatasetWhere } from '@valley/plugin-sdk'
@@ -9,21 +10,19 @@ import { createIndexObserver } from '@valley/plugin-sdk'
 import { assetUrlForRelPath } from '@valley/plugin-sdk/fileTypes'
 import { normalizeRelPath } from '@valley/plugin-sdk/paths'
 import {
-  applyDeleteSong,
-  computeLibrarySync,
   dedupeHistory,
   mediaFilesInFolder,
   mostListened,
-  newTrackId,
   resolveCoverPath,
-  resolvePlaylistTracks,
-  rawTitleFromFileName,
-  trackDetailsFromFileName
+  resolvePlaylistTracks
 } from './data'
 import {
   newArtistId,
+  mergeArtistMetadata,
   normalizeArtistName,
+  patchArtistMetadata,
   resolveArtist,
+  sameArtist,
   trackArtists,
   trackCredits,
   tracksForArtist,
@@ -435,6 +434,8 @@ export class MusicStore {
 
   // ---- Helpers -------------------------------------------------------------
 
+  private library(): MusicLibrary { return new MusicLibrary(this.api, file => this.metadata.read(file, true)) }
+
   private async datasetRows(datasetId: string, where?: DatasetWhere): Promise<DatasetRecord[]> {
     const dataset = this.api.data.dataset(datasetId)
     const rows: DatasetRecord[] = []
@@ -771,60 +772,13 @@ export class MusicStore {
     await this.waitForIndex()
     this.metadata.assertCurrent(generation)
     this.synced = true
-    const entries = this.getIndexEntries()
-    const { toAdd, toHeal, missing } = computeLibrarySync(
-      this.tracks,
-      mediaFilesInFolder(entries, this.musicPath()),
-      entries
-    )
-    let changed = false
-    const healedPaths = new Map(toHeal.map(({ track, newPath }) => [track.id, newPath]))
-    for (const { track, newPath } of toHeal) {
-      const autoNamed = !track.details?.edited && Boolean(track.addedAt) && track.title === rawTitleFromFileName(track.file)
-      if (!autoNamed) {
-        this.metadata.assertCurrent(generation)
-        await this.trackStore().update(track.id, { ...track, file: newPath } as unknown as DataRecord)
-      }
-      changed = true
-    }
-    for (const track of this.tracks) {
-      if (track.details?.edited || !track.addedAt || track.title !== rawTitleFromFileName(track.file)) continue
-      const file = healedPaths.get(track.id) ?? track.file
-      const details = await this.trackDetails(file)
-      this.metadata.assertCurrent(generation)
-      await this.trackStore().update(track.id, { ...track, ...details, file } as unknown as DataRecord)
-      changed = true
-    }
-    for (const file of toAdd) {
-      const details = await this.trackDetails(file)
-      this.metadata.assertCurrent(generation)
-      const track: Track = {
-        id: newTrackId(),
-        ...details,
-        file,
-        addedAt: new Date().toISOString()
-      }
-      await this.trackStore().append(track as unknown as DataRecord)
-      changed = true
-    }
+    const library = this.library()
+    const observed = await library.list('tracks', undefined, 1)
+    const result = await library.rescan(observed.revision, undefined, this.getIndexEntries(), () => this.metadata.assertCurrent(generation))
     this.metadata.assertCurrent(generation)
-    this.missing = missing
-    if (changed) await this.load()
+    this.missing = new Set(result.missing)
+    if (result.added || result.updated) await this.load()
     else this.emit()
-  }
-
-  private async trackDetails(file: string): Promise<Pick<Track, 'title' | 'artist' | 'album'>> {
-    const fallback = trackDetailsFromFileName(file)
-    try {
-      const metadata = await this.metadata.read(file, true)
-      const title = metadata?.title?.trim() || fallback.title
-      const artist = metadata?.artist?.trim() || fallback.artist
-      const album = metadata?.album?.trim()
-      return album ? { title, artist, album } : { title, artist }
-    } catch (error) {
-      if (error instanceof MetadataCancelled) throw error
-      return fallback
-    }
   }
 
   /** Reload from disk and re-scan the folder (the page's Refresh button). */
@@ -1311,8 +1265,8 @@ export class MusicStore {
   // ---- Library mutations --------------------------------------------------------
 
   async updateTrack(songId: string, values: Pick<Track, 'title' | 'artist' | 'album' | 'details'>, baseline?: Track): Promise<void> {
-    const dataset = this.api.data.dataset(TRACKS_DATASET)
-    const current = await dataset.get({ id: songId }) as unknown as Track | null
+    const library = this.library(), observed = await library.readTrack(songId)
+    const current = observed.value
     if (!current) throw new Error(uiText('music.edit.missing'))
     if (baseline && ['title', 'artist', 'album', 'details'].some(key =>
       JSON.stringify(current[key as keyof Track] ?? null) !== JSON.stringify(baseline[key as keyof Track] ?? null))) {
@@ -1321,39 +1275,33 @@ export class MusicStore {
     if (!values.title.trim()) throw new Error(uiText('music.edit.titleRequired'))
     const next = { ...current, title: values.title.trim(), artist: values.artist.trim(), album: values.album?.trim() ?? '',
       artists: values.artist.trim() === current.artist ? current.artists ?? [] : [], details: { ...values.details, edited: true } }
-    await dataset.upsert(next as unknown as DatasetRecord)
+    await library.updateTrack(songId, { title: next.title, artist: next.artist, album: next.album, details: next.details }, observed.revision)
     await this.load()
   }
 
   async toggleFavorite(songId: string): Promise<void> {
     const track = this.trackById.get(songId)
     if (!track) return
-    const updated = { ...track, favorite: !track.favorite }
-    this.trackById.set(songId, updated)
-    this.tracks = this.tracks.map((t) => (t.id === songId ? updated : t))
-    this.emit()
-    if (!(await this.trackStore().update(songId, updated as unknown as DataRecord))) {
-      await this.load()
-      throw new Error('Could not save the track favorite')
-    }
+    const library = this.library(), observed = await library.readTrack(songId)
+    if (!observed.value || Boolean(observed.value.favorite) !== Boolean(track.favorite)) conflict(observed.revision)
+    await library.updateTrack(songId, { favorite: !track.favorite }, observed.revision)
+    await this.load()
   }
 
   async deleteSong(songId: string): Promise<void> {
-    const changed = applyDeleteSong(this.playlists, songId)
-    if (!(await this.trackStore().delete(songId))) throw new Error('Could not delete track')
-    for (const pl of changed) {
-      if (!(await this.playlistStore().update(pl.id, pl as unknown as DataRecord))) { await this.load(); throw new Error('Could not save playlist') }
-    }
+    const library = this.library(), observed = await library.readTrack(songId)
+    if (!observed.value) throw new Error('Track no longer exists')
+    const cached = this.trackById.get(songId)
+    if (cached && JSON.stringify(cached) !== JSON.stringify(observed.value)) conflict(observed.revision)
+    await library.deleteTrack(songId, observed.revision)
     await this.load()
   }
 
   private async writePlaylist(pl: Playlist): Promise<void> {
-    const exists = this.playlists.some((p) => p.id === pl.id)
-    if (exists) {
-      if (!(await this.playlistStore().update(pl.id, pl as unknown as DataRecord))) { await this.load(); throw new Error('Could not save playlist') }
-    } else {
-      if (!(await this.playlistStore().append(pl as unknown as DataRecord))) throw new Error('Could not create playlist')
-    }
+    const library = this.library(), observed = await library.readPlaylist(pl.id)
+    const cached = this.playlists.find(value => value.id === pl.id) ?? null
+    if (JSON.stringify(observed.value) !== JSON.stringify(cached)) conflict(observed.revision)
+    await library.writePlaylist(pl, observed)
     await this.load()
   }
 
@@ -1423,15 +1371,21 @@ export class MusicStore {
   }
 
   private async rawDeletePlaylist(id: string): Promise<boolean> {
-    const ok = await this.playlistStore().delete(id)
+    const library = this.library(), observed = await library.readPlaylist(id)
+    if (!observed.value) return false
+    const cached = this.playlists.find(value => value.id === id) ?? null
+    if (JSON.stringify(observed.value) !== JSON.stringify(cached)) conflict(observed.revision)
+    await library.deletePlaylist(id, observed)
     await this.load()
-    return ok
+    return true
   }
 
   private async rawRestorePlaylist(pl: Playlist): Promise<boolean> {
-    const ok = await this.playlistStore().append(pl as unknown as DataRecord)
+    const library = this.library(), observed = await library.readPlaylist(pl.id)
+    if (observed.value) conflict(observed.revision)
+    await library.writePlaylist(pl, observed)
     await this.load()
-    return ok
+    return true
   }
 
   deletePlaylistDirect(id: string): Promise<boolean> {
@@ -1459,59 +1413,43 @@ export class MusicStore {
   // metadata (image/bio/name/aliases). A rename keeps the old name as an alias
   // and a merge folds names in, so `syncArtists` never re-creates the old entity.
 
-  private async writeArtist(next: Artist): Promise<void> {
-    const exists = this.artists.some((a) => a.id === next.id)
-    this.artists = exists ? this.artists.map((a) => (a.id === next.id ? next : a)) : [...this.artists, next]
+  private async writeArtist(next: Artist, expected: Artist): Promise<void> {
+    const library = this.library(), observed = await library.readArtist(next.id)
+    if (!sameArtist(observed.value, expected)) conflict(observed.revision)
+    await library.writeArtists([{ id: next.id, value: next, revision: observed.revision }], observed.aliasesRevision)
+    this.artists = this.artists.map((a) => (a.id === next.id ? next : a))
     this.emit()
-    const saved = exists ? await this.artistStore().update(next.id, next as unknown as DataRecord) : await this.artistStore().append(next as unknown as DataRecord)
-    if (!saved) { await this.load(); throw new Error('Could not save artist') }
   }
 
   private async patchArtist(id: string, patch: (a: Artist) => Artist, label: string): Promise<void> {
     const before = this.artists.find((a) => a.id === id)
     if (!before) throw new Error('The artist no longer exists')
     const after = patch(before)
-    await this.writeArtist(after)
+    await this.writeArtist(after, before)
     this.api.undo.push({
       label,
       undo: async () => {
         if (JSON.stringify(this.artists.find((a) => a.id === id)) !== JSON.stringify(after)) throw new Error('Artist details changed after this edit')
-        await this.writeArtist(before)
+        await this.writeArtist(before, after)
         return { ok: true }
       },
       redo: async () => {
         if (JSON.stringify(this.artists.find((a) => a.id === id)) !== JSON.stringify(before)) throw new Error('Artist details changed after undo')
-        await this.writeArtist(after)
+        await this.writeArtist(after, before)
         return { ok: true }
       }
     })
   }
 
   updateArtistProperties(id: string, values: { name?: string; image?: string; bio?: string }): Promise<void> {
-    return this.patchArtist(id, (artist) => {
-      const next = { ...artist }
-      if (values.name !== undefined) {
-        const name = values.name.trim()
-        if (!name) throw new Error('Artist name cannot be empty')
-        if (normalizeArtistName(artist.name) !== normalizeArtistName(name)) next.aliases = [...new Set([...(artist.aliases ?? []), artist.name])]
-        next.name = name
-      }
-      if (values.image !== undefined) { if (values.image) next.image = values.image; else delete next.image }
-      if (values.bio !== undefined) { if (values.bio.trim()) next.bio = values.bio.trim(); else delete next.bio }
-      return next
-    }, uiText('music.properties.updateArtist'))
+    return this.patchArtist(id, artist => patchArtistMetadata(artist, values), uiText('music.properties.updateArtist'))
   }
 
   /** Set (or clear, with null) an artist's cover image — stored as the file name. */
   setArtistImage(id: string, imageFileName: string | null): Promise<void> {
     return this.patchArtist(
       id,
-      (a) => {
-        const next = { ...a }
-        if (imageFileName) next.image = imageFileName
-        else delete next.image
-        return next
-      },
+      artist => patchArtistMetadata(artist, { image: imageFileName }),
       imageFileName ? 'Set artist image' : 'Remove artist image'
     )
   }
@@ -1519,13 +1457,7 @@ export class MusicStore {
   setArtistBio(id: string, bio: string): Promise<void> {
     return this.patchArtist(
       id,
-      (a) => {
-        const next = { ...a }
-        const trimmed = bio.trim()
-        if (trimmed) next.bio = trimmed
-        else delete next.bio
-        return next
-      },
+      artist => patchArtistMetadata(artist, { bio }),
       'Edit artist bio'
     )
   }
@@ -1535,12 +1467,7 @@ export class MusicStore {
     if (!trimmed) return Promise.resolve()
     return this.patchArtist(
       id,
-      (a) => {
-        if (normalizeArtistName(a.name) === normalizeArtistName(trimmed)) return { ...a, name: trimmed }
-        const aliases = a.aliases ? [...a.aliases] : []
-        if (!aliases.some((al) => normalizeArtistName(al) === normalizeArtistName(a.name))) aliases.push(a.name)
-        return { ...a, name: trimmed, aliases }
-      },
+      artist => patchArtistMetadata(artist, { name: trimmed }),
       `Rename artist to “${trimmed}”`
     )
   }
@@ -1553,37 +1480,13 @@ export class MusicStore {
     const target = this.artists.find((a) => a.id === targetId)
     if (!source || !target) throw new Error('An artist no longer exists. Refresh the library and select both artists again.')
 
-    const aliases = [...(target.aliases ?? [])]
-    const addAlias = (name: string): void => {
-      const norm = normalizeArtistName(name)
-      if (!norm || norm === normalizeArtistName(target.name)) return
-      if (!aliases.some((al) => normalizeArtistName(al) === norm)) aliases.push(name)
-    }
-    addAlias(source.name)
-    for (const al of source.aliases ?? []) addAlias(al)
-    const merged: Artist = { ...target, aliases }
-    if (source.bio && !merged.bio) merged.bio = source.bio
-    if (source.image && !merged.image) merged.image = source.image
+    const merged = mergeArtistMetadata(source, target)
 
     const wasViewing = this.pageView.mode === 'artist' && this.pageView.id === sourceId
     const writePair = async (nextSource: Artist | null, nextTarget: Artist, expectedSource: Artist | null, expectedTarget: Artist): Promise<void> => {
-      const same = (left: Artist | null, right: Artist | null): boolean => {
-        const stable = (artist: Artist | null) => artist && { id: artist.id, name: artist.name, image: artist.image ?? null, bio: artist.bio ?? null, aliases: [...(artist.aliases ?? [])].sort() }
-        return JSON.stringify(stable(left)) === JSON.stringify(stable(right))
-      }
-      if (!same(this.artists.find((item) => item.id === sourceId) ?? null, expectedSource) || !same(this.artists.find((item) => item.id === targetId) ?? null, expectedTarget)) throw new Error('Artist details changed. Refresh before merging or undoing this change.')
-      const aliases = await this.datasetRows(ARTIST_ALIASES_DATASET)
-      const keys = aliases
-        .filter((entry) => entry.artistId === sourceId || entry.artistId === targetId)
-        .map((entry) => ({ artistId: String(entry.artistId), alias: String(entry.alias) }))
-      const operations: DatasetTransactionOperation[] = keys.length ? [{ dataset: ARTIST_ALIASES_DATASET, operation: 'delete-many', keys }] : []
-      if (!nextSource) operations.push({ dataset: ARTISTS_DATASET, operation: 'delete', key: { id: sourceId } })
-      for (const artist of [nextSource, nextTarget]) {
-        if (!artist) continue
-        operations.push({ dataset: ARTISTS_DATASET, operation: 'upsert', values: { id: artist.id, name: artist.name, image: artist.image ?? null, bio: artist.bio ?? null } })
-        if (artist.aliases?.length) operations.push({ dataset: ARTIST_ALIASES_DATASET, operation: 'upsert', values: artist.aliases.map(alias => ({ artistId: artist.id, alias })) })
-      }
-      await this.api.data.transaction(operations)
+      const library = this.library(), [observedSource, observedTarget] = await library.readArtists([sourceId, targetId])
+      if (!sameArtist(observedSource.value, expectedSource) || !sameArtist(observedTarget.value, expectedTarget)) throw new Error('Artist details changed. Refresh before merging or undoing this change.')
+      await library.writeArtists([{ id: sourceId, value: nextSource, revision: observedSource.revision }, { id: targetId, value: nextTarget, revision: observedTarget.revision }], observedTarget.aliasesRevision)
       this.artists = [...this.artists.filter((item) => item.id !== sourceId && item.id !== targetId), ...(nextSource ? [nextSource] : []), nextTarget]
       if (wasViewing && this.pageView.mode === 'artist' && [sourceId, targetId].includes(this.pageView.id)) {
         this.pageView = { mode: 'artist', id: nextSource ? sourceId : targetId }

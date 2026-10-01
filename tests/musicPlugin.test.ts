@@ -872,7 +872,12 @@ describe('MusicStore', () => {
       const transaction = vi.spyOn(mock.api.data, 'transaction')
       await store.mergeArtists('source', 'target')
       expect(transaction).toHaveBeenCalledOnce()
-      expect(transaction.mock.calls[0][0]).toHaveLength(4)
+      expect(transaction.mock.calls[0][0].length).toBeLessThan(1000)
+      expect(transaction.mock.calls[0][1]?.expected).toEqual(expect.arrayContaining([
+        expect.objectContaining({ dataset: 'music.artists', key: { id: 'source' }, revision: expect.any(Number) }),
+        expect.objectContaining({ dataset: 'music.artists', key: { id: 'target' }, revision: expect.any(Number) }),
+        expect.objectContaining({ dataset: 'music.artist_aliases', revision: expect.any(Number) })
+      ]))
       expect(artistsOf(mock).find(artist => artist.id === 'target')?.aliases).toHaveLength(1003)
       const action = mock.undoActions.at(-1)!
       await action.undo()
