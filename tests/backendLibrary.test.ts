@@ -10,7 +10,7 @@ import config from '../config.json'
 const track = (id: string) => ({ id, file: `Music/${id}.mp3`, title: id, artist: 'Forest' })
 const asset = (relPath: string) => ({ relPath, title: relPath, kind: 'asset' as const, mtimeMs: 0 })
 const ajv = new Ajv({ strict: false, strictSchema: true, allErrors: true, validateFormats: false, allowUnionTypes: true, ownProperties: true })
-const schemas = new Map(config.runtime.services.flatMap(service => service.metadata.commands.map(command => [command.id, { input: ajv.compile(command.inputSchema), output: ajv.compile(command.outputSchema) }] as const)))
+const schemas = new Map(config.runtime.services.flatMap(service => (service.metadata?.commands ?? []).map(command => [command.id, { input: ajv.compile(command.inputSchema), output: ajv.compile(command.outputSchema) }] as const)))
 
 function fixture(options: Partial<MockApiOptions> = {}) {
   const mock = createMockValleyApi({

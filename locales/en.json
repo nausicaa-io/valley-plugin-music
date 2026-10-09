@@ -267,5 +267,6 @@
   "music.info.minutes": "{{minutes}} min",
   "music.info.artistBreakdown": "Artist breakdown",
   "bookmark.view": "Library view",
-  "bookmark.item": "Selected item"
+  "bookmark.item": "Selected item",
+  "music.library.chooseFolder": "Choose a music folder in Settings to add songs."
 }

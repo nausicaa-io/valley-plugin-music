@@ -1,4 +1,4 @@
-import { METADATA_PANEL_SEGMENT_V1, provideBookmarkSurface, WORKSPACE_DETAILS_V1, type MetadataPanelSegmentContext, type PluginInspectionSubject, type PluginProperty, type ValleyPluginApi } from '@valley/plugin-sdk'
+import { METADATA_PANEL_SEGMENT_V1, provideBookmarkSurface, WORKSPACE_DETAILS_V1, type MetadataPanelSegmentContext, type PluginInspectionSubject, type PluginProperty, type ValleyPluginApi, type PluginCommand } from '@valley/plugin-sdk'
 import { formatTime, resolveCoverPath } from './data'
 import { normalizeArtistName, trackArtists, tracksForArtist } from './artists'
 import type { Track } from './types'
@@ -423,7 +423,8 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
     id: 'music.properties', label: 'Music', labelKey: 'plugin.music.name', icon: 'music', pluginSurfaces: ['main_workspace'], editCommand: 'properties-update',
     inspect: ({ subject }) => properties(store.getSnapshot(), subject), render: (context) => <Properties {...context} />
   })
-  const offEdit = api.commands.register({
+  const edit: PluginCommand<{ subject: PluginInspectionSubject; values: Record<string, unknown> }, PluginProperty[], 'write'> & { outputSchema: Record<string, unknown> } = {
+    outputSchema: { type: 'array', maxItems: 10000, items: { type: 'object', properties: { id: { type: 'string', maxLength: 16384 }, label: { type: 'string', maxLength: 16384 }, labelKey: { type: 'string', maxLength: 16384 }, value: { anyOf: [{ type: 'string', maxLength: 16384 }, { type: 'number' }, { type: 'boolean' }] }, readOnly: { type: 'boolean' }, type: { enum: ['text', 'number', 'boolean', 'select', 'json'] } }, required: ['id', 'label', 'value'], additionalProperties: false } },
     id: 'properties-update', label: 'Update music properties', labelKey: 'music.surface.properties-update', paletteSafe: false, sideEffect: 'write',
     input: { schema: { type: 'object', properties: { subject: { type: 'object' }, values: { type: 'object' } }, required: ['subject', 'values'] }, parse: (raw) => { const input = record(raw); return { subject: record(input.subject) as unknown as PluginInspectionSubject, values: record(input.values) } } },
     preview: (input) => input, revision: ({ subject }) => properties(store.getSnapshot(), subject),
@@ -441,7 +442,8 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
         }
       } }
     }
-  })
+  }
+  const offEdit = api.commands.register(edit)
   return () => { surfaces.forEach((off) => off()); offProperties(); offEdit(); offDetails() }
 }
 

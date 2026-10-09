@@ -2,18 +2,18 @@ import Ajv from 'ajv'
 import { register } from '../src/backend'
 import { describe, expect, it, vi } from 'vitest'
 import { createMockValleyApi } from '@valley/plugin-testkit'
-import type { PluginBackendApi, PluginBackendOperationContext } from '@valley/plugin-sdk'
+import type { DatasetRecord, PluginBackendApi, PluginBackendOperationContext } from '@valley/plugin-sdk'
 import type { ValleyPluginManifest } from '@valley/plugin-sdk/types'
 import { connectPlayback } from './playbackFixture'
 import { parsePlaybackAction, playbackPosition } from '../src/playback'
 import config from '../config.json'
 
-function fixture() {
+function fixture(queue: Array<{ position: number; songId: string }> = [], rescanned: DatasetRecord[] = []) {
   const mock = createMockValleyApi({
     manifest: { id: 'music', datasets: config.datasets as unknown as ValleyPluginManifest['datasets'] },
     datasets: {
-      'music.tracks': ['fern', 'moss', 'canopy'].map(id => ({ id, file: `Music/${id}.mp4`, title: id, artist: 'Forest' })),
-      'music.queue': [], 'music.play_events': []
+      'music.tracks': [...['fern', 'moss', 'canopy'].map(id => ({ id, file: `Music/${id}.mp4`, title: id, artist: 'Forest' })), ...rescanned],
+      'music.queue': queue, 'music.play_events': []
     }
   })
   return { ...mock, ...connectPlayback(mock.api) }
@@ -21,8 +21,26 @@ function fixture() {
 
 describe('persistent Music queue', () => {
 
+  it.each(['paused', 'ended'] as const)('restores a %s source without advancing or playing the saved queue', async status => {
+    const f = fixture([{ position: 0, songId: 'moss' }])
+    const initial = f.getSnapshot()!
+    vi.mocked(f.player.getSnapshot).mockResolvedValue({
+      ...initial,
+      target: { ...initial.target, sourceGeneration: 1 },
+      descriptor: { ...initial.descriptor, path: 'Music/fern.mp4' },
+      state: { ...initial.state, status, positionSeconds: 180, durationSeconds: 180 }
+    })
+    await f.backend.read()
+    await f.backend.dispatch({ type: 'flush' })
+    expect(f.player.load).not.toHaveBeenCalled()
+    expect(f.player.play).not.toHaveBeenCalled()
+    expect(f.backend.snapshot()).toMatchObject({ current: { id: 'fern' }, playing: false })
+    expect(f.datasets.get('music.queue')).toEqual([{ position: 0, songId: 'moss' }])
+    await f.backend.dispose()
+  })
+
   it('validates every admitted playback result against its declared output schema', async () => {
-    const f = fixture()
+    const f = fixture([], [{ id: 'untagged', file: 'Music/untagged.mp4', title: 'untagged', artist: 'Unknown', artists: null, album: null, duration: null, favorite: null, addedAt: null, details: null }])
     const operations = new Map<string, (value: unknown, context: PluginBackendOperationContext) => unknown>()
     const api = { ...f.api, pluginId: 'music', playback: { createLocalPlayer: async () => f.player }, files: { release: async () => {} }, rpc: {
       emit() {}, handle: () => () => {}, handleOperation: (name: string, handler: (value: unknown, context: PluginBackendOperationContext) => unknown) => { operations.set(name, handler); return () => {} }
@@ -30,11 +48,12 @@ describe('persistent Music queue', () => {
     const dispose = register(api)
     const context = { id: 'playback-output', api, cancellation: new AbortController().signal } as PluginBackendOperationContext
     try {
-      const schemas = new Map(config.runtime.services.flatMap(service => service.metadata.commands.map(command => [command.id, new Ajv({ strict: false, strictSchema: true, allErrors: true, validateFormats: false, allowUnionTypes: true, ownProperties: true }).compile(command.outputSchema)] as const)))
+      const schemas = new Map(config.runtime.services.flatMap(service => (service.metadata?.commands ?? []).map(command => [command.id, new Ajv({ strict: false, strictSchema: true, allErrors: true, validateFormats: false, allowUnionTypes: true, ownProperties: true }).compile(command.outputSchema)] as const)))
+      const nodes = new Map((config.runtime.services.find(service => service.id === 'workflow.provider')!.metadata as unknown as { workflow: { nodes: Array<{ id: string; outputSchema: object }> } }).workflow.nodes.map(node => [node.id, new Ajv({ strict: false, allErrors: true, validateFormats: false, allowUnionTypes: true }).compile(node.outputSchema)] as const))
       const actions = [
-        { type: 'start', ids: ['fern', 'moss', 'canopy'], index: 0 }, { type: 'pause' }, { type: 'resume' }, { type: 'toggle' },
+        { type: 'start', ids: ['untagged', 'fern', 'moss', 'canopy'], index: 0 }, { type: 'pause' }, { type: 'resume' }, { type: 'toggle' },
         { type: 'next' }, { type: 'previous' }, { type: 'seek', value: 25 }, { type: 'volume', value: 0.5 },
-        { type: 'repeat' }, { type: 'shuffle' }, { type: 'flush' }, { type: 'add', ids: ['fern', 'moss'], where: 'end' },
+        { type: 'repeat' }, { type: 'shuffle' }, { type: 'flush' }, { type: 'add', ids: ['untagged', 'moss'], where: 'end' },
         { type: 'reorder', from: 1, to: 2 }, { type: 'playQueued', index: 1 }, { type: 'remove', index: 1 }, { type: 'stop' }, { type: 'clear' }
       ]
       for (const action of actions) {
@@ -42,9 +61,11 @@ describe('persistent Music queue', () => {
         const validate = schemas.get(`playback.${action.type}`)!
         expect(validate(result), action.type + ': ' + JSON.stringify(validate.errors)).toBe(true)
         expect(validate({}), action.type).toBe(false)
+        expect(nodes.get(`playback.${action.type}`)!(result), action.type).toBe(true)
       }
       const snapshot = await operations.get('command.playback.snapshot')!({}, context)
       expect(schemas.get('playback.snapshot')!(snapshot)).toBe(true)
+      expect(nodes.get('playback.snapshot')!(snapshot)).toBe(true)
     } finally { await dispose() }
   })
 
@@ -102,6 +123,17 @@ describe('persistent Music queue', () => {
     await f.backend.dispose()
   })
 
+  it('does not advance after a paused seek reaches the end of a previously played source', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss'], index: 0 })
+    await f.backend.dispatch({ type: 'pause' })
+    f.observe({ status: 'ended', positionSeconds: 180 })
+    await f.backend.dispatch({ type: 'flush' })
+    expect(f.player.load).toHaveBeenCalledOnce()
+    expect(f.backend.snapshot()).toMatchObject({ current: { id: 'fern' }, playing: false })
+    await f.backend.dispose()
+  })
+
   it('keeps Music Stop queue clearing separate from host pause and serializes rapid queue actions', async () => {
     const f = fixture()
     await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss', 'canopy'], index: 0 })
@@ -125,6 +157,79 @@ describe('persistent Music queue', () => {
     await expect(f.backend.dispatch({ type: 'seek', value: 80 })).rejects.toThrow('unknown')
     expect(f.player.seek).toHaveBeenCalledTimes(1)
     expect(f.backend.snapshot().error).toContain('unknown')
+    await f.backend.dispose()
+  })
+
+  it.each(['queued', 'accepted'] as const)('does not report %s playback as completed or retry it', async status => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
+    await f.backend.dispatch({ type: 'pause' })
+    vi.mocked(f.player.play).mockResolvedValueOnce({ commandId: 'pending', target: f.getSnapshot()!.target, status })
+    await expect(f.backend.dispatch({ type: 'resume' })).rejects.toMatchObject({ outcome: 'unknown', retryable: false })
+    expect(f.player.play).toHaveBeenCalledOnce()
+    expect(f.backend.snapshot()).toMatchObject({ playing: false, errorOutcome: 'unknown' })
+    await f.backend.dispose()
+  })
+
+  it('rejects observed resume with no playing confirmation and retains a useful engine failure', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
+    await f.backend.dispatch({ type: 'pause' })
+    vi.mocked(f.player.play).mockImplementationOnce(async () => {
+      f.observe({ status: 'error', error: 'Unsupported audio format' })
+      return { commandId: 'invalid-observation', target: f.getSnapshot()!.target, status: 'observed' }
+    })
+    await expect(f.backend.dispatch({ type: 'resume' })).rejects.toThrow('Unsupported audio format')
+    expect(f.player.play).toHaveBeenCalledOnce()
+    expect(f.backend.snapshot()).toMatchObject({ playing: false, error: 'Unsupported audio format' })
+    await f.backend.dispose()
+  })
+
+  it('refreshes an observed receipt before returning when the subscription is delayed', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
+    await f.backend.dispatch({ type: 'pause' })
+    const snapshot = f.getSnapshot()!
+    vi.mocked(f.player.play).mockResolvedValueOnce({ commandId: 'observed', target: snapshot.target, status: 'observed' })
+    vi.mocked(f.player.getSnapshot).mockResolvedValueOnce({ ...snapshot, state: { ...snapshot.state, status: 'playing' } })
+    expect(await f.backend.dispatch({ type: 'resume' })).toMatchObject({ playing: true })
+    expect(f.player.play).toHaveBeenCalledOnce()
+    await f.backend.dispose()
+  })
+
+  it('reports a short recording that ended after confirmed play as completed, without repeating it', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
+    await f.backend.dispatch({ type: 'pause' })
+    const snapshot = f.getSnapshot()!
+    vi.mocked(f.player.play).mockResolvedValueOnce({ commandId: 'short-observed', target: snapshot.target, status: 'observed' })
+    vi.mocked(f.player.getSnapshot).mockResolvedValueOnce({ ...snapshot, state: { ...snapshot.state, status: 'ended', positionSeconds: 0.1, durationSeconds: 0.1 } })
+    expect(await f.backend.dispatch({ type: 'resume' })).toMatchObject({ playing: false, position: 0.1, duration: 0.1, error: null })
+    expect(f.player.play).toHaveBeenCalledOnce()
+    expect(f.player.load).toHaveBeenCalledOnce()
+    await f.backend.dispose()
+  })
+
+  it.each(['paused', 'ended'] as const)('restarts a selected recording at its end from zero when its saved status is %s', async status => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
+    f.observe({ status, positionSeconds: 0.1, durationSeconds: 0.1 })
+    expect(await f.backend.dispatch({ type: 'resume' })).toMatchObject({ playing: true, position: 0 })
+    expect(f.player.load).toHaveBeenLastCalledWith(expect.objectContaining({ path: 'Music/fern.mp4' }), { position: 0, autoplay: true })
+    expect(f.player.load).toHaveBeenCalledTimes(2)
+    expect(f.player.play).not.toHaveBeenCalled()
+    await f.backend.dispose()
+  })
+
+  it.each(['paused', 'error'] as const)('refuses an autoplay load that only reports %s without replaying it', async status => {
+    const f = fixture()
+    await f.backend.read()
+    const snapshot = f.getSnapshot()!
+    vi.mocked(f.player.load).mockResolvedValueOnce({ ...snapshot, descriptor: { ...snapshot.descriptor, path: 'Music/fern.mp4' }, state: { ...snapshot.state, status, ...(status === 'error' ? { error: 'Media file is missing' } : {}) } })
+    await expect(f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })).rejects.toThrow(status === 'error' ? 'Media file is missing' : 'unknown')
+    expect(f.player.load).toHaveBeenCalledOnce()
+    expect(f.backend.snapshot().playing).toBe(false)
+    expect(f.datasets.get('music.play_events')).toEqual([])
     await f.backend.dispose()
   })
 

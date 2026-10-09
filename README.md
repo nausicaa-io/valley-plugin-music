@@ -25,3 +25,9 @@ Enable **Music** in Footer Rail settings for a cover-and-title button that opens
 Music’s details panel presents plain key/value rows, cover paths, total duration, and per-artist song counts and minutes. Collaborations count their full duration for each credited artist, with aliases deduplicated per song; unknown durations are listed separately. The leading `/` breadcrumb returns to Home.
 
 Home’s header includes the active song while playing or paused. Recently played cards keep their order for the session, refreshing on library refresh or plugin reload while play history continues updating.
+
+## Workflow integration
+
+The backend explicitly registers its supported blocks through `registerWorkflowContribution`. Workflow calls the owning operations with their original authentication, cancellation, grants, revisions, and receipts. The catalogue publishes Draft-07 parameter and port contracts; credential administration and approval bypasses are excluded. Workflow availability is configured separately in Workflow → Plugins. Existing account, connection, and profile settings remain owned by this plugin.
+
+Workflow output collections are explicit: `library.list` → `$.rows`. Selectors are relative to each execution item’s `json`. Library listing deliberately selects rows, preserving parallel row revisions and the collection revision as metadata. Playback snapshots, nullable playlists, song IDs, artist aliases and rescan findings have no collection selector.

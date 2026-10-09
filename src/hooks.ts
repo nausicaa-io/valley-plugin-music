@@ -4,6 +4,7 @@ import { getStore, type MusicSnapshot, type MusicStore } from './store'
 
 const EMPTY: MusicSnapshot = {
   loading: true,
+  libraryError: null,
   musicPath: '',
   tracks: [],
   playlists: [],

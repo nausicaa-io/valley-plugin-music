@@ -63,9 +63,6 @@ interface DatasetStore {
 
 const PLAYER_SETTINGS_KEY = 'player'
 
-/** Example shown only as the empty Settings field's placeholder. */
-export const DEFAULT_MUSIC_PATH = 'Lifestyle/music'
-
 export function normalizeMusicPath(value: unknown): string {
   return normalizeRelPath(value)
 }
@@ -121,6 +118,7 @@ const DEFAULT_LEFT_SECTIONS: Record<MusicPanelSection, boolean> = {
 /** Library projections retain their identity during playback, queue, and view changes. */
 export interface MusicSnapshot {
   loading: boolean
+  libraryError: string | null
   musicPath: string
   tracks: Track[]
   playlists: Playlist[]
@@ -218,6 +216,7 @@ export class MusicStore {
   private recentlyPlayedIds: string[] | null = null
   private missing = new Set<string>()
   private loading = true
+  private libraryError: string | null = null
   private navLoaded = false
   private pendingLinkState: Record<string, unknown> | null = null
   private synced = false
@@ -292,7 +291,8 @@ export class MusicStore {
     this.offBeforeUnload = this.api.runtime.onBeforeUnload(async () => {
       do {
         if (this.navDirty) this.flushNav()
-        const [navigation, playback] = await Promise.all([this.navWrite, this.flushPersistence()])
+        const navigation = await this.navWrite
+        const playback = await this.flushPersistence()
         if (!navigation || !playback) throw new Error('Could not save Music state')
       } while (this.navDirty || this.pendingPlayback.size > 0)
     })
@@ -311,7 +311,7 @@ export class MusicStore {
       this.emit()
       if (!this.loading && !this.synced) this.syncWhenIndexed()
     })
-    void this.load().then(() => this.syncWhenIndexed())
+    void this.load().then(() => this.syncWhenIndexed()).catch(() => {})
   }
 
   // ---- Subscription -------------------------------------------------------
@@ -371,6 +371,7 @@ export class MusicStore {
     }
     this.snapshot = {
       loading: this.loading,
+      libraryError: this.libraryError,
       musicPath: this.musicPath(),
       tracks: this.tracks,
       playlists: this.playlists,
@@ -630,7 +631,7 @@ export class MusicStore {
   musicPath(): string {
     const raw = this.api.settings.get().musicPath
     const persisted = normalizeMusicPath(raw)
-    if (this.musicPathOverride) {
+    if (this.musicPathOverride !== null) {
       if (persisted === this.musicPathOverride) this.musicPathOverride = null
       else return this.musicPathOverride
     }
@@ -646,7 +647,20 @@ export class MusicStore {
   async load(): Promise<void> {
     if (this.disposed) return
     this.loading = true
+    this.libraryError = null
     this.emit()
+    try {
+      await this.loadLibrary()
+    } catch (error) {
+      this.libraryError = error instanceof Error ? error.message : String(error)
+      throw error
+    } finally {
+      this.loading = false
+      if (!this.disposed) this.emit()
+    }
+  }
+
+  private async loadLibrary(): Promise<void> {
     const [songs, lists, history, artists] = await Promise.all([
       this.trackStore().read() as Promise<unknown> as Promise<Track[]>,
       this.playlistStore().read() as Promise<unknown> as Promise<Playlist[]>,
@@ -742,8 +756,12 @@ export class MusicStore {
   }
 
   private syncWhenIndexed(): void {
-    if (this.disposed || this.synced || this.index.getSnapshot().status !== 'ready') return
-    void this.syncLibrary()
+    if (this.disposed || this.libraryError || this.synced || this.index.getSnapshot().status !== 'ready') return
+    void this.syncLibrary().catch(error => {
+      if (this.disposed) return
+      this.libraryError = error instanceof Error ? error.message : String(error)
+      this.emit()
+    })
   }
 
   /**
@@ -769,6 +787,7 @@ export class MusicStore {
   }
 
   private async scanLibrary(generation: number): Promise<void> {
+    if (!this.musicPath()) return
     await this.waitForIndex()
     this.metadata.assertCurrent(generation)
     this.synced = true
@@ -791,7 +810,7 @@ export class MusicStore {
 
   async setMusicPath(path: string): Promise<boolean> {
     const normalized = normalizeMusicPath(path)
-    if (!normalized) return false
+    if (path.trim() && !normalized) return false
     this.musicPathOverride = normalized
     this.observedMusicPath = normalized
     const result = await this.api.settings.set('musicPath', normalized)
@@ -811,7 +830,7 @@ export class MusicStore {
     const path = this.musicPath()
     if (path === this.observedMusicPath) return
     this.observedMusicPath = path
-    void this.refresh()
+    void this.refresh().catch(() => {})
   }
 
   // ---- Covers ---------------------------------------------------------------
@@ -1257,9 +1276,10 @@ export class MusicStore {
   }
 
   playbackFailureError(): Error {
+    const message = this.playError ?? 'Could not persist Music history or queue state.'
     return this.playbackOutcome === 'unknown'
-      ? Object.assign(new Error('Playback outcome is unknown. Check the player before trying again.'), { outcome: 'unknown', outcomeUnknown: true, retryable: false })
-      : new Error('Could not persist Music history or queue state.')
+      ? Object.assign(new Error(message.includes('unknown') ? message : `${message} Playback outcome is unknown. Check the player before trying again.`), { outcome: 'unknown', outcomeUnknown: true, retryable: false })
+      : new Error(message)
   }
 
   // ---- Library mutations --------------------------------------------------------

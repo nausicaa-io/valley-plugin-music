@@ -144,6 +144,7 @@ const TrackRows: FC<{ store: MusicStore; snap: MusicSnapshot; tracks: Track[]; q
 const MusicFence: FC<{ code: string }> = ({ code }) => {
   const { store, snap } = useMusic()
   if (!store) return <div className="music-fence-empty">{uiText('auto.e4a2a6c8fdc8')}</div>
+  if (snap.libraryError) return <div className="music-fence-empty" role="alert">{snap.libraryError}</div>
   if (snap.loading) return <div className="music-fence-empty">{uiText('auto.78df555a3a52')}</div>
 
   const params = parseFenceParams(code)

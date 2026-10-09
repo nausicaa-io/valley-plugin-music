@@ -267,5 +267,6 @@
   "music.info.minutes": "{{minutes}} Min.",
   "music.info.artistBreakdown": "Aufschlüsselung nach Künstler",
   "bookmark.view": "Bibliotheksansicht",
-  "bookmark.item": "Ausgewählter Eintrag"
+  "bookmark.item": "Ausgewählter Eintrag",
+  "music.library.chooseFolder": "Wähle in den Einstellungen einen Musikordner aus, um Songs hinzuzufügen."
 }

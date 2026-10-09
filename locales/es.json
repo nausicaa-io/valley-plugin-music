@@ -267,5 +267,6 @@
   "music.info.minutes": "{{minutes}} min",
   "music.info.artistBreakdown": "Desglose por artista",
   "bookmark.view": "Vista de biblioteca",
-  "bookmark.item": "Elemento seleccionado"
+  "bookmark.item": "Elemento seleccionado",
+  "music.library.chooseFolder": "Elige una carpeta de música en Ajustes para añadir canciones."
 }

@@ -1,5 +1,6 @@
 import type { DatasetRecord, PluginBackendApi } from '@valley/plugin-sdk'
 import { VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
+import { sameMediaIdentity } from '@valley/plugin-sdk/media'
 import { trackCredits } from '../artists'
 import { nextIndex, type MusicPlaybackAction, type MusicPlaybackSnapshot } from '../playback'
 import type { RepeatMode, Track } from '../types'
@@ -23,6 +24,7 @@ export class MusicPlayback {
   private playEvent: MusicPlaybackSnapshot['playEvent']
   private pendingHistory = new Map<string, NonNullable<MusicPlaybackSnapshot['playEvent']>>()
   private endedGeneration: string | null = null
+  private playingGeneration: string | null = null
   private recordedGeneration: string | null = null
   private off: (() => void)[] = []
   private tail: Promise<unknown> = Promise.resolve()
@@ -119,6 +121,8 @@ export class MusicPlayback {
     this.publish()
     if (!snapshot || snapshot.descriptor.path !== this.queue[this.index]?.file) return
     const generation = `${snapshot.target.sessionGeneration}:${snapshot.target.sourceGeneration}`
+    if (snapshot.state.status === 'playing') this.playingGeneration = generation
+    else if (['paused', 'stopped', 'loading', 'error'].includes(snapshot.state.status)) this.playingGeneration = null
     if (snapshot.state.status === 'playing' && this.recordedGeneration !== generation) {
       this.recordedGeneration = generation
       const track = this.queue[this.index]
@@ -129,7 +133,8 @@ export class MusicPlayback {
         await this.flushHistory()
       }).catch(error => { this.error = this.message(error); this.publish() })
     }
-    if (snapshot.state.status === 'ended' && this.endedGeneration !== generation) {
+    if (snapshot.state.status === 'ended' && this.playingGeneration === generation && this.endedGeneration !== generation) {
+      this.playingGeneration = null
       this.endedGeneration = generation
       void this.enqueue(async () => {
         if (this.media?.target.sourceGeneration !== snapshot.target.sourceGeneration) return
@@ -183,11 +188,27 @@ export class MusicPlayback {
     }
   }
 
-  private async receipt(pending: ReturnType<Player['play']>): Promise<void> {
+  private unknown(): Error {
+    return Object.assign(new Error('Playback outcome is unknown. Check the player before trying again.'), { outcome: 'unknown', retryable: false })
+  }
+
+  private confirmPlaying(snapshot: PlayerSnapshot): void {
+    if (snapshot?.state.status === 'error') throw new Error(snapshot.state.error ?? 'The player could not load this track')
+    const duration = snapshot?.state.durationSeconds
+    if (snapshot?.state.status === 'ended' && duration != null && duration > 0 && snapshot.state.positionSeconds >= duration) return
+    if (snapshot?.state.status !== 'playing') throw this.unknown()
+  }
+
+  private async receipt(pending: ReturnType<Player['play']>, player: Player, playing = false): Promise<void> {
     const receipt = await pending
-    if (receipt.status === 'failed' || receipt.status === 'rejected' || receipt.status === 'unknown') {
-      throw Object.assign(new Error(receipt.status === 'unknown' ? 'Playback outcome is unknown. Check the player before trying again.' : 'The player could not complete the command'), receipt.status === 'unknown' ? { outcome: 'unknown', retryable: false } : {})
+    if (receipt.status !== 'observed') {
+      if (receipt.status === 'failed' || receipt.status === 'rejected') throw new Error(receipt.error ?? 'The player could not complete the command')
+      throw this.unknown()
     }
+    const snapshot = await player.getSnapshot().catch(() => { throw this.unknown() })
+    if (!snapshot || !sameMediaIdentity(snapshot.target, receipt.target)) throw this.unknown()
+    this.observe(snapshot)
+    if (playing) this.confirmPlaying(snapshot)
   }
 
   private async start(index: number, position = 0, owner: PlaybackOwner = this.api, player = this.player): Promise<void> {
@@ -200,9 +221,9 @@ export class MusicPlayback {
     this.error = null
     this.publish()
     const snapshot = await player.load(this.resource(track), { position, autoplay: true })
-    if (!snapshot) throw Object.assign(new Error('Playback outcome is unknown. Check the player before trying again.'), { outcome: 'unknown', retryable: false })
+    if (!snapshot) throw this.unknown()
     this.observe(snapshot)
-    if (snapshot.state.status === 'error') throw new Error(snapshot.state.error ?? 'The player could not load this track')
+    this.confirmPlaying(snapshot)
     await this.persist(owner)
     await this.prepare(player)
   }
@@ -235,7 +256,7 @@ export class MusicPlayback {
     const preferences = owner.settings.get().player as Record<string, unknown> | undefined
     if (preferences?.shuffle === this.shuffle && preferences?.repeat === this.repeat) return
     const saved = await owner.settings.set('player', { ...(preferences ?? {}), shuffle: this.shuffle, repeat: this.repeat })
-    if (!saved.ok) throw new Error('Could not save Music player preferences')
+    if (!saved.ok) throw new Error(`Could not save Music player preferences: ${saved.error}`)
   }
 
   private async flushHistory(owner: PlaybackOwner = this.api): Promise<void> {
@@ -262,25 +283,25 @@ export class MusicPlayback {
           await this.start(action.index, action.position, owner, player)
           break
         case 'toggle':
-          if (this.media?.state.status === 'playing' || this.media?.state.status === 'buffering') await this.receipt(player.pause())
+          if (this.media?.state.status === 'playing' || this.media?.state.status === 'buffering') await this.receipt(player.pause(), player)
           else await this.resume(owner, player)
           break
         case 'resume': await this.resume(owner, player); break
-        case 'pause': if (this.media) await this.receipt(player.pause()); break
-        case 'stop': if (this.media?.descriptor.path) await this.receipt(player.pause()); this.queue = this.queue.slice(0, base); break
+        case 'pause': if (this.media) await this.receipt(player.pause(), player); break
+        case 'stop': if (this.media?.descriptor.path) await this.receipt(player.pause(), player); this.queue = this.queue.slice(0, base); break
         case 'next': {
           const index = this.repeat === 'one' ? this.index : nextIndex(this.queue.length, this.index, this.repeat)
           if (index !== null) await this.start(index, 0, owner, player)
           break
         }
         case 'previous':
-          if ((this.media?.state.positionSeconds ?? 0) > 3) await this.receipt(player.seek(0))
+          if ((this.media?.state.positionSeconds ?? 0) > 3) await this.receipt(player.seek(0), player)
           else if (this.index > 0) await this.start(this.index - 1, 0, owner, player)
           else if (this.repeat === 'all' && this.queue.length > 1) await this.start(this.queue.length - 1, 0, owner, player)
-          else await this.receipt(player.seek(0))
+          else await this.receipt(player.seek(0), player)
           break
-        case 'seek': await this.receipt(player.seek(action.value)); break
-        case 'volume': await this.receipt(player.setVolume(action.value)); break
+        case 'seek': await this.receipt(player.seek(action.value), player); break
+        case 'volume': await this.receipt(player.setVolume(action.value), player); break
         case 'add': this.queue.splice(action.where === 'next' ? base : this.queue.length, 0, ...await this.tracks(action.ids, owner)); break
         case 'remove': if (action.index >= 0) this.queue.splice(base + action.index, 1); break
         case 'reorder': {
@@ -304,7 +325,9 @@ export class MusicPlayback {
 
   private async resume(owner: PlaybackOwner = this.api, player = this.player): Promise<void> {
     if (!player) return
-    if (this.index >= 0 && this.media?.state.status !== 'ended') { await this.receipt(player.play()); return }
+    const state = this.media?.state
+    const atEnd = state?.durationSeconds != null && state.durationSeconds > 0 && state.positionSeconds >= state.durationSeconds
+    if (this.index >= 0 && this.media?.descriptor.path === this.queue[this.index]?.file && !atEnd && this.media?.state.status !== 'ended' && this.media.state.status !== 'error') { await this.receipt(player.play(), player, true); return }
     if (this.queue.length) { await this.start(Math.max(0, this.index), 0, owner, player); return }
     const history = (await this.rows('music.play_events', owner)).sort((a, b) => String(a.playedAt).localeCompare(String(b.playedAt)))
     const last = history.at(-1)

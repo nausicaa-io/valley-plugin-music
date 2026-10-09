@@ -1,3 +1,4 @@
+import Ajv from 'ajv'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import * as React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -94,6 +95,19 @@ function createMockValleyApi(options: MusicMockOptions = {}): MockValleyApi {
     if (method === 'audio.close') return null
     throw new Error(`Unexpected backend call: ${method}`)
   }) as typeof mock.api.backend.call
+  const registrations = vi.spyOn(mock.api.commands, 'register')
+  const execute = mock.api.commands.execute.bind(mock.api.commands)
+  const validator = new Ajv({ strict: false, strictSchema: true, allErrors: true, validateFormats: false, ownProperties: true })
+  mock.api.commands.execute = vi.fn(async (id, input, context) => {
+    const result = await execute(id, input, context)
+    if (result.ok) {
+      const command = registrations.mock.calls.map(([value]) => value).find(value => `music:${value.id}` === id) as { outputSchema?: Record<string, unknown> } | undefined
+      expect(command?.outputSchema, id).toBeDefined()
+      const validate = validator.compile(command!.outputSchema!)
+      expect(validate(result.value), `${id}: ${JSON.stringify(validate.errors)}`).toBe(true)
+    }
+    return result
+  }) as typeof mock.api.commands.execute
   media.set(mock, connectPlayback(mock.api))
   mock.api.ui.MediaSurface = props => React.createElement('div', { 'data-media-session': props.sessionId })
   return mock
@@ -137,6 +151,103 @@ describe('Music Properties and explicit automation', () => {
   let restoreAudio: () => void
   beforeEach(() => { restoreAudio = installFakeAudio() })
   afterEach(() => { restoreAudio(); cleanup() })
+
+  it('publishes all result contracts and observes persistent records and exact playlist restoration', async () => {
+    const songs = [track('fern', 'Music/fern.mp4'), { ...track('moss', 'Music/moss.mp4'), artist: 'Meadow' }]
+    const mock = createMockValleyApi({ tracks: songs, playlists: [{ id: 'canopy', name: 'Canopy', songIds: ['fern', 'moss'] }], history: [{ songId: 'fern', playedAt: '2026-10-05T10:00:00Z' }], indexEntries: songs.map(song => asset(song.file)) })
+    const off = register(mock.api)
+    try {
+      await vi.waitFor(() => expect(getStore()?.getSnapshot().loading).toBe(false))
+      const commands = vi.mocked(mock.api.commands.register).mock.calls.map(([value]) => value as typeof value & { outputSchema: Record<string, unknown> })
+      expect(commands).toHaveLength(52)
+      const ajv = new Ajv({ strict: false, strictSchema: true })
+      for (const command of commands) {
+        expect(command.outputSchema, command.id).toBeDefined()
+        const validate = ajv.compile(command.outputSchema)
+        expect(validate({ unexpected: true }), command.id).toBe(false)
+      }
+      for (const kind of ['tracks', 'artists', 'playlists', 'history']) expect((await mock.api.commands.execute('music:library-query', { kind })).ok).toBe(true)
+      expect((await mock.api.commands.execute('music:history', {})).ok).toBe(true)
+      const before = structuredClone(mock.datasets.get('music.playlist_tracks'))
+      expect((await mock.api.commands.execute('music:playlist-reorder', { id: 'canopy', songIds: ['moss', 'fern'] })).ok).toBe(true)
+      expect(playlistsOf(mock)[0].songIds).toEqual(['moss', 'fern'])
+      await mock.busUndo.at(-1)!.undo()
+      expect(mock.datasets.get('music.playlist_tracks')).toEqual(before)
+      const artists = artistsOf(mock)
+      expect((await mock.api.commands.execute('music:artist-update', { id: artists[0].id, bio: '' })).ok).toBe(true)
+      expect(artistsOf(mock)[0].bio).toBeNull()
+      expect((await mock.api.commands.execute('music:artist-merge', { sourceId: artists[1].id, targetId: artists[0].id })).ok).toBe(true)
+      expect(artistsOf(mock)).toHaveLength(1)
+      expect((await mock.api.commands.execute('music:track-delete', { id: 'moss' })).ok).toBe(true)
+      expect(tracksOf(mock).map(song => song.id)).toEqual(['fern'])
+    } finally { off() }
+  })
+
+  it('validates the remaining playback, queue, refresh and navigation results through their owners', async () => {
+    const songs = ['fern', 'moss', 'lichen'].map(id => track(id, `Music/${id}.mp4`))
+    const mock = createMockValleyApi({ tracks: songs, playlists: [{ id: 'canopy', name: 'Canopy', songIds: songs.map(song => song.id) }], indexEntries: songs.map(song => asset(song.file)) })
+    const off = register(mock.api)
+    const call = async (id: string, input?: unknown) => {
+      const result = await mock.api.commands.execute(`music:${id}`, input)
+      expect(result.ok, id).toBe(true)
+      if (!result.ok) throw new Error(JSON.stringify(result))
+      return result.value
+    }
+    try {
+      await vi.waitFor(() => expect(getStore()?.getSnapshot().loading).toBe(false))
+      await call('playlist', { name: 'Canopy' })
+      expect(getStore()?.getSnapshot().currentPlaylistId).toBe('canopy')
+      await call('pause')
+      expect(getStore()?.getSnapshot().isPlaying).toBe(false)
+      await call('toggle')
+      expect(getStore()?.getSnapshot().isPlaying).toBe(true)
+      await call('shuffle', { mode: 'off' })
+      expect(getStore()?.getSnapshot().shuffle).toBe(false)
+      await call('seek', { seconds: 0 })
+      expect(getStore()?.getSnapshot().currentTime).toBe(0)
+      await call('now')
+      await call('play-last', { title: 'moss' })
+      await call('play-last', { title: 'lichen' })
+      const beforeQueue = structuredClone(mock.datasets.get('music.queue'))
+      await call('queue-reorder', { from: 0, to: 1 })
+      expect(mock.datasets.get('music.queue')).not.toEqual(beforeQueue)
+      await call('queue')
+      await call('skip')
+      await call('back')
+      await call('library')
+      await call('refresh')
+      expect(tracksOf(mock)).toHaveLength(3)
+      await call('open-page')
+      expect(mock.api.workspace.openMainTab).toHaveBeenCalled()
+      await call('stop')
+      expect(getStore()?.getSnapshot()).toMatchObject({ isPlaying: false, currentTime: 0 })
+    } finally { off() }
+  })
+
+  it('accepts rescanned tracks whose nullable columns are stored as null in every track result', async () => {
+    const tagged = track('fern', 'Music/fern.mp4')
+    const untagged = { ...track('moss', 'Music/moss.mp4'), artists: null, album: null, duration: null, favorite: null, addedAt: null, details: null } as unknown as Track
+    const mock = createMockValleyApi({ tracks: [tagged, untagged], playlists: [{ id: 'canopy', name: 'Canopy', songIds: ['fern'] }], indexEntries: [tagged, untagged].map(song => asset(song.file)) })
+    const off = register(mock.api)
+    const call = async (id: string, input?: unknown) => {
+      const result = await mock.api.commands.execute(`music:${id}`, input)
+      expect(result.ok, `${id}: ${JSON.stringify(result)}`).toBe(true)
+    }
+    try {
+      await vi.waitFor(() => expect(getStore()?.getSnapshot().loading).toBe(false))
+      await call('songs')
+      await call('library')
+      await call('search', { query: 'moss' })
+      await call('library-query', { kind: 'tracks' })
+      await call('playlist', { name: 'Canopy' })
+      await call('play-next', { title: 'moss' })
+      await call('play-last', { title: 'moss' })
+      await call('queue')
+      await call('add-to-playlist', { playlist: 'Canopy', query: 'moss' })
+      await call('favorite', { title: 'moss', on: true })
+      expect(tracksOf(mock).find(song => song.id === 'moss')).toMatchObject({ album: null, favorite: true })
+    } finally { off() }
+  })
 
   it('rejects ambiguous playlist names and edits the explicit selection with undo', async () => {
     const mock = createMockValleyApi({ playlists: [{ id: 'forest', name: 'Nature', songIds: [] }, { id: 'wetlands', name: 'Nature', songIds: [] }] })
@@ -457,6 +568,20 @@ describe('MusicStore', () => {
     })
     return { store: new MusicStore(mock.api), mock }
   }
+
+  it('leaves loading after a failed library read and recovers on refresh', async () => {
+    const mock = createMockValleyApi({ settings: { musicPath: '' } })
+    const dataset = mock.api.data.dataset.bind(mock.api.data)
+    const query = vi.fn().mockRejectedValue(new Error('Library unavailable'))
+    vi.spyOn(mock.api.data, 'dataset').mockImplementation(id => id === 'music.tracks' ? { ...dataset(id), query } : dataset(id))
+    const store = new MusicStore(mock.api)
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot()).toMatchObject({ loading: false, libraryError: 'Library unavailable' }))
+      query.mockResolvedValue({ rows: [], revision: 0 })
+      await store.refresh()
+      expect(store.getSnapshot()).toMatchObject({ loading: false, libraryError: null, tracks: [] })
+    } finally { await store.dispose() }
+  })
 
   it('waits for complete path hydration before marking tracks missing or resolving covers', async () => {
     const song = track('a', 'Music/a.mp3')
@@ -911,15 +1036,18 @@ describe('MusicStore', () => {
         if (args[0] === 'navigationState') await pending
         return setSetting(...args)
       })
+      const flushPlayback = vi.spyOn(store, 'flushPersistence')
       store.addTracksToQueue(store.getSnapshot().tracks, 'end')
       let prepared = false
       const saving = mock.runBeforeUnload().then(() => { prepared = true })
       await vi.waitFor(() => expect(writes).toHaveBeenCalledTimes(1))
       expect(prepared).toBe(false)
+      expect(flushPlayback).not.toHaveBeenCalled()
       store.setPageSearch('new forest')
       store.addTracksToQueue([songs[0]], 'end')
       finish()
       await saving
+      expect(flushPlayback).toHaveBeenCalled()
       expect(mock.api.settings.get().navigationState).toMatchObject({ searchQuery: 'new forest' })
       expect(mock.datasets.get('music.queue')?.map((row) => row.songId)).toEqual(['oak', 'fern', 'oak'])
       expect(writes).toHaveBeenCalledTimes(2)
@@ -1072,7 +1200,8 @@ describe('MusicStore', () => {
     render(React.createElement(SettingsView!))
     const folderField = screen.getByLabelText('Music folder')
     expect(folderField).toHaveValue('')
-    expect(folderField).toHaveAttribute('placeholder', 'Lifestyle/music')
+    expect(folderField).not.toHaveAttribute('placeholder', 'Lifestyle/music')
+    expect(screen.queryByText('Folder is not in the current vault index yet.')).not.toBeInTheDocument()
 
     const settingsWrites = (): typeof mock.driverCalls =>
       mock.driverCalls.filter((call) => call.driver === 'settings' && call.method === 'updatePluginSettings')
@@ -1086,6 +1215,11 @@ describe('MusicStore', () => {
     fireEvent.blur(folderField)
     await waitFor(() => expect(settingsWrites()).toHaveLength(1))
     expect(settingsWrites()[0]?.payload).toEqual({ pluginId: 'music', key: 'musicPath', value: 'Audio' })
+    await screen.findByText('Saved and rescanned.')
+    fireEvent.change(folderField, { target: { value: '' } })
+    fireEvent.blur(folderField)
+    await waitFor(() => expect(mock.api.settings.get().musicPath).toBe(''))
+    expect(folderField).toHaveValue('')
     dispose()
   })
 
@@ -1387,6 +1521,47 @@ describe('MusicStore', () => {
     await store.flushPersistence()
     expect(store.getSnapshot().upNext.map((t) => t.id)).toEqual(['c', 'd', 'b'])
     store.dispose()
+  })
+
+  it('returns a resume failure when the completed backend response still says paused', async () => {
+    const song = track('a', 'Music/a.mp4')
+    const mock = createMockValleyApi({ tracks: [song], indexEntries: [asset(song.file)] })
+    const store = createRuntimeStore(mock)
+    const off = registerMusicCommands(mock.api)
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().tracks).toHaveLength(1))
+      store.playTrack(song)
+      await store.flushPersistence()
+      store.pause()
+      await store.flushPersistence()
+      const invoke = mock.api.backend.call.bind(mock.api.backend)
+      mock.api.backend.call = vi.fn(async (method, input) => method === 'playback.action' && (input as { type?: string })?.type === 'resume'
+        ? media.get(mock)!.backend.snapshot()
+        : invoke(method, input)) as typeof mock.api.backend.call
+      const result = await mock.api.commands.execute('music:resume')
+      expect(result.ok).toBe(false)
+      expect(store.getSnapshot().isPlaying).toBe(false)
+      expect(mock.api.backend.call).toHaveBeenCalledWith('playback.action', { type: 'resume' })
+      expect(media.get(mock)!.player.play).not.toHaveBeenCalled()
+    } finally { off(); disposeStore(mock.api, store) }
+  })
+
+  it('reports short playback as ended when resume completes before its command response', async () => {
+    const song = track('a', 'Music/a.mp4')
+    const mock = createMockValleyApi({ tracks: [song], indexEntries: [asset(song.file)] })
+    const store = createRuntimeStore(mock)
+    const off = registerMusicCommands(mock.api)
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().tracks).toHaveLength(1))
+      store.playTrack(song)
+      await store.flushPersistence()
+      const player = media.get(mock)!
+      player.observe({ status: 'ended', positionSeconds: 0.1, durationSeconds: 0.1 })
+      vi.mocked(player.player.load).mockImplementationOnce(async descriptor => ({ ...player.getSnapshot()!, descriptor, state: { ...player.getSnapshot()!.state, status: 'ended', positionSeconds: 0.1, durationSeconds: 0.1 } }))
+      expect(await mock.api.commands.execute('music:resume')).toMatchObject({ ok: true, value: { playing: false, resumed: true, track: { id: 'a' } } })
+      expect(store.getSnapshot()).toMatchObject({ isPlaying: false, currentTime: 0.1, duration: 0.1 })
+      expect(player.player.load).toHaveBeenCalledTimes(2)
+    } finally { off(); disposeStore(mock.api, store) }
   })
 
   it('exposes selected playlist actions to the command palette', async () => {
@@ -2628,6 +2803,36 @@ describe('Music song editing and presentation', () => {
       expect(screen.queryByRole('button', { name: 'Video' })).toBeNull()
       expect(view.container.querySelector('video, audio')).toBeNull()
     } finally { await dispose() }
+  })
+
+  it('keeps video presentation stable through playback updates and queue scrolling', async () => {
+    const { song, mock, store, dispose } = await setup()
+    const surface = vi.fn((props: { sessionId: string }) => React.createElement('div', { 'data-media-session': props.sessionId }))
+    mock.api.ui.MediaSurface = surface
+    try {
+      store.playTrack(song)
+      await store.flushPersistence()
+      const view = render(React.createElement(Player))
+      fireEvent.click(screen.getByRole('button', { name: 'Video' }))
+      const video = view.container.querySelector('[data-media-session]')!
+      const before = surface.mock.calls.length
+      vi.useFakeTimers()
+      act(() => { vi.advanceTimersByTime(350) })
+      vi.useRealTimers()
+      await act(async () => { store.seek(25); await store.flushPersistence() })
+      expect((screen.getByRole('slider') as HTMLInputElement).valueAsNumber).toBeGreaterThanOrEqual(25)
+      await act(async () => { store.pause(); await store.flushPersistence() })
+      await act(async () => store.toggleFavorite(song.id))
+      const lists = view.container.querySelector('.player-lists')!
+      fireEvent.scroll(lists, { target: { scrollTop: 184 } })
+      expect(store.captureRightWorkspaceView()).toMatchObject({ scrollTop: 184 })
+      expect(lists.contains(video)).toBe(false)
+      expect(lists.contains(screen.getByRole('slider'))).toBe(false)
+      expect(store.getSnapshot().isPlaying).toBe(false)
+      expect(surface).toHaveBeenCalledTimes(before)
+      expect(view.container.querySelector('[data-media-session]')).toBe(video)
+      expect(video.parentElement?.getAttribute('data-plugin-widget-layout')).toBe('fill')
+    } finally { vi.useRealTimers(); await dispose() }
   })
 
   it('skips library component renders for playback clock updates', async () => {

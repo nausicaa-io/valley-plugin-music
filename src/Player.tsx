@@ -121,20 +121,19 @@ export const Player: FC = () => {
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [videoMode, setVideoMode] = React.useState(false)
   const hasVideo = (VIDEO_EXTENSIONS as readonly string[]).includes(fileExtension(track?.file ?? ''))
-  const viewRef = React.useRef<HTMLDivElement>(null)
+  const listsRef = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
-    if (viewRef.current) viewRef.current.scrollTop = rightPanelScrollTop
+    if (listsRef.current) listsRef.current.scrollTop = rightPanelScrollTop
   }, [rightViewNonce, rightPanelScrollTop])
   const { url: coverUrl, ref: coverRef } = useMusicCover(store, track?.id)
+  const videoSurface = React.useMemo(() => snap.sessionId
+    ? <api.ui.MediaSurface sessionId={snap.sessionId} fit="contain" controls={false} style={{ width: '100%', height: '100%', borderRadius: 2, background: 'transparent' }} />
+    : null, [snap.sessionId])
 
   if (!store) return null
 
   return (
-    <div
-      className="player-view"
-      ref={viewRef}
-      onScroll={(event) => store.setRightPanelScrollTop(event.currentTarget.scrollTop)}
-    >
+    <div className="player-view">
       {songEditor}
       <section className={`player-now ${track ? '' : 'empty'}`} onContextMenu={event => { if (track) openSongMenu(event, track) }}>
         <div className="player-media">
@@ -144,8 +143,8 @@ export const Player: FC = () => {
               <button aria-pressed={videoMode} onClick={() => setVideoMode(true)}>{uiText('music.player.video')}</button>
             </div>}
           </div>
-          <div ref={coverRef} className="player-art">
-            {hasVideo && videoMode && snap.sessionId ? <api.ui.MediaSurface sessionId={snap.sessionId} fit="contain" controls={false} style={{ width: '100%', height: '100%', borderRadius: 2, background: 'transparent' }} /> : <>
+          <div ref={coverRef} className="player-art" data-plugin-widget-layout="fill">
+            {hasVideo && videoMode && videoSurface ? videoSurface : <>
               {coverUrl ? (
                 <img src={coverUrl} alt="" />
               ) : (
@@ -235,91 +234,97 @@ export const Player: FC = () => {
         </div>
       </section>
 
-      <section className="player-queue" aria-label={uiText('auto.89373a2ec11a')}>
-        <button className="player-queue-head" onClick={() => store.setRightQueueOpen(!queueOpen)}>
-          <div className="player-queue-label">
-            <ListMusic />
-            <span>{uiText('auto.89373a2ec11a')}</span>
-            <span className="player-queue-count">{upNext.length}</span>
-          </div>
-          <div className="player-queue-head-right">
-            {queueOpen && upNext.length > 0 && (
-              <span
-                className="player-queue-clear"
-                role="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  store.clearQueue()
-                }}
-              >
-                {uiText('auto.719ea396ad92')}</span>
-            )}
-            {queueOpen ? <ChevronDown /> : <ChevronRight />}
-          </div>
-        </button>
-        {queueOpen && (
-          <div className="player-queue-list">
-            {upNext.length === 0 ? (
-              <div className="player-queue-empty">{uiText('auto.13f89e125ece')}</div>
-            ) : (
-              upNext.map((queuedTrack, i) => (
-                <PlayerQueueRow
-                  key={`${queuedTrack.id}-${i}`}
-                  track={queuedTrack}
-                  index={i}
-                  onPlay={() => store.playFromQueue(i)}
-                  onRemove={() => store.removeFromQueue(i)}
-                  onMenu={openSongMenu}
-                  onReorder={(from, to) => store.reorderQueue(from, to)}
-                  dragIndex={dragIndex}
-                  setDragIndex={setDragIndex}
-                  overIndex={overIndex}
-                  setOverIndex={setOverIndex}
-                />
-              ))
-            )}
-          </div>
-        )}
-      </section>
-
-      <section className="player-history" aria-label={uiText('auto.90ccd6497400')}>
-        <button className="player-queue-head" onClick={() => store.setRightHistoryOpen(!historyOpen)}>
-          <div className="player-queue-label">
-            <Clock />
-            <span>{uiText('auto.90ccd6497400')}</span>
-            <span className="player-queue-count">{history.length}</span>
-          </div>
-          {historyOpen ? <ChevronDown /> : <ChevronRight />}
-        </button>
-        {historyOpen && (
-          <div className="player-queue-list">
-            {history.length === 0 ? (
-              <div className="player-queue-empty">{uiText('auto.22d261828d18')}</div>
-            ) : (
-              history.map((recentTrack) => (
-                <div
-                  key={recentTrack.id}
-                  className="player-history-row"
-                  onContextMenu={event => openSongMenu(event, recentTrack)}
-                  onDoubleClick={() => store.playQueue([recentTrack], 0, null)}
+      <div
+        className="player-lists"
+        ref={listsRef}
+        onScroll={(event) => store.setRightPanelScrollTop(event.currentTarget.scrollTop)}
+      >
+        <section className="player-queue" aria-label={uiText('auto.89373a2ec11a')}>
+          <button className="player-queue-head" onClick={() => store.setRightQueueOpen(!queueOpen)}>
+            <div className="player-queue-label">
+              <ListMusic />
+              <span>{uiText('auto.89373a2ec11a')}</span>
+              <span className="player-queue-count">{upNext.length}</span>
+            </div>
+            <div className="player-queue-head-right">
+              {queueOpen && upNext.length > 0 && (
+                <span
+                  className="player-queue-clear"
                   role="button"
-                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    store.clearQueue()
+                  }}
                 >
-                  <CoverThumb trackId={recentTrack.id} />
-                  <button
-                    className="player-queue-meta"
-                    onClick={() => store.playQueue([recentTrack], 0, null)}
-                    title={uiText('auto.192840f3c39a')}
+                  {uiText('auto.719ea396ad92')}</span>
+              )}
+              {queueOpen ? <ChevronDown /> : <ChevronRight />}
+            </div>
+          </button>
+          {queueOpen && (
+            <div className="player-queue-list">
+              {upNext.length === 0 ? (
+                <div className="player-queue-empty">{uiText('auto.13f89e125ece')}</div>
+              ) : (
+                upNext.map((queuedTrack, i) => (
+                  <PlayerQueueRow
+                    key={`${queuedTrack.id}-${i}`}
+                    track={queuedTrack}
+                    index={i}
+                    onPlay={() => store.playFromQueue(i)}
+                    onRemove={() => store.removeFromQueue(i)}
+                    onMenu={openSongMenu}
+                    onReorder={(from, to) => store.reorderQueue(from, to)}
+                    dragIndex={dragIndex}
+                    setDragIndex={setDragIndex}
+                    overIndex={overIndex}
+                    setOverIndex={setOverIndex}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="player-history" aria-label={uiText('auto.90ccd6497400')}>
+          <button className="player-queue-head" onClick={() => store.setRightHistoryOpen(!historyOpen)}>
+            <div className="player-queue-label">
+              <Clock />
+              <span>{uiText('auto.90ccd6497400')}</span>
+              <span className="player-queue-count">{history.length}</span>
+            </div>
+            {historyOpen ? <ChevronDown /> : <ChevronRight />}
+          </button>
+          {historyOpen && (
+            <div className="player-queue-list">
+              {history.length === 0 ? (
+                <div className="player-queue-empty">{uiText('auto.22d261828d18')}</div>
+              ) : (
+                history.map((recentTrack) => (
+                  <div
+                    key={recentTrack.id}
+                    className="player-history-row"
+                    onContextMenu={event => openSongMenu(event, recentTrack)}
+                    onDoubleClick={() => store.playQueue([recentTrack], 0, null)}
+                    role="button"
+                    tabIndex={0}
                   >
-                    <span className="player-queue-title">{recentTrack.title}</span>
-                    <span className="player-queue-artist">{recentTrack.artist}</span>
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </section>
+                    <CoverThumb trackId={recentTrack.id} />
+                    <button
+                      className="player-queue-meta"
+                      onClick={() => store.playQueue([recentTrack], 0, null)}
+                      title={uiText('auto.192840f3c39a')}
+                    >
+                      <span className="player-queue-title">{recentTrack.title}</span>
+                      <span className="player-queue-artist">{recentTrack.artist}</span>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

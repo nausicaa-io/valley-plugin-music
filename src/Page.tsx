@@ -1109,11 +1109,13 @@ export const Page: FC<MainWorkspaceViewProps> = ({ navigation }) => {
               <h2>{uiText('auto.e1404b4267e4')}</h2>
               <span className="count">{snap.tracks.length}</span>
             </div>
-            {snap.loading && snap.tracks.length === 0 ? (
+            {snap.libraryError ? (
+              <div className="music-page-empty" role="alert">{snap.libraryError}</div>
+            ) : snap.loading && snap.tracks.length === 0 ? (
               <div className="music-page-empty">{uiText('auto.78df555a3a52')}</div>
             ) : snap.tracks.length === 0 ? (
               <div className="music-page-empty">
-                {uiText('auto.831bef6ea1ed')}{' '}<code>{snap.musicPath}</code> {uiText('auto.ee711996ebe4')}</div>
+                {snap.musicPath ? <>{uiText('auto.831bef6ea1ed')}{' '}<code>{snap.musicPath}</code> {uiText('auto.ee711996ebe4')}</> : uiText('music.library.chooseFolder')}</div>
             ) : (
               snap.tracks.map((track, i) => (
                 <SongRow

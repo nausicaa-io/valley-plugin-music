@@ -7,11 +7,32 @@
  * and call its public methods. Playback/history and queue mutations are writes;
  * playlist mutations return command-bus reverts.
  */
-import type { ValleyPluginApi } from '@valley/plugin-sdk'
+import type { PluginCommand, ValleyPluginApi } from '@valley/plugin-sdk'
 import { normalizeRelPath } from '@valley/plugin-sdk/paths'
 import { getStore, type MusicStore, type MusicSnapshot } from './store'
 import { resolveArtist, trackArtists, tracksForArtist } from './artists'
 import type { Artist, Playlist, Track } from './types'
+
+const resultText = { type: 'string', maxLength: 16384 }
+const resultFlag = { type: 'boolean' }
+const resultNumber = { type: 'number', minimum: 0 }
+const resultCount = { type: 'integer', minimum: 0 }
+const resultStrings = { type: 'array', maxItems: 10000, items: resultText }
+const resultObject = (properties: Record<string, unknown>, required = Object.keys(properties)): Record<string, unknown> => ({ type: 'object', properties, required, additionalProperties: false })
+const resultList = (items: Record<string, unknown>, maxItems = 10000): Record<string, unknown> => ({ type: 'array', maxItems, items })
+const nullableResult = (value: Record<string, unknown>): Record<string, unknown> => ({ anyOf: [value, { type: 'null' }] })
+const trackResult = resultObject({ id: resultText, title: resultText, artist: resultText, artists: nullableResult(resultStrings), album: nullableResult(resultText), file: resultText,
+  duration: nullableResult(resultNumber), favorite: nullableResult(resultFlag), addedAt: nullableResult(resultText),
+  details: nullableResult(resultObject({ feat: resultText, songwriter: resultText, author: resultText, composer: resultText, genre: resultText, year: resultText, lyrics: resultText, cover: resultText, edited: resultFlag }, []))
+}, ['id', 'title', 'artist', 'file'])
+const artistResult = resultObject({ id: resultText, name: resultText, image: nullableResult(resultText), bio: nullableResult(resultText), aliases: resultStrings }, ['id', 'name'])
+const playlistResult = resultObject({ id: resultText, name: resultText, songIds: resultStrings, cover: resultText }, ['id', 'name', 'songIds'])
+const playlistActionResult = resultObject({ action: { type: 'string', enum: ['play', 'shuffle', 'next', 'last'] }, playlist: playlistResult, count: resultCount, started: trackResult }, ['action', 'playlist', 'count'])
+const artistSummaryResult = resultObject({ artist: resultText, count: resultCount })
+const trackHolderResult = resultObject({ track: trackResult })
+const playlistHolderResult = resultObject({ playlist: playlistResult })
+const historyResult = resultObject({ songId: resultText, playedAt: resultText, playlistId: resultText }, ['songId', 'playedAt'])
+const nullResult = { type: 'null' }
 
 function live(): MusicStore {
   const store = getStore()
@@ -352,9 +373,11 @@ async function executed<T>(store: MusicStore, value: T | (() => T)): Promise<T> 
 
 /** Register every `music:*` command; returns a combined disposer. */
 export function registerMusicCommands(api: ValleyPluginApi): () => void {
+  const register = <I, O, E extends 'read' | 'write' | 'execute'>(command: PluginCommand<I, O, E> & { outputSchema: Record<string, unknown> }): (() => void) => api.commands.register(command)
   const offs = [
-    api.commands.register({
+    register({
       id: 'play',
+      outputSchema: resultObject({ played: resultFlag, track: trackResult, alternatives: resultList(trackResult) }),
       label: 'Music: Play a track by title', labelKey: 'auto.00e9d74dcb5b',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -387,8 +410,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       }
     }),
 
-    api.commands.register({
+    register({
       id: 'playlist',
+      outputSchema: playlistActionResult,
       label: 'Music: Play a playlist', labelKey: 'auto.e9b16c283438',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -417,8 +441,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylistAction
     }),
 
-    api.commands.register({
+    register({
       id: 'playlist-shuffle',
+      outputSchema: playlistActionResult,
       label: 'Music: Shuffle a playlist', labelKey: 'auto.25fc9c991710',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -433,8 +458,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylistAction
     }),
 
-    api.commands.register({
+    register({
       id: 'playlist-next',
+      outputSchema: playlistActionResult,
       label: 'Music: Play playlist next', labelKey: 'auto.2ec8347ba0e8',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -449,8 +475,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylistAction
     }),
 
-    api.commands.register({
+    register({
       id: 'playlist-last',
+      outputSchema: playlistActionResult,
       label: 'Music: Play playlist last', labelKey: 'auto.cec18ecfe628',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -465,8 +492,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylistAction
     }),
 
-    api.commands.register({
+    register({
       id: 'selected-playlist-play',
+      outputSchema: playlistActionResult,
       label: 'Music: Play selected playlist', labelKey: 'auto.7bc86b4f19b0',
       sideEffect: 'execute',
       revision: () => playlistIdentity(selectedPlaylist(live()).playlist.id),
@@ -478,8 +506,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylistAction
     }),
 
-    api.commands.register({
+    register({
       id: 'selected-playlist-shuffle',
+      outputSchema: playlistActionResult,
       label: 'Music: Shuffle selected playlist', labelKey: 'auto.ac48461321a4',
       sideEffect: 'execute',
       revision: () => playlistIdentity(selectedPlaylist(live()).playlist.id),
@@ -491,8 +520,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylistAction
     }),
 
-    api.commands.register({
+    register({
       id: 'selected-playlist-next',
+      outputSchema: playlistActionResult,
       label: 'Music: Play selected playlist next', labelKey: 'auto.c6984153ca04',
       sideEffect: 'execute',
       revision: () => playlistIdentity(selectedPlaylist(live()).playlist.id),
@@ -504,8 +534,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylistAction
     }),
 
-    api.commands.register({
+    register({
       id: 'selected-playlist-last',
+      outputSchema: playlistActionResult,
       label: 'Music: Play selected playlist last', labelKey: 'auto.8ceadb633b0c',
       sideEffect: 'execute',
       revision: () => playlistIdentity(selectedPlaylist(live()).playlist.id),
@@ -517,8 +548,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylistAction
     }),
 
-    api.commands.register({
+    register({
       id: 'create-playlist',
+      outputSchema: playlistHolderResult,
       label: 'Music: Create playlist', labelKey: 'auto.87950a47031c',
       paletteSafe: false,
       sideEffect: 'write',
@@ -544,8 +576,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Created playlist "${v.playlist.name}" [${v.playlist.id}]`
     }),
 
-    api.commands.register({
+    register({
       id: 'rename-playlist',
+      outputSchema: resultObject({ playlist: playlistResult, previousName: resultText }),
       label: 'Music: Rename playlist', labelKey: 'auto.87580398b719',
       paletteSafe: false,
       sideEffect: 'write',
@@ -581,8 +614,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Renamed playlist "${v.previousName}" to "${v.playlist.name}".`
     }),
 
-    api.commands.register({
+    register({
       id: 'delete-playlist',
+      outputSchema: playlistHolderResult,
       label: 'Music: Delete playlist', labelKey: 'auto.da813e206e1e',
       paletteSafe: false,
       sideEffect: 'write',
@@ -607,8 +641,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Deleted playlist "${v.playlist.name}".`
     }),
 
-    api.commands.register({
+    register({
       id: 'clear-playlist',
+      outputSchema: resultObject({ playlist: playlistResult, removed: resultCount }),
       label: 'Music: Clear playlist', labelKey: 'auto.d9a0b7fbd7c2',
       paletteSafe: false,
       sideEffect: 'write',
@@ -633,8 +668,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Cleared ${v.removed} song${v.removed === 1 ? '' : 's'} from "${v.playlist.name}".`
     }),
 
-    api.commands.register({
+    register({
       id: 'add-to-playlist',
+      outputSchema: resultObject({ playlist: playlistResult, track: trackResult }),
       label: 'Music: Add song to playlist', labelKey: 'auto.75734f5defb3',
       paletteSafe: false,
       sideEffect: 'write',
@@ -672,8 +708,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Added ${describe(v.track)} to "${v.playlist.name}".`
     }),
 
-    api.commands.register({
+    register({
       id: 'remove-from-playlist',
+      outputSchema: resultObject({ playlist: playlistResult, track: trackResult }),
       label: 'Music: Remove song from playlist', labelKey: 'auto.f780dfb68950',
       paletteSafe: false,
       sideEffect: 'write',
@@ -712,8 +749,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     }),
 
     // ── Single-track queue ops (play next / add to queue / remove) ───────────
-    api.commands.register({
+    register({
       id: 'play-next',
+      outputSchema: trackHolderResult,
       label: 'Music: Play track next', labelKey: 'auto.b8b8d3f93183',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -729,8 +767,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Up next: ${describe(v.track)}`
     }),
 
-    api.commands.register({
+    register({
       id: 'play-last',
+      outputSchema: trackHolderResult,
       label: 'Music: Add track to the end of the queue', labelKey: 'auto.a7218d13dbec',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -746,8 +785,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Added to queue: ${describe(v.track)}`
     }),
 
-    api.commands.register({
+    register({
       id: 'remove-from-queue',
+      outputSchema: resultObject({ track: trackResult, position: { type: 'integer', minimum: 1 } }),
       label: 'Music: Remove a track from the queue', labelKey: 'auto.95c300486760',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -775,8 +815,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Removed from queue: ${describe(v.track)}`
     }),
 
-    api.commands.register({
+    register({
       id: 'clear-queue',
+      outputSchema: resultObject({ removed: resultCount }),
       label: 'Music: Clear the up-next queue', labelKey: 'auto.bd9364b123f3',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -792,8 +833,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     }),
 
     // ── Playlist cover + track favorites ────────────────────────────────────
-    api.commands.register({
+    register({
       id: 'set-cover',
+      outputSchema: resultObject({ playlist: playlistResult, cover: nullableResult(resultText) }),
       label: 'Music: Set or clear a playlist cover', labelKey: 'auto.239e092def6b',
       paletteSafe: false,
       sideEffect: 'write',
@@ -828,8 +870,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => (v.cover ? `Set cover for "${v.playlist.name}" to ${v.cover}.` : `Cleared cover for "${v.playlist.name}".`)
     }),
 
-    api.commands.register({
+    register({
       id: 'favorite',
+      outputSchema: resultObject({ track: trackResult, favorite: resultFlag }),
       label: 'Music: Favorite or unfavorite a track', labelKey: 'auto.4afec04c5724',
       paletteSafe: false,
       sideEffect: 'write',
@@ -870,8 +913,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `${v.favorite ? '♥ Favorited' : '♡ Unfavorited'} ${describe(v.track)}`
     }),
 
-    api.commands.register({
+    register({
       id: 'resume',
+      outputSchema: resultObject({ playing: resultFlag, track: nullableResult(trackResult), resumed: resultFlag }),
       label: 'Music: Resume', labelKey: 'auto.9bfab6b5a9c7',
       sideEffect: 'execute',
       revision: playbackIdentity,
@@ -891,18 +935,24 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
             { playing: true, track: snap.currentTrack, resumed: false }
           )
         }
-        store.togglePlay()
+        store.resumeLast()
         return executed<{ playing: boolean; track: Track | null; resumed: boolean }>(
           store,
-          { playing: true, track: snap.currentTrack, resumed: true }
+          () => {
+            const current = store.getSnapshot()
+            const finished = current.duration > 0 && current.currentTime >= current.duration
+            if (!current.isPlaying && !finished) throw Object.assign(new Error('Playback outcome is unknown: the player did not confirm playing. Check the player before trying again.'), { outcome: 'unknown', outcomeUnknown: true, retryable: false })
+            return { playing: current.isPlaying, track: current.currentTrack, resumed: true }
+          }
         )
       },
       formatCli: (v) =>
-        !v.track ? 'Nothing to resume.' : v.resumed ? `Resumed: ${describe(v.track)}` : 'Already playing.'
+        !v.track ? 'Nothing to resume.' : v.resumed ? `${v.playing ? 'Resumed' : 'Played to end'}: ${describe(v.track)}` : 'Already playing.'
     }),
 
-    api.commands.register({
+    register({
       id: 'pause',
+      outputSchema: resultObject({ playing: resultFlag, already: resultFlag }),
       label: 'Music: Pause', labelKey: 'auto.19b6e93580d6',
       sideEffect: 'execute',
       revision: playbackIdentity,
@@ -916,8 +966,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => (v.already ? 'Already paused.' : 'Paused.')
     }),
 
-    api.commands.register({
+    register({
       id: 'toggle',
+      outputSchema: resultObject({ playing: resultFlag }),
       label: 'Music: Toggle play/pause', labelKey: 'auto.65b6a2ac6520',
       sideEffect: 'execute',
       revision: playbackIdentity,
@@ -931,8 +982,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => (v.playing ? 'Playing.' : 'Paused.')
     }),
 
-    api.commands.register({
+    register({
       id: 'stop',
+      outputSchema: nullResult,
       label: 'Music: Stop and clear queue', labelKey: 'auto.fadd24d8b9d6',
       sideEffect: 'execute',
       revision: () => ({ playback: playbackIdentity(), queue: queueIdentity() }),
@@ -940,13 +992,14 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       run: async () => {
         const store = live()
         store.stop()
-        return executed(store, undefined)
+        return executed(store, null)
       },
       formatCli: () => 'Stopped.'
     }),
 
-    api.commands.register({
+    register({
       id: 'skip',
+      outputSchema: resultObject({ track: nullableResult(trackResult) }),
       label: 'Music: Next track', labelKey: 'auto.44b369ff5538',
       sideEffect: 'execute',
       revision: () => ({ track: playbackIdentity().track, queue: queueIdentity(), repeat: live().getSnapshot().repeatMode }),
@@ -959,8 +1012,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => (v.track ? `→ ${describe(v.track)}` : 'End of queue.')
     }),
 
-    api.commands.register({
+    register({
       id: 'back',
+      outputSchema: resultObject({ track: nullableResult(trackResult) }),
       label: 'Music: Previous track', labelKey: 'auto.571421e4405b',
       sideEffect: 'execute',
       revision: () => ({ track: playbackIdentity().track, queue: queueIdentity(), repeat: live().getSnapshot().repeatMode }),
@@ -973,8 +1027,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => (v.track ? `← ${describe(v.track)}` : 'Start of queue.')
     }),
 
-    api.commands.register({
+    register({
       id: 'shuffle',
+      outputSchema: resultObject({ shuffle: resultFlag }),
       label: 'Music: Toggle shuffle', labelKey: 'auto.dbb071bdf7c8',
       sideEffect: 'execute',
       input: {
@@ -999,8 +1054,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Shuffle ${v.shuffle ? 'on' : 'off'}`
     }),
 
-    api.commands.register({
+    register({
       id: 'volume',
+      outputSchema: resultObject({ volume: { type: 'number', minimum: 0, maximum: 100 } }),
       label: 'Music: Set volume', labelKey: 'auto.d6585be54114',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -1023,8 +1079,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Volume ${v.volume}%`
     }),
 
-    api.commands.register({
+    register({
       id: 'seek',
+      outputSchema: resultObject({ position: resultNumber }),
       label: 'Music: Seek', labelKey: 'auto.e845ef00118e',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -1048,8 +1105,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Seeked to ${fmtTime(v.position)}`
     }),
 
-    api.commands.register({
+    register({
       id: 'now',
+      outputSchema: resultObject({ track: nullableResult(trackResult), position: resultNumber, duration: resultNumber, playing: resultFlag, playlist: nullableResult(resultText), shuffle: resultFlag }),
       label: 'Music: Now playing', labelKey: 'auto.003b2f036c2d',
       sideEffect: 'read',
       run: () => {
@@ -1072,8 +1130,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       }
     }),
 
-    api.commands.register({
+    register({
       id: 'queue',
+      outputSchema: resultList(trackResult),
       label: 'Music: Show queue', labelKey: 'auto.ec8ca3c99941',
       paletteSafe: false,
       sideEffect: 'read',
@@ -1084,8 +1143,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
 	          : ['Up next:', ...tracks.slice(0, 10).map((t, i) => `  ${i + 1}. ${describe(t)}`)].join('\n')
     }),
 
-    api.commands.register({
+    register({
       id: 'search',
+      outputSchema: resultObject({ query: resultText, tracks: resultList(trackResult, 80), artists: resultList(artistSummaryResult, 120), playlists: resultList(playlistResult, 80) }),
       label: 'Music: Search', labelKey: 'auto.8e95b189b541',
       paletteSafe: false,
       sideEffect: 'read',
@@ -1102,8 +1162,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatSearch
     }),
 
-    api.commands.register({
+    register({
       id: 'songs',
+      outputSchema: resultList(trackResult, 80),
       label: 'Music: List songs', labelKey: 'auto.20b2c4085081',
       paletteSafe: false,
       sideEffect: 'read',
@@ -1112,8 +1173,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatTracks
     }),
 
-    api.commands.register({
+    register({
       id: 'artists',
+      outputSchema: resultList(artistSummaryResult, 120),
       label: 'Music: List artists', labelKey: 'auto.bb7b0429d265',
       paletteSafe: false,
       sideEffect: 'read',
@@ -1122,8 +1184,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatArtists
     }),
 
-    api.commands.register({
+    register({
       id: 'library',
+      outputSchema: resultList(trackResult, 80),
       label: 'Music: Search library', labelKey: 'auto.a78b738a8195',
       paletteSafe: false,
       sideEffect: 'read',
@@ -1132,8 +1195,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatTracks
     }),
 
-    api.commands.register({
+    register({
       id: 'playlists',
+      outputSchema: resultList(playlistResult, 80),
       label: 'Music: List playlists', labelKey: 'auto.831a0dbf6563',
       paletteSafe: false,
       sideEffect: 'read',
@@ -1142,8 +1206,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: formatPlaylists
     }),
 
-    api.commands.register({
+    register({
       id: 'refresh',
+      outputSchema: resultObject({ added: resultCount, missing: resultCount }),
       label: 'Music: Refresh library', labelKey: 'auto.20f8f918db22',
       sideEffect: 'write',
       revision: () => live().getSnapshot().musicPath,
@@ -1160,19 +1225,21 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Library refreshed: ${v.added} added, ${v.missing} missing.`
     }),
 
-    api.commands.register({
+    register({
       id: 'open-page',
+      outputSchema: nullResult,
       label: 'Open Music page', labelKey: 'auto.d427ef454124',
-      sideEffect: 'read',
+      sideEffect: 'execute',
       run: () => {
         api.workspace.openMainTab()
-        return undefined
+        return null
       },
       formatCli: () => 'Opened music page.'
     }),
 
-    api.commands.register({
+    register({
       id: 'open-media',
+      outputSchema: trackHolderResult,
       label: 'Music: Open a media file', labelKey: 'auto.69aa17f58afe',
       paletteSafe: false,
       sideEffect: 'execute',
@@ -1200,11 +1267,12 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     }),
 
     // ── Open pages (navigate the Music tab, no playback) ─────────────────────
-    api.commands.register({
+    register({
       id: 'open-playlist',
+      outputSchema: playlistHolderResult,
       label: 'Music: Open a playlist page', labelKey: 'auto.a95536dbb353',
       paletteSafe: false,
-      sideEffect: 'read',
+      sideEffect: 'execute',
       input: playlistInput('Usage: music open-playlist "<name>"'),
       run: ({ name }) => {
         const store = live()
@@ -1215,11 +1283,12 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Opened playlist "${v.playlist.name}".`
     }),
 
-    api.commands.register({
+    register({
       id: 'open-artist',
+      outputSchema: artistSummaryResult,
       label: 'Music: Open an artist page', labelKey: 'auto.79ce2d1ac730',
       paletteSafe: false,
-      sideEffect: 'read',
+      sideEffect: 'execute',
       input: {
         schema: {"type": "object", "properties": {"name": {"type": "string"}}, "additionalProperties": false, "required": ["name"]},
         parse: (raw) => {
@@ -1241,11 +1310,12 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       formatCli: (v) => `Opened artist "${v.artist}" (${v.count} song${v.count === 1 ? '' : 's'}).`
     }),
 
-    api.commands.register({
+    register({
       id: 'open-song-artist',
+      outputSchema: resultObject({ song: trackResult, artist: resultText, otherArtists: resultStrings }),
       label: 'Music: Open the artist of a song', labelKey: 'auto.711daf30f609',
       paletteSafe: false,
-      sideEffect: 'read',
+      sideEffect: 'execute',
       input: trackInput('Usage: music open-song-artist "<title>"'),
       run: ({ title, exact }) => {
         const store = live()
@@ -1262,8 +1332,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     })
   ]
   offs.push(
-    api.commands.register({
-      id: 'history', label: 'Read music play history', labelKey: 'music.surface.history', paletteSafe: false, sideEffect: 'read',
+    register({
+      id: 'history',
+      outputSchema: resultObject({ rows: resultList(resultObject({ id: resultText, songId: resultText, playedAt: resultText, playlistId: nullableResult(resultText) }, ['id', 'songId', 'playedAt']), 500), revisions: resultList(resultCount, 500), cursor: resultText, revision: resultCount }, ['rows', 'revision']), label: 'Read music play history', labelKey: 'music.surface.history', paletteSafe: false, sideEffect: 'read',
       input: {
         schema: { type: 'object', properties: { songId: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 500 }, cursor: { type: 'string' } }, additionalProperties: false },
         parse: (raw) => {
@@ -1275,8 +1346,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       },
       run: ({ songId, limit, cursor }) => api.data.dataset('music.play_events').query({ ...(songId ? { where: { songId } } : {}), orderBy: [{ field: 'playedAt', direction: 'desc' }], limit, cursor })
     }),
-    api.commands.register({
-      id: 'library-query', label: 'Query music library', labelKey: 'music.surface.library-query', paletteSafe: false, sideEffect: 'read',
+    register({
+      id: 'library-query',
+      outputSchema: resultObject({ total: resultCount, rows: resultList({ anyOf: [trackResult, artistResult, playlistResult, historyResult] }, 500), nextOffset: nullableResult(resultCount) }), label: 'Query music library', labelKey: 'music.surface.library-query', paletteSafe: false, sideEffect: 'read',
       input: {
         schema: { type: 'object', properties: { kind: { enum: ['tracks', 'artists', 'playlists', 'history'] }, id: { type: 'string' }, search: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 500 }, offset: { type: 'integer', minimum: 0 } }, additionalProperties: false },
         parse: (raw) => {
@@ -1294,8 +1366,9 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         return { total: rows.length, rows: structuredClone(rows.slice(offset, offset + limit)), nextOffset: offset + limit < rows.length ? offset + limit : null }
       }
     }),
-    api.commands.register({
-      id: 'repeat', label: 'Set music repeat mode', labelKey: 'music.surface.repeat', paletteSafe: false, sideEffect: 'execute',
+    register({
+      id: 'repeat',
+      outputSchema: resultObject({ mode: { type: 'string', enum: ['off', 'all', 'one'] } }), label: 'Set music repeat mode', labelKey: 'music.surface.repeat', paletteSafe: false, sideEffect: 'execute',
       input: { schema: { type: 'object', properties: { mode: { enum: ['off', 'all', 'one'] } }, required: ['mode'], additionalProperties: false }, parse: (raw) => { const mode = (raw as { mode?: unknown })?.mode; if (mode !== 'off' && mode !== 'all' && mode !== 'one') throw new Error('mode must be off, all, or one'); return { mode } } },
       preview: ({ mode }) => ({ previous: live().getSnapshot().repeatMode, mode }),
       revision: () => live().getSnapshot().repeatMode,
@@ -1309,15 +1382,17 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         return { mode }
       }
     }),
-    api.commands.register({
-      id: 'queue-reorder', label: 'Reorder music queue', labelKey: 'music.surface.queue-reorder', paletteSafe: false, sideEffect: 'execute',
+    register({
+      id: 'queue-reorder',
+      outputSchema: resultList(trackResult), label: 'Reorder music queue', labelKey: 'music.surface.queue-reorder', paletteSafe: false, sideEffect: 'execute',
       input: { schema: { type: 'object', properties: { from: { type: 'integer', minimum: 0 }, to: { type: 'integer', minimum: 0 } }, required: ['from', 'to'], additionalProperties: false }, parse: (raw) => { const input = raw as { from?: unknown; to?: unknown }; const from = Number(input?.from), to = Number(input?.to); if (!Number.isInteger(from) || from < 0 || !Number.isInteger(to) || to < 0) throw new Error('Queue indices must be nonnegative integers'); return { from, to } } },
       preview: ({ from, to }) => { const queue = queueIdentity(); if (from >= queue.length || to >= queue.length) throw new Error('Queue item no longer exists'); return { from, to, songIds: queue } },
       revision: queueIdentity,
       run: async ({ from, to }) => { const store = live(); if (from >= store.getSnapshot().upNext.length || to >= store.getSnapshot().upNext.length) throw new Error('Queue item no longer exists'); store.reorderQueue(from, to); return executed(store, () => store.getSnapshot().upNext) }
     }),
-    api.commands.register({
-      id: 'playlist-reorder', label: 'Reorder playlist tracks', labelKey: 'music.surface.playlist-reorder', paletteSafe: false, sideEffect: 'write',
+    register({
+      id: 'playlist-reorder',
+      outputSchema: resultObject({ id: resultText, songIds: resultStrings }), label: 'Reorder playlist tracks', labelKey: 'music.surface.playlist-reorder', paletteSafe: false, sideEffect: 'write',
       input: { schema: { type: 'object', properties: { id: { type: 'string' }, songIds: { type: 'array', items: { type: 'string' }, uniqueItems: true } }, required: ['id', 'songIds'], additionalProperties: false }, parse: (raw) => { const input = raw as { id?: unknown; songIds?: unknown }; if (typeof input?.id !== 'string' || !Array.isArray(input.songIds) || !input.songIds.every((value) => typeof value === 'string')) throw new Error('A playlist ID and ordered song IDs are required'); return { id: input.id, songIds: input.songIds as string[] } } },
       preview: (input) => input, revision: ({ id }) => playlistSongs(id),
       run: async ({ id, songIds }) => {
@@ -1329,21 +1404,24 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         return { value: { id, songIds }, revert: { label: 'Reorder playlist', run: async () => { const current = store.getSnapshot().playlists.find((item) => item.id === id); if (!current || JSON.stringify(current.songIds) !== JSON.stringify(songIds)) throw new Error('Playlist changed after reordering'); await store.reorderPlaylist(id, before) } } }
       }
     }),
-    api.commands.register({
-      id: 'track-delete', label: 'Remove track from music library', labelKey: 'music.surface.track-delete', paletteSafe: false, sideEffect: 'write',
+    register({
+      id: 'track-delete',
+      outputSchema: resultObject({ id: resultText }), label: 'Remove track from music library', labelKey: 'music.surface.track-delete', paletteSafe: false, sideEffect: 'write',
       input: { schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }, parse: (raw) => { const id = (raw as { id?: unknown })?.id; if (typeof id !== 'string' || !id) throw new Error('Track ID is required'); return { id } } },
       preview: ({ id }) => ({ ...deletedTrackTarget(id), action: 'remove-from-library' }),
       revision: ({ id }) => deletedTrackTarget(id),
       run: async ({ id }) => { const store = live(); if (!store.getSnapshot().tracks.some((item) => item.id === id)) throw new Error('Track no longer exists'); await store.deleteSong(id); return { value: { id }, revert: null } }
     }),
-    api.commands.register({
-      id: 'artist-update', label: 'Update artist details', labelKey: 'music.surface.artist-update', paletteSafe: false, sideEffect: 'write',
+    register({
+      id: 'artist-update',
+      outputSchema: artistResult, label: 'Update artist details', labelKey: 'music.surface.artist-update', paletteSafe: false, sideEffect: 'write',
       input: { schema: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string', minLength: 1 }, image: { type: ['string', 'null'] }, bio: { type: 'string' } }, required: ['id'], additionalProperties: false }, parse: (raw) => { const input = raw as { id?: unknown; name?: unknown; image?: unknown; bio?: unknown }; if (typeof input?.id !== 'string' || !input.id || (input.name !== undefined && (typeof input.name !== 'string' || !input.name.trim())) || (input.image !== undefined && input.image !== null && typeof input.image !== 'string') || (input.bio !== undefined && typeof input.bio !== 'string')) throw new Error('Invalid artist fields'); return input as { id: string; name?: string; image?: string | null; bio?: string } } },
       preview: (input) => ({ previous: artistTarget(input.id), ...input }), revision: ({ id }) => artistTarget(id),
       run: async ({ id, name, image, bio }) => { const store = live(); if (!store.getSnapshot().artists.some((item) => item.id === id)) throw new Error('Artist no longer exists'); await store.updateArtistProperties(id, { ...(name === undefined ? {} : { name }), ...(image === undefined ? {} : { image: image ?? '' }), ...(bio === undefined ? {} : { bio }) }); return { value: store.getSnapshot().artists.find((item) => item.id === id), revert: null } }
     }),
-    api.commands.register({
-      id: 'artist-merge', label: 'Merge music artists', labelKey: 'music.surface.artist-merge', paletteSafe: false, sideEffect: 'write',
+    register({
+      id: 'artist-merge',
+      outputSchema: artistResult, label: 'Merge music artists', labelKey: 'music.surface.artist-merge', paletteSafe: false, sideEffect: 'write',
       input: { schema: { type: 'object', properties: { sourceId: { type: 'string' }, targetId: { type: 'string' } }, required: ['sourceId', 'targetId'], additionalProperties: false }, parse: (raw) => { const input = raw as { sourceId?: unknown; targetId?: unknown }; if (typeof input?.sourceId !== 'string' || typeof input.targetId !== 'string' || input.sourceId === input.targetId) throw new Error('Two distinct artist IDs are required'); return { sourceId: input.sourceId, targetId: input.targetId } } },
       preview: ({ sourceId, targetId }) => ({ action: 'merge-artists', source: artistTarget(sourceId), target: artistTarget(targetId) }),
       revision: ({ sourceId, targetId }) => ({ source: artistTarget(sourceId), target: artistTarget(targetId) }),

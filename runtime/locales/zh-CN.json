@@ -267,5 +267,6 @@
   "music.info.minutes": "{{minutes}} 分钟",
   "music.info.artistBreakdown": "艺人明细",
   "bookmark.view": "音乐库视图",
-  "bookmark.item": "所选项目"
+  "bookmark.item": "所选项目",
+  "music.library.chooseFolder": "在设置中选择音乐文件夹以添加歌曲。"
 }

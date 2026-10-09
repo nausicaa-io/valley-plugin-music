@@ -267,5 +267,6 @@
   "music.info.minutes": "{{minutes}} min",
   "music.info.artistBreakdown": "Répartition par artiste",
   "bookmark.view": "Vue de la bibliothèque",
-  "bookmark.item": "Élément sélectionné"
+  "bookmark.item": "Élément sélectionné",
+  "music.library.chooseFolder": "Choisissez un dossier de musique dans les paramètres pour ajouter des morceaux."
 }

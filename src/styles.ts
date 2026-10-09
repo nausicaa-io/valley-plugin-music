@@ -104,7 +104,8 @@ const CSS = `
 
 /* ---- Right sidebar full player --------------------------------------- */
 .player-view { display:flex; flex-direction:column; align-items:stretch; text-align:center; gap:18px;
-  padding:0 7px 18px; height:100%; min-height:0; box-sizing:border-box; overflow-y:auto; container-type:size; }
+  padding:0 7px; height:100%; min-height:0; box-sizing:border-box; overflow:hidden; container-type:size; }
+.player-lists { display:flex; flex-direction:column; gap:18px; flex:1; min-height:0; overflow-y:auto; padding-bottom:18px; }
 .player-now, .player-queue, .player-history { width:100%; max-width:none; }
 .player-now { display:flex; flex-direction:column; align-items:center; gap:13px; flex-shrink:0; }
 .player-media { display:flex; flex-direction:column; align-items:center; gap:5px; width:100%; }

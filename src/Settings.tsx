@@ -3,7 +3,7 @@ import type { FC } from 'react'
 import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
 import type { PluginIndexEntry } from '@valley/plugin-sdk'
 import { mediaFilesInFolder } from './data'
-import { DEFAULT_MUSIC_PATH, normalizeMusicPath } from './store'
+import { normalizeMusicPath } from './store'
 import { useMusic, useMusicIndex } from './hooks'
 import { uiText } from './localization'
 
@@ -67,21 +67,27 @@ export const Settings: FC = () => {
 
   const save = async (path: string): Promise<void> => {
     const normalizedPath = normalizeMusicPath(path)
-    if (!store || !normalizedPath || normalizedPath === normalizeMusicPath(snap.musicPath)) return
+    if (!store || (path.trim() && !normalizedPath) || normalizedPath === normalizeMusicPath(snap.musicPath)) return
     setSaving(true)
     setMessage('')
-    const ok = await store.setMusicPath(normalizedPath)
-    setSaving(false)
-    setMessage(ok ? uiText('auto.6336d3512f60') : uiText('auto.824057036236'))
+    try {
+      const ok = await store.setMusicPath(normalizedPath)
+      setMessage(ok ? uiText('auto.6336d3512f60') : uiText('auto.824057036236'))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally { setSaving(false) }
   }
 
   const rescan = async (): Promise<void> => {
     if (!store) return
     setSaving(true)
     setRescanMessage('')
-    await store.refresh()
-    setSaving(false)
-    setRescanMessage(uiText('auto.f54e1782f9c2'))
+    try {
+      await store.refresh()
+      setRescanMessage(uiText('auto.f54e1782f9c2'))
+    } catch (error) {
+      setRescanMessage(error instanceof Error ? error.message : String(error))
+    } finally { setSaving(false) }
   }
 
   const { Section, Row, VaultFolderField, Button } = api.ui.settings
@@ -91,7 +97,7 @@ export const Settings: FC = () => {
       <Row
         title={uiText('auto.a71420a4b1e3')}
         description={uiText('auto.a09fad4110cb')}
-        extra={invalid || mediaCount === 0 ?
+        extra={invalid || (normalized && mediaCount === 0) ?
           <span
             className={`settings-toggle-desc ${
               invalid || (!folderKnown && entries.length > 0)
@@ -113,8 +119,6 @@ export const Settings: FC = () => {
             setDraft(v)
             void save(v)
           }}
-          placeholder={DEFAULT_MUSIC_PATH}
-          required
           requireValidCommit
           ariaLabel={uiText('auto.a71420a4b1e3')}
           className={`settings-path-input music-settings-input${invalid ? ' invalid' : ''}`}

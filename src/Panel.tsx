@@ -347,11 +347,13 @@ export const Panel: FC = () => {
         />
       </div>
       <div className="panel-body hidescrollbar">
-        {loading && tracks.length === 0 ? (
+        {snap.libraryError ? (
+          <div className="music-empty" role="alert">{snap.libraryError}</div>
+        ) : loading && tracks.length === 0 ? (
           <div className="music-empty">{uiText('auto.78df555a3a52')}</div>
         ) : tracks.length === 0 ? (
           <div className="music-empty">
-            {uiText('auto.831bef6ea1ed')}{' '}<code>{musicPath}</code> {uiText('auto.ee711996ebe4')}</div>
+            {musicPath ? <>{uiText('auto.831bef6ea1ed')}{' '}<code>{musicPath}</code> {uiText('auto.ee711996ebe4')}</> : uiText('music.library.chooseFolder')}</div>
         ) : (
           <>
             <div className="search-field-row">
