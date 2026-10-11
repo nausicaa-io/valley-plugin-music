@@ -54,7 +54,7 @@ describe('persistent Music queue', () => {
         { type: 'start', ids: ['untagged', 'fern', 'moss', 'canopy'], index: 0 }, { type: 'pause' }, { type: 'resume' }, { type: 'toggle' },
         { type: 'next' }, { type: 'previous' }, { type: 'seek', value: 25 }, { type: 'volume', value: 0.5 },
         { type: 'repeat' }, { type: 'shuffle' }, { type: 'flush' }, { type: 'add', ids: ['untagged', 'moss'], where: 'end' },
-        { type: 'reorder', from: 1, to: 2 }, { type: 'playQueued', index: 1 }, { type: 'remove', index: 1 }, { type: 'stop' }, { type: 'clear' }
+        { type: 'reorder', from: 1, to: 2 }, { type: 'playQueued', index: 1 }, { type: 'remove', index: 1 }, { type: 'stop' }, { type: 'clear' }, { type: 'eject' }
       ]
       for (const action of actions) {
         const result = await operations.get('command.playback.action')!(action, context)
@@ -230,6 +230,41 @@ describe('persistent Music queue', () => {
     expect(f.player.load).toHaveBeenCalledOnce()
     expect(f.backend.snapshot().playing).toBe(false)
     expect(f.datasets.get('music.play_events')).toEqual([])
+    await f.backend.dispose()
+  })
+
+  it('ejects to the unloaded idle baseline, keeping recorded history and the player preferences', async () => {
+    const f = fixture([{ position: 0, songId: 'canopy' }])
+    const idle = await f.backend.read()
+    await f.backend.dispatch({ type: 'repeat' })
+    await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss', 'canopy'], index: 1, playlistId: 'mix' })
+    await f.backend.dispatch({ type: 'seek', value: 30 })
+    expect(f.backend.snapshot()).toMatchObject({ current: { id: 'moss' }, playing: true, playEvent: { songId: 'moss', playlistId: 'mix' } })
+    vi.mocked(f.player.prepareNext).mockClear()
+    const ejected = await f.backend.dispatch({ type: 'eject' })
+    expect(f.player.unload).toHaveBeenCalledOnce()
+    const { revision: _revision, sampleAgeMs: _age, ...rest } = ejected
+    const { revision: _r, sampleAgeMs: _a, ...baseline } = idle
+    expect(rest).toEqual({ ...baseline, queue: [], repeat: 'all' })
+    expect(f.getSnapshot()).toMatchObject({ primary: false, descriptor: { path: '' }, state: { status: 'stopped', positionSeconds: 0 } })
+    expect(f.datasets.get('music.queue')).toEqual([])
+    expect(f.datasets.get('music.play_events')?.map(row => row.songId)).toEqual(['moss'])
+    expect(f.player.prepareNext).toHaveBeenLastCalledWith(null)
+    await f.backend.dispatch({ type: 'eject' })
+    expect(f.backend.snapshot()).toMatchObject({ queue: [], index: -1, current: null, playing: false })
+    expect(parsePlaybackAction({ type: 'eject' })).toEqual({ type: 'eject' })
+    await f.backend.dispose()
+  })
+
+  it('refuses eject as not applied on a host player without unload and keeps the loaded queue', async () => {
+    const f = fixture()
+    const { unload: _unload, ...older } = f.player
+    const owner = { data: f.api.data, settings: f.api.settings, playback: { createLocalPlayer: async () => older } } as unknown as Pick<PluginBackendApi, 'data' | 'settings' | 'playback'>
+    await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss'], index: 0 })
+    await expect(f.backend.dispatch({ type: 'eject' }, undefined, owner)).rejects.toMatchObject({ code: 'PLAYER_UNLOAD_UNSUPPORTED', outcome: 'not-applied' })
+    expect(f.player.unload).not.toHaveBeenCalled()
+    expect(f.backend.snapshot()).toMatchObject({ current: { id: 'fern' }, playing: true })
+    expect(f.datasets.get('music.queue')).toEqual([{ position: 0, songId: 'moss' }])
     await f.backend.dispose()
   })
 

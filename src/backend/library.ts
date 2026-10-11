@@ -1,6 +1,7 @@
 import type { PluginBackendOperationContext } from '@valley/plugin-sdk'
 import { MusicLibrary } from '../library'
-import type { Track } from '../types'
+import { normalizeRelPath } from '@valley/plugin-sdk/paths'
+import type { Artist, Track } from '../types'
 
 const object = (value: unknown, keys: string[]): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !keys.includes(key))) throw new Error('Invalid Music command input')
@@ -17,6 +18,29 @@ const details = (value: unknown): Track['details'] => {
     else text(value, key === 'lyrics' ? 200000 : 4096, true)
   }
   return result as Track['details']
+}
+
+const nullable = <T>(value: unknown, parse: (value: unknown) => T): T | null => value === null ? null : parse(value)
+const TRACK = ['id', 'title', 'artist', 'artists', 'album', 'file', 'duration', 'favorite', 'addedAt', 'details']
+const trackValue = (value: unknown): Track => {
+  const input = object(value, TRACK)
+  if (TRACK.some(key => !(key in input))) throw new Error('Invalid Music command input')
+  const file = text(input.file, 4096)
+  if (normalizeRelPath(file) !== file) throw new Error('Invalid track file')
+  return {
+    id: text(input.id, 256), title: text(input.title, 4096), artist: text(input.artist, 4096, true), file,
+    artists: nullable(input.artists, value => { if (!Array.isArray(value) || value.length > 10000) throw new Error('Invalid track artists'); return value.map(name => text(name, 4096, true)) }),
+    album: nullable(input.album, value => text(value, 4096, true)),
+    duration: nullable(input.duration, value => { if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw new Error('Invalid track duration'); return value }),
+    favorite: nullable(input.favorite, value => { if (typeof value !== 'boolean') throw new Error('Invalid favorite state'); return value }),
+    addedAt: nullable(input.addedAt, value => { const at = text(value, 64); if (Number.isNaN(Date.parse(at))) throw new Error('Invalid track date'); return at }),
+    details: nullable(input.details, details)
+  } as unknown as Track
+}
+const artistValue = (value: unknown): Artist => {
+  const input = object(value, ['id', 'name', 'image', 'bio', 'aliases'])
+  if (!Array.isArray(input.aliases) || input.aliases.length > 10000) throw new Error('Invalid artist aliases')
+  return { id: text(input.id, 256), name: text(input.name, 4096), ...(input.image === undefined ? {} : { image: text(input.image, 4096, true) }), ...(input.bio === undefined ? {} : { bio: text(input.bio, 200000, true) }), aliases: input.aliases.map(alias => text(alias, 4096)) }
 }
 
 export function libraryHandlers(): Record<string, (input: unknown, context: PluginBackendOperationContext) => Promise<unknown>> {
@@ -42,6 +66,7 @@ export function libraryHandlers(): Record<string, (input: unknown, context: Plug
       return library.updateTrack(text(input.id, 256), patch, revision(input.expectedRevision))
     }),
     'command.track.delete': run((library, value) => { const input = object(value, ['id', 'expectedRevision']); return library.deleteTrack(text(input.id, 256), revision(input.expectedRevision)) }),
+    'command.track.restore': run((library, value) => { const input = object(value, ['value', 'expectedRevision']); return library.restoreTrack(trackValue(input.value), revision(input.expectedRevision)) }),
     'command.playlist.read': run((library, value) => { const input = object(value, ['id']); return library.readPlaylist(text(input.id, 256)) }),
     'command.playlist.create': run(async (library, value) => {
       const input = object(value, ['id', 'name', 'cover', 'songIds', 'expectedRevision', 'expectedMembersRevision']), id = text(input.id, 256)
@@ -74,6 +99,10 @@ export function libraryHandlers(): Record<string, (input: unknown, context: Plug
     'command.artist.merge': run((library, value) => {
       const input = object(value, ['sourceId', 'targetId', 'expectedSourceRevision', 'expectedTargetRevision', 'expectedAliasesRevision'])
       return library.mergeArtists(text(input.sourceId, 256), text(input.targetId, 256), { sourceRevision: revision(input.expectedSourceRevision), targetRevision: revision(input.expectedTargetRevision), aliasesRevision: revision(input.expectedAliasesRevision) })
+    }),
+    'command.artist.unmerge': run((library, value) => {
+      const input = object(value, ['source', 'target', 'expectedSourceRevision', 'expectedTargetRevision', 'expectedAliasesRevision'])
+      return library.unmergeArtists(artistValue(input.source), artistValue(input.target), { sourceRevision: revision(input.expectedSourceRevision), targetRevision: revision(input.expectedTargetRevision), aliasesRevision: revision(input.expectedAliasesRevision) })
     }),
     'command.library.rescan': run((library, value, context) => { const input = object(value, ['expectedRevision']); return library.rescan(revision(input.expectedRevision), context.cancellation) })
   }

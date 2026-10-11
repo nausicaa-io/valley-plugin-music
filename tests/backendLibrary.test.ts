@@ -38,6 +38,8 @@ function fixture(options: Partial<MockApiOptions> = {}) {
   return { ...mock, api, metadata, operations, invoke, dispose }
 }
 
+const operationsCall = (f: ReturnType<typeof fixture>, id: string, input: unknown) => f.operations.get(`command.${id}`)!(input, { id: `raw-${id}`, api: f.api, cancellation: new AbortController().signal } as PluginBackendOperationContext)
+
 describe('backend Music library owner', () => {
   it('shares artist metadata, rename and merge contracts without losing names, artwork or song membership', async () => {
     const f = fixture({ datasets: {
@@ -159,6 +161,59 @@ describe('backend Music library owner', () => {
       const noOp = await f.invoke('playlist.update', { id: 'walk', expectedRevision: reordered.revision, expectedMembersRevision: reordered.membersRevision, patch: { songIds: ['canopy', 'fern'] } })
       expect(noOp.revision).toBe(reordered.revision)
       expect(noOp.membersRevision).toBe(reordered.membersRevision)
+    } finally { await f.dispose() }
+  })
+
+  it('restores a deleted track with its original identity and refuses an occupied id or file as not applied', async () => {
+    const full = { id: 'moss', file: 'Music/moss.mp3', title: 'Moss', artist: 'Forest', artists: null, album: null, duration: 12.5, favorite: true, addedAt: '2024-02-03T04:05:06.000Z', details: { genre: 'Ambient äöü', edited: true } }
+    const f = fixture({ datasets: { 'music.tracks': [track('fern'), full], 'music.playlists': [{ id: 'walk', name: 'Walk' }], 'music.playlist_tracks': [{ playlistId: 'walk', trackId: 'fern', position: 0 }, { playlistId: 'walk', trackId: 'moss', position: 1 }] } })
+    try {
+      const before = await f.invoke('track.read', { id: 'moss' })
+      await f.invoke('track.delete', { id: 'moss', expectedRevision: before.revision })
+      const gone = await f.invoke('track.read', { id: 'moss' })
+      expect(gone.value).toBeNull()
+      await f.invoke('track.restore', { value: { ...full, id: 'other', addedAt: null }, expectedRevision: (await f.invoke('track.read', { id: 'other' })).revision })
+      await expect(f.invoke('track.restore', { value: full, expectedRevision: gone.revision })).rejects.toMatchObject({ code: 'TRACK_FILE_IN_USE', outcome: 'not-applied' })
+      const other = await f.invoke('track.read', { id: 'other' })
+      await f.invoke('track.delete', { id: 'other', expectedRevision: other.revision })
+      await expect(f.invoke('track.restore', { value: full, expectedRevision: gone.revision + 100 })).rejects.toMatchObject({ code: 'REVISION_CONFLICT', outcome: 'not-applied' })
+      const current = await f.invoke('track.read', { id: 'moss' })
+      const restored = await f.invoke('track.restore', { value: full, expectedRevision: current.revision })
+      expect(restored.value).toEqual(full)
+      expect(await f.invoke('track.read', { id: 'moss' })).toEqual({ value: full, revision: restored.revision })
+      expect(f.datasets.get('music.tracks')?.find(row => row.id === 'moss')).toEqual(full)
+      await expect(f.invoke('track.restore', { value: { ...full, file: 'Music/elsewhere.mp3' }, expectedRevision: restored.revision })).rejects.toMatchObject({ code: 'TRACK_EXISTS', outcome: 'not-applied' })
+      const walk = await f.invoke('playlist.read', { id: 'walk' })
+      expect(walk.value.songIds).toEqual(['fern'])
+      await f.invoke('playlist.update', { id: 'walk', expectedRevision: walk.revision, expectedMembersRevision: walk.membersRevision, patch: { songIds: ['fern', 'moss'] } })
+      expect(f.datasets.get('music.playlist_tracks')).toEqual([{ playlistId: 'walk', trackId: 'fern', position: 0 }, { playlistId: 'walk', trackId: 'moss', position: 1 }])
+      for (const value of [{ ...full, addedAt: undefined }, { ...full, duration: -1 }, { ...full, file: '../outside.mp3' }]) await expect(operationsCall(f, 'track.restore', { value, expectedRevision: restored.revision })).rejects.toThrow()
+    } finally { await f.dispose() }
+  })
+
+  it('undoes an artist merge exactly and refuses as not applied when the source exists or the target changed', async () => {
+    const f = fixture({ datasets: {
+      'music.artists': [{ id: 'source', name: 'Source', image: 'source.png', bio: 'Source biography' }, { id: 'target', name: 'Target', image: 'target.png', bio: null }],
+      'music.artist_aliases': [{ artistId: 'source', alias: 'Original name' }, { artistId: 'target', alias: 'Existing alias' }]
+    }, indexEntries: [] })
+    const sorted = (rows?: Array<Record<string, unknown>>) => [...(rows ?? [])].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+    try {
+      const artists = sorted(f.datasets.get('music.artists')), aliases = sorted(f.datasets.get('music.artist_aliases'))
+      const source = await f.invoke('artist.read', { id: 'source' }), target = await f.invoke('artist.read', { id: 'target' })
+      const merged = await f.invoke('artist.merge', { sourceId: 'source', targetId: 'target', expectedSourceRevision: source.revision, expectedTargetRevision: target.revision, expectedAliasesRevision: target.aliasesRevision })
+      const gone = await f.invoke('artist.read', { id: 'source' })
+      const input = { source: source.value, target: target.value, expectedSourceRevision: gone.revision, expectedTargetRevision: merged.revision, expectedAliasesRevision: merged.aliasesRevision }
+      await expect(f.invoke('artist.unmerge', { ...input, target: { ...target.value, bio: 'Edited later' } })).rejects.toMatchObject({ code: 'ARTIST_MERGE_CHANGED', outcome: 'not-applied' })
+      await expect(f.invoke('artist.unmerge', { ...input, expectedAliasesRevision: input.expectedAliasesRevision + 1 })).rejects.toMatchObject({ code: 'REVISION_CONFLICT', outcome: 'not-applied' })
+      const restored = await f.invoke('artist.unmerge', input)
+      expect(restored).toMatchObject({ source: source.value, target: target.value })
+      expect((await f.invoke('artist.read', { id: 'source' })).value).toEqual(source.value)
+      expect((await f.invoke('artist.read', { id: 'target' })).value).toEqual(target.value)
+      expect(sorted(f.datasets.get('music.artists'))).toEqual(artists)
+      expect(sorted(f.datasets.get('music.artist_aliases'))).toEqual(aliases)
+      const again = await f.invoke('artist.read', { id: 'source' }), current = await f.invoke('artist.read', { id: 'target' })
+      await expect(f.invoke('artist.unmerge', { ...input, expectedSourceRevision: again.revision, expectedTargetRevision: current.revision, expectedAliasesRevision: current.aliasesRevision })).rejects.toMatchObject({ code: 'ARTIST_EXISTS', outcome: 'not-applied' })
+      await expect(operationsCall(f, 'artist.unmerge', { ...input, target: source.value })).rejects.toThrow()
     } finally { await f.dispose() }
   })
 

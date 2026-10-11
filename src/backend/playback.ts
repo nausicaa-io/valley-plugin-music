@@ -289,6 +289,16 @@ export class MusicPlayback {
         case 'resume': await this.resume(owner, player); break
         case 'pause': if (this.media) await this.receipt(player.pause(), player); break
         case 'stop': if (this.media?.descriptor.path) await this.receipt(player.pause(), player); this.queue = this.queue.slice(0, base); break
+        case 'eject': {
+          const unload = (player as Player & { unload?: () => Promise<PlayerSnapshot> }).unload
+          if (typeof unload !== 'function') throw Object.assign(new Error('This Valley version cannot unload the Music player'), { code: 'PLAYER_UNLOAD_UNSUPPORTED', outcome: 'not-applied', retryable: false })
+          await this.flushHistory(owner)
+          const snapshot = await unload.call(player)
+          if (!snapshot || snapshot.descriptor.path) throw this.unknown()
+          this.queue = []; this.index = -1; this.playlistId = null; this.playEvent = undefined
+          this.observe(snapshot)
+          break
+        }
         case 'next': {
           const index = this.repeat === 'one' ? this.index : nextIndex(this.queue.length, this.index, this.repeat)
           if (index !== null) await this.start(index, 0, owner, player)

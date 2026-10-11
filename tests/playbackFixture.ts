@@ -28,7 +28,7 @@ export function connectPlayback(api: ValleyPluginApi) {
     const next = observe(patch)
     return { commandId: 'test', target: next.target, status: 'observed' as const }
   }
-  const player: Player = {
+  const player: Player & { unload: ReturnType<typeof vi.fn<() => Promise<Snapshot | null>>> } = {
     sourceId: 'music', sessionId: 'music-session',
     load: vi.fn(async (descriptor, options) => {
       snapshot = {
@@ -41,6 +41,17 @@ export function connectPlayback(api: ValleyPluginApi) {
       return snapshot
     }),
     prepareNext: vi.fn(async () => {}),
+    unload: vi.fn(async () => {
+      snapshot = {
+        target: { vaultGeneration: 1, sessionId: 'music-session', sessionGeneration: 1, sourceGeneration: ++sourceGeneration },
+        descriptor: { key: 'music:music', providerId: 'music', sourceId: 'music', kind: 'audio', path: '', title: '', artists: [], feat: [] },
+        revision: sourceGeneration, primary: false, effectiveGain: 1, sampleAgeMs: 0,
+        capabilities: { seek: true, rate: true, next: true, previous: true },
+        state: { status: 'stopped', positionSeconds: 0, durationSeconds: null, volume: snapshot?.state.volume ?? 0.8, muted: false, rate: 1 }
+      }
+      listeners.forEach(listener => listener(snapshot!))
+      return snapshot
+    }),
     updateMetadata: vi.fn(async patch => {
       if (!snapshot) return null
       snapshot = { ...snapshot, revision: snapshot.revision + 1, descriptor: { ...snapshot.descriptor, ...patch } }

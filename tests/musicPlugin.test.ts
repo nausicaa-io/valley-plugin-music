@@ -2798,7 +2798,10 @@ describe('Music song editing and presentation', () => {
       await act(async () => { store.pause(); await store.flushPersistence() })
       expect(media.get(mock)!.player.pause).toHaveBeenCalledOnce()
       const audio = { ...song, id: 'audio', file: 'Music/forest.mp3' }
-      await mock.api.data.dataset('music.tracks').insert(audio)
+      await act(async () => {
+        await mock.api.data.dataset('music.tracks').insert(audio)
+        await vi.waitFor(() => expect(store.getSnapshot().tracks.map(track => track.id)).toContain('audio'))
+      })
       await act(async () => { store.playTrack(audio); await store.flushPersistence() })
       expect(screen.queryByRole('button', { name: 'Video' })).toBeNull()
       expect(view.container.querySelector('video, audio')).toBeNull()

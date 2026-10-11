@@ -14,6 +14,7 @@ export const conflict = (revision: number): never => { throw Object.assign(new E
 const revision = (value: number): void => { if (!Number.isSafeInteger(value) || value < 0) throw new Error('A nonnegative expected revision is required') }
 const check = (expected: number, actual: number): void => { revision(expected); if (expected !== actual) conflict(actual) }
 const same = (left: unknown, right: unknown): boolean => JSON.stringify(left) === JSON.stringify(right)
+const refuse = (code: string, message: string): never => { throw Object.assign(new Error(message), { code, outcome: 'not-applied' }) }
 
 export class MusicLibrary {
   constructor(private api: LibraryOwner, private metadata: (path: string) => Promise<LibraryMetadata>) {}
@@ -61,6 +62,16 @@ export class MusicLibrary {
     if (!current.value) throw new Error('Track no longer exists')
     const result = await this.api.data.dataset(tracks).delete({ id }, { expected: [{ dataset: tracks, key: { id }, revision: expectedRevision }] })
     return { id, revision: result.revision }
+  }
+
+  async restoreTrack(value: Track, expectedRevision: number) {
+    const observed = await this.readTrack(value.id)
+    check(expectedRevision, observed.revision)
+    if (observed.value) refuse('TRACK_EXISTS', 'Track already exists')
+    const songs = await this.rows(tracks, { file: value.file })
+    if (songs.rows.length) refuse('TRACK_FILE_IN_USE', 'Another track already uses this file')
+    const result = await this.api.data.transaction([{ dataset: tracks, operation: 'upsert', values: record(value) }], { expected: [{ dataset: tracks, key: { id: value.id }, revision: expectedRevision }, { dataset: tracks, revision: songs.revision }] })
+    return { value, revision: result.revision }
   }
 
   private async playlistState(id: string): Promise<{ value: Playlist | null; links: DatasetRecord[] } & LibraryRevisions> {
@@ -162,6 +173,16 @@ export class MusicLibrary {
     const value = mergeArtistMetadata(source.value, target.value)
     const result = await this.writeArtists([{ id: sourceId, value: null, revision: expected.sourceRevision }, { id: targetId, value, revision: expected.targetRevision }], expected.aliasesRevision)
     return { value, sourceId, sourceRevision: result.revisions[0], revision: result.revisions[1], aliasesRevision: result.aliasesRevision }
+  }
+
+  async unmergeArtists(source: Artist, target: Artist, expected: { sourceRevision: number; targetRevision: number; aliasesRevision: number }) {
+    if (source.id === target.id) throw new Error('Select two different artists')
+    const [before, after] = await this.readArtists([source.id, target.id])
+    check(expected.sourceRevision, before.revision); check(expected.targetRevision, after.revision); check(expected.aliasesRevision, after.aliasesRevision)
+    if (before.value) refuse('ARTIST_EXISTS', 'Source artist already exists')
+    if (!after.value || !sameArtist(mergeArtistMetadata(source, target), after.value)) refuse('ARTIST_MERGE_CHANGED', 'Target artist no longer matches that merge')
+    const result = await this.writeArtists([{ id: source.id, value: source, revision: expected.sourceRevision }, { id: target.id, value: target, revision: expected.targetRevision }], expected.aliasesRevision)
+    return { source, target, sourceRevision: result.revisions[0], revision: result.revisions[1], aliasesRevision: result.aliasesRevision }
   }
 
   async index(signal?: AbortSignal): Promise<PluginIndexEntry[]> {

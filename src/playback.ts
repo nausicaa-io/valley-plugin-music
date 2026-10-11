@@ -23,7 +23,7 @@ export interface MusicPlaybackSnapshot {
 
 export type MusicPlaybackAction =
   | { type: 'start'; ids: string[]; index: number; playlistId?: string | null; shuffle?: boolean; position?: number }
-  | { type: 'resume' | 'toggle' | 'pause' | 'next' | 'previous' | 'clear' | 'stop' | 'repeat' | 'shuffle' | 'flush' }
+  | { type: 'resume' | 'toggle' | 'pause' | 'next' | 'previous' | 'clear' | 'stop' | 'eject' | 'repeat' | 'shuffle' | 'flush' }
   | { type: 'seek' | 'volume'; value: number }
   | { type: 'add'; ids: string[]; where: 'next' | 'end' }
   | { type: 'remove' | 'playQueued'; index: number }
@@ -45,7 +45,7 @@ export function parsePlaybackAction(value: unknown): MusicPlaybackAction {
   const index = (key: string) => typeof action[key] === 'number' && Number.isSafeInteger(action[key]) && Number(action[key]) >= 0
   const ids = () => Array.isArray(action.ids) && action.ids.length <= 10000 && action.ids.every(id => typeof id === 'string' && id.length > 0 && id.length <= 512)
   const finite = () => typeof action.value === 'number' && Number.isFinite(action.value) && action.value >= 0
-  if (['resume', 'toggle', 'pause', 'next', 'previous', 'clear', 'stop', 'repeat', 'shuffle', 'flush'].includes(String(action.type))) return action as MusicPlaybackAction
+  if (['resume', 'toggle', 'pause', 'next', 'previous', 'clear', 'stop', 'eject', 'repeat', 'shuffle', 'flush'].includes(String(action.type))) return action as MusicPlaybackAction
   if (action.type === 'start' && ids() && index('index') && (action.playlistId === undefined || action.playlistId === null || typeof action.playlistId === 'string')
     && (action.shuffle === undefined || typeof action.shuffle === 'boolean')
     && (action.position === undefined || typeof action.position === 'number' && Number.isFinite(action.position) && action.position >= 0)) return action as MusicPlaybackAction

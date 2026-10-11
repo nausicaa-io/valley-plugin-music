@@ -3816,6 +3816,394 @@
               }
             },
             {
+              "id": "playback.eject",
+              "description": "Stop playback, unload the player and clear the queue and its resume point",
+              "effect": "execute",
+              "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              },
+              "request": {
+                "constants": {
+                  "type": "eject"
+                }
+              },
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "sessionId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "queue": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "artist": {
+                          "type": "string"
+                        },
+                        "artists": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "album": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "details": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "feat": {
+                                  "type": "string"
+                                },
+                                "songwriter": {
+                                  "type": "string"
+                                },
+                                "author": {
+                                  "type": "string"
+                                },
+                                "composer": {
+                                  "type": "string"
+                                },
+                                "genre": {
+                                  "type": "string"
+                                },
+                                "year": {
+                                  "type": "string"
+                                },
+                                "lyrics": {
+                                  "type": "string"
+                                },
+                                "cover": {
+                                  "type": "string"
+                                },
+                                "edited": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "file": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "favorite": {
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "addedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "artist",
+                        "file"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "index": {
+                    "type": "integer",
+                    "minimum": -1
+                  },
+                  "playlistId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "current": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "artist": {
+                            "type": "string"
+                          },
+                          "artists": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "album": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "details": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "feat": {
+                                    "type": "string"
+                                  },
+                                  "songwriter": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "composer": {
+                                    "type": "string"
+                                  },
+                                  "genre": {
+                                    "type": "string"
+                                  },
+                                  "year": {
+                                    "type": "string"
+                                  },
+                                  "lyrics": {
+                                    "type": "string"
+                                  },
+                                  "cover": {
+                                    "type": "string"
+                                  },
+                                  "edited": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "file": {
+                            "type": "string"
+                          },
+                          "duration": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "favorite": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "addedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "artist",
+                          "file"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "playing": {
+                    "type": "boolean"
+                  },
+                  "buffering": {
+                    "type": "boolean"
+                  },
+                  "position": {
+                    "type": "number"
+                  },
+                  "duration": {
+                    "type": "number"
+                  },
+                  "rate": {
+                    "type": "number"
+                  },
+                  "sampleAgeMs": {
+                    "type": "number"
+                  },
+                  "volume": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "shuffle": {
+                    "type": "boolean"
+                  },
+                  "repeat": {
+                    "type": "string",
+                    "enum": [
+                      "off",
+                      "all",
+                      "one"
+                    ]
+                  },
+                  "error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "errorOutcome": {
+                    "type": "string",
+                    "enum": [
+                      "unknown"
+                    ]
+                  },
+                  "playEvent": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "songId": {
+                        "type": "string"
+                      },
+                      "playedAt": {
+                        "type": "string"
+                      },
+                      "playlistId": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "songId",
+                      "playedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "revision",
+                  "sessionId",
+                  "queue",
+                  "index",
+                  "playlistId",
+                  "current",
+                  "playing",
+                  "buffering",
+                  "position",
+                  "duration",
+                  "rate",
+                  "sampleAgeMs",
+                  "volume",
+                  "shuffle",
+                  "repeat",
+                  "error"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              }
+            },
+            {
               "id": "playback.repeat",
               "description": "Cycle repeat mode off/all/one",
               "effect": "execute",
@@ -8588,6 +8976,347 @@
         }
       },
       {
+        "id": "command.track.restore",
+        "version": "1.0.0",
+        "method": "command.track.restore",
+        "operation": true,
+        "request": {
+          "type": "unknown"
+        },
+        "response": {
+          "type": "unknown"
+        },
+        "metadata": {
+          "commands": [
+            {
+              "id": "track.restore",
+              "description": "Restore a deleted track record with its original id, file and added date",
+              "effect": "write",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096
+                      },
+                      "artist": {
+                        "type": "string",
+                        "maxLength": 4096
+                      },
+                      "artists": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 4096
+                            },
+                            "maxItems": 10000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "album": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "file": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096
+                      },
+                      "duration": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "favorite": {
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "addedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "details": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "feat": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "songwriter": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "author": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "composer": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "genre": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "year": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "lyrics": {
+                                "type": "string",
+                                "maxLength": 200000
+                              },
+                              "cover": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "edited": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "artist",
+                      "artists",
+                      "album",
+                      "file",
+                      "duration",
+                      "favorite",
+                      "addedAt",
+                      "details"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "expectedRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "value",
+                  "expectedRevision"
+                ],
+                "additionalProperties": false
+              },
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "artist": {
+                        "type": "string"
+                      },
+                      "artists": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "album": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "details": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "feat": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "songwriter": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "author": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "composer": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "genre": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "year": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "lyrics": {
+                                "type": "string",
+                                "maxLength": 200000
+                              },
+                              "cover": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "edited": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "file": {
+                        "type": "string"
+                      },
+                      "duration": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "favorite": {
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "addedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "artist",
+                      "file"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "value",
+                  "revision"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              },
+              "examples": [
+                {
+                  "description": "Restore a deleted track record with its original id, file and added date",
+                  "input": {
+                    "value": {
+                      "id": "song-id",
+                      "title": "Song",
+                      "artist": "Artist",
+                      "artists": null,
+                      "album": null,
+                      "file": "Music/song.mp3",
+                      "duration": null,
+                      "favorite": null,
+                      "addedAt": "2025-01-01T00:00:00.000Z",
+                      "details": null
+                    },
+                    "expectedRevision": 2
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
         "id": "command.playlist.read",
         "version": "1.0.0",
         "method": "command.playlist.read",
@@ -9621,6 +10350,246 @@
                     "expectedSourceRevision": 1,
                     "expectedTargetRevision": 1,
                     "expectedAliasesRevision": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "command.artist.unmerge",
+        "version": "1.0.0",
+        "method": "command.artist.unmerge",
+        "operation": true,
+        "request": {
+          "type": "unknown"
+        },
+        "response": {
+          "type": "unknown"
+        },
+        "metadata": {
+          "commands": [
+            {
+              "id": "artist.unmerge",
+              "description": "Undo an artist merge by restoring the source artist and the target artist as they were before it",
+              "effect": "write",
+              "inputSchema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "name": {
+                        "type": "string",
+                        "maxLength": 4096,
+                        "minLength": 1
+                      },
+                      "image": {
+                        "type": "string",
+                        "maxLength": 4096
+                      },
+                      "bio": {
+                        "type": "string",
+                        "maxLength": 200000
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
+                        "maxItems": 10000
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "aliases"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "target": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "name": {
+                        "type": "string",
+                        "maxLength": 4096,
+                        "minLength": 1
+                      },
+                      "image": {
+                        "type": "string",
+                        "maxLength": 4096
+                      },
+                      "bio": {
+                        "type": "string",
+                        "maxLength": 200000
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
+                        "maxItems": 10000
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "aliases"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "expectedSourceRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "expectedTargetRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "expectedAliasesRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "source",
+                  "target",
+                  "expectedSourceRevision",
+                  "expectedTargetRevision",
+                  "expectedAliasesRevision"
+                ],
+                "additionalProperties": false
+              },
+              "outputSchema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "name": {
+                        "type": "string",
+                        "maxLength": 4096,
+                        "minLength": 1
+                      },
+                      "image": {
+                        "type": "string",
+                        "maxLength": 4096
+                      },
+                      "bio": {
+                        "type": "string",
+                        "maxLength": 200000
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
+                        "maxItems": 10000
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "aliases"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "target": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "name": {
+                        "type": "string",
+                        "maxLength": 4096,
+                        "minLength": 1
+                      },
+                      "image": {
+                        "type": "string",
+                        "maxLength": 4096
+                      },
+                      "bio": {
+                        "type": "string",
+                        "maxLength": 200000
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
+                        "maxItems": 10000
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "aliases"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "sourceRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "aliasesRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "source",
+                  "target",
+                  "sourceRevision",
+                  "revision",
+                  "aliasesRevision"
+                ],
+                "additionalProperties": false,
+                "$schema": "http://json-schema.org/draft-07/schema#"
+              },
+              "examples": [
+                {
+                  "description": "Undo an artist merge by restoring the source artist and the target artist as they were before it",
+                  "input": {
+                    "source": {
+                      "id": "source-id",
+                      "name": "Source",
+                      "aliases": []
+                    },
+                    "target": {
+                      "id": "target-id",
+                      "name": "Target",
+                      "aliases": []
+                    },
+                    "expectedSourceRevision": 3,
+                    "expectedTargetRevision": 3,
+                    "expectedAliasesRevision": 3
                   }
                 }
               ]
@@ -15138,6 +16107,790 @@
                 "version": "1.0.0",
                 "displayName": "Pause playback and clear upcoming songs",
                 "description": "Pause playback and clear upcoming songs. Uses the owning plugin backend and its existing grants and revision checks.",
+                "effect": "execute",
+                "idempotent": false,
+                "executionMode": "item",
+                "inputs": [
+                  {
+                    "id": "input",
+                    "label": "Input",
+                    "dataType": "json",
+                    "schema": {
+                      "type": "object"
+                    }
+                  }
+                ],
+                "outputs": [
+                  {
+                    "id": "output",
+                    "label": "Result",
+                    "dataType": "json",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "sessionId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "queue": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "artist": {
+                                "type": "string"
+                              },
+                              "artists": {
+                                "anyOf": [
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "album": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "details": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "feat": {
+                                        "type": "string"
+                                      },
+                                      "songwriter": {
+                                        "type": "string"
+                                      },
+                                      "author": {
+                                        "type": "string"
+                                      },
+                                      "composer": {
+                                        "type": "string"
+                                      },
+                                      "genre": {
+                                        "type": "string"
+                                      },
+                                      "year": {
+                                        "type": "string"
+                                      },
+                                      "lyrics": {
+                                        "type": "string"
+                                      },
+                                      "cover": {
+                                        "type": "string"
+                                      },
+                                      "edited": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "file": {
+                                "type": "string"
+                              },
+                              "duration": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "favorite": {
+                                "anyOf": [
+                                  {
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "addedAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "title",
+                              "artist",
+                              "file"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "index": {
+                          "type": "integer",
+                          "minimum": -1
+                        },
+                        "playlistId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "current": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "artist": {
+                                  "type": "string"
+                                },
+                                "artists": {
+                                  "anyOf": [
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "album": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "details": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "feat": {
+                                          "type": "string"
+                                        },
+                                        "songwriter": {
+                                          "type": "string"
+                                        },
+                                        "author": {
+                                          "type": "string"
+                                        },
+                                        "composer": {
+                                          "type": "string"
+                                        },
+                                        "genre": {
+                                          "type": "string"
+                                        },
+                                        "year": {
+                                          "type": "string"
+                                        },
+                                        "lyrics": {
+                                          "type": "string"
+                                        },
+                                        "cover": {
+                                          "type": "string"
+                                        },
+                                        "edited": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "duration": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "favorite": {
+                                  "anyOf": [
+                                    {
+                                      "type": "boolean"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "addedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "title",
+                                "artist",
+                                "file"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "playing": {
+                          "type": "boolean"
+                        },
+                        "buffering": {
+                          "type": "boolean"
+                        },
+                        "position": {
+                          "type": "number"
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "rate": {
+                          "type": "number"
+                        },
+                        "sampleAgeMs": {
+                          "type": "number"
+                        },
+                        "volume": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "shuffle": {
+                          "type": "boolean"
+                        },
+                        "repeat": {
+                          "type": "string",
+                          "enum": [
+                            "off",
+                            "all",
+                            "one"
+                          ]
+                        },
+                        "error": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "errorOutcome": {
+                          "type": "string",
+                          "enum": [
+                            "unknown"
+                          ]
+                        },
+                        "playEvent": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "songId": {
+                              "type": "string"
+                            },
+                            "playedAt": {
+                              "type": "string"
+                            },
+                            "playlistId": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "songId",
+                            "playedAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "revision",
+                        "sessionId",
+                        "queue",
+                        "index",
+                        "playlistId",
+                        "current",
+                        "playing",
+                        "buffering",
+                        "position",
+                        "duration",
+                        "rate",
+                        "sampleAgeMs",
+                        "volume",
+                        "shuffle",
+                        "repeat",
+                        "error"
+                      ],
+                      "additionalProperties": false,
+                      "$schema": "http://json-schema.org/draft-07/schema#"
+                    }
+                  }
+                ],
+                "parameterSchema": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false,
+                  "$schema": "http://json-schema.org/draft-07/schema#"
+                },
+                "inputSchema": {
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sessionId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "queue": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "artist": {
+                            "type": "string"
+                          },
+                          "artists": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "album": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "details": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "feat": {
+                                    "type": "string"
+                                  },
+                                  "songwriter": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "composer": {
+                                    "type": "string"
+                                  },
+                                  "genre": {
+                                    "type": "string"
+                                  },
+                                  "year": {
+                                    "type": "string"
+                                  },
+                                  "lyrics": {
+                                    "type": "string"
+                                  },
+                                  "cover": {
+                                    "type": "string"
+                                  },
+                                  "edited": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "file": {
+                            "type": "string"
+                          },
+                          "duration": {
+                            "anyOf": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "favorite": {
+                            "anyOf": [
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "addedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "artist",
+                          "file"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "index": {
+                      "type": "integer",
+                      "minimum": -1
+                    },
+                    "playlistId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "current": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "artist": {
+                              "type": "string"
+                            },
+                            "artists": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "album": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "details": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "feat": {
+                                      "type": "string"
+                                    },
+                                    "songwriter": {
+                                      "type": "string"
+                                    },
+                                    "author": {
+                                      "type": "string"
+                                    },
+                                    "composer": {
+                                      "type": "string"
+                                    },
+                                    "genre": {
+                                      "type": "string"
+                                    },
+                                    "year": {
+                                      "type": "string"
+                                    },
+                                    "lyrics": {
+                                      "type": "string"
+                                    },
+                                    "cover": {
+                                      "type": "string"
+                                    },
+                                    "edited": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "file": {
+                              "type": "string"
+                            },
+                            "duration": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "favorite": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "addedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title",
+                            "artist",
+                            "file"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "playing": {
+                      "type": "boolean"
+                    },
+                    "buffering": {
+                      "type": "boolean"
+                    },
+                    "position": {
+                      "type": "number"
+                    },
+                    "duration": {
+                      "type": "number"
+                    },
+                    "rate": {
+                      "type": "number"
+                    },
+                    "sampleAgeMs": {
+                      "type": "number"
+                    },
+                    "volume": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "shuffle": {
+                      "type": "boolean"
+                    },
+                    "repeat": {
+                      "type": "string",
+                      "enum": [
+                        "off",
+                        "all",
+                        "one"
+                      ]
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "errorOutcome": {
+                      "type": "string",
+                      "enum": [
+                        "unknown"
+                      ]
+                    },
+                    "playEvent": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "songId": {
+                          "type": "string"
+                        },
+                        "playedAt": {
+                          "type": "string"
+                        },
+                        "playlistId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "songId",
+                        "playedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "revision",
+                    "sessionId",
+                    "queue",
+                    "index",
+                    "playlistId",
+                    "current",
+                    "playing",
+                    "buffering",
+                    "position",
+                    "duration",
+                    "rate",
+                    "sampleAgeMs",
+                    "volume",
+                    "shuffle",
+                    "repeat",
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "$schema": "http://json-schema.org/draft-07/schema#"
+                },
+                "readiness": {
+                  "state": "Available"
+                }
+              },
+              {
+                "id": "playback.eject",
+                "type": "action",
+                "version": "1.0.0",
+                "displayName": "Stop playback, unload the player and clear the queue and its resume point",
+                "description": "Stop playback, unload the player and clear the queue and its resume point. Uses the owning plugin backend and its existing grants and revision checks.",
                 "effect": "execute",
                 "idempotent": false,
                 "executionMode": "item",
@@ -25322,6 +27075,509 @@
                 }
               },
               {
+                "id": "track.restore",
+                "type": "action",
+                "version": "1.0.0",
+                "displayName": "Restore a deleted track record with its original id, file and added date",
+                "description": "Restore a deleted track record with its original id, file and added date. Uses the owning plugin backend and its existing grants and revision checks.",
+                "effect": "write",
+                "idempotent": false,
+                "executionMode": "item",
+                "inputs": [
+                  {
+                    "id": "input",
+                    "label": "Input",
+                    "dataType": "json",
+                    "schema": {
+                      "type": "object"
+                    }
+                  }
+                ],
+                "outputs": [
+                  {
+                    "id": "output",
+                    "label": "Result",
+                    "dataType": "json",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "artist": {
+                              "type": "string"
+                            },
+                            "artists": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "album": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "details": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "feat": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "songwriter": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "author": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "composer": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "genre": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "year": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "lyrics": {
+                                      "type": "string",
+                                      "maxLength": 200000
+                                    },
+                                    "cover": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "edited": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "file": {
+                              "type": "string"
+                            },
+                            "duration": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "favorite": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "addedAt": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title",
+                            "artist",
+                            "file"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "revision"
+                      ],
+                      "additionalProperties": false,
+                      "$schema": "http://json-schema.org/draft-07/schema#"
+                    }
+                  }
+                ],
+                "parameterSchema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "id"
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "title"
+                        },
+                        "artist": {
+                          "type": "string",
+                          "maxLength": 4096,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "artist"
+                        },
+                        "artists": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "maxItems": 10000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "title": "artists"
+                        },
+                        "album": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 4096
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "title": "album"
+                        },
+                        "file": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "file"
+                        },
+                        "duration": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "title": "duration"
+                        },
+                        "favorite": {
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "title": "favorite"
+                        },
+                        "addedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "title": "addedAt"
+                        },
+                        "details": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "feat": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "songwriter": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "author": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "composer": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "genre": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "year": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "lyrics": {
+                                  "type": "string",
+                                  "maxLength": 200000
+                                },
+                                "cover": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "edited": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "title": "details"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "artist",
+                        "artists",
+                        "album",
+                        "file",
+                        "duration",
+                        "favorite",
+                        "addedAt",
+                        "details"
+                      ],
+                      "additionalProperties": false,
+                      "title": "value"
+                    },
+                    "expectedRevision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "ui": {
+                        "control": "number",
+                        "step": 1
+                      },
+                      "title": "expectedRevision"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "expectedRevision"
+                  ],
+                  "additionalProperties": false,
+                  "$schema": "http://json-schema.org/draft-07/schema#"
+                },
+                "inputSchema": {
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "artist": {
+                          "type": "string"
+                        },
+                        "artists": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "album": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "details": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "feat": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "songwriter": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "author": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "composer": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "genre": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "year": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "lyrics": {
+                                  "type": "string",
+                                  "maxLength": 200000
+                                },
+                                "cover": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "edited": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "file": {
+                          "type": "string"
+                        },
+                        "duration": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "favorite": {
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "addedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "artist",
+                        "file"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "revision"
+                  ],
+                  "additionalProperties": false,
+                  "$schema": "http://json-schema.org/draft-07/schema#"
+                },
+                "readiness": {
+                  "state": "Available"
+                }
+              },
+              {
                 "id": "playlist.read",
                 "type": "action",
                 "version": "1.0.0",
@@ -26978,6 +29234,390 @@
                   "required": [
                     "value",
                     "sourceId",
+                    "sourceRevision",
+                    "revision",
+                    "aliasesRevision"
+                  ],
+                  "additionalProperties": false,
+                  "$schema": "http://json-schema.org/draft-07/schema#"
+                },
+                "readiness": {
+                  "state": "Available"
+                }
+              },
+              {
+                "id": "artist.unmerge",
+                "type": "action",
+                "version": "1.0.0",
+                "displayName": "Undo an artist merge by restoring the source artist and the target artist as they were before it",
+                "description": "Undo an artist merge by restoring the source artist and the target artist as they were before it. Uses the owning plugin backend and its existing grants and revision checks.",
+                "effect": "write",
+                "idempotent": false,
+                "executionMode": "item",
+                "inputs": [
+                  {
+                    "id": "input",
+                    "label": "Input",
+                    "dataType": "json",
+                    "schema": {
+                      "type": "object"
+                    }
+                  }
+                ],
+                "outputs": [
+                  {
+                    "id": "output",
+                    "label": "Result",
+                    "dataType": "json",
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "source": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            },
+                            "name": {
+                              "type": "string",
+                              "maxLength": 4096,
+                              "minLength": 1
+                            },
+                            "image": {
+                              "type": "string",
+                              "maxLength": 4096
+                            },
+                            "bio": {
+                              "type": "string",
+                              "maxLength": 200000
+                            },
+                            "aliases": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "maxItems": 10000
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "aliases"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "target": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 256
+                            },
+                            "name": {
+                              "type": "string",
+                              "maxLength": 4096,
+                              "minLength": 1
+                            },
+                            "image": {
+                              "type": "string",
+                              "maxLength": 4096
+                            },
+                            "bio": {
+                              "type": "string",
+                              "maxLength": 200000
+                            },
+                            "aliases": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "maxItems": 10000
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "aliases"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "sourceRevision": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "aliasesRevision": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "source",
+                        "target",
+                        "sourceRevision",
+                        "revision",
+                        "aliasesRevision"
+                      ],
+                      "additionalProperties": false,
+                      "$schema": "http://json-schema.org/draft-07/schema#"
+                    }
+                  }
+                ],
+                "parameterSchema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "id"
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 4096,
+                          "minLength": 1,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "name"
+                        },
+                        "image": {
+                          "type": "string",
+                          "maxLength": 4096,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "image"
+                        },
+                        "bio": {
+                          "type": "string",
+                          "maxLength": 200000,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "bio"
+                        },
+                        "aliases": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "maxItems": 10000,
+                          "title": "aliases"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "aliases"
+                      ],
+                      "additionalProperties": false,
+                      "title": "source"
+                    },
+                    "target": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "id"
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 4096,
+                          "minLength": 1,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "name"
+                        },
+                        "image": {
+                          "type": "string",
+                          "maxLength": 4096,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "image"
+                        },
+                        "bio": {
+                          "type": "string",
+                          "maxLength": 200000,
+                          "ui": {
+                            "control": "text"
+                          },
+                          "title": "bio"
+                        },
+                        "aliases": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "maxItems": 10000,
+                          "title": "aliases"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "aliases"
+                      ],
+                      "additionalProperties": false,
+                      "title": "target"
+                    },
+                    "expectedSourceRevision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "ui": {
+                        "control": "number",
+                        "step": 1
+                      },
+                      "title": "expectedSourceRevision"
+                    },
+                    "expectedTargetRevision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "ui": {
+                        "control": "number",
+                        "step": 1
+                      },
+                      "title": "expectedTargetRevision"
+                    },
+                    "expectedAliasesRevision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "ui": {
+                        "control": "number",
+                        "step": 1
+                      },
+                      "title": "expectedAliasesRevision"
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "target",
+                    "expectedSourceRevision",
+                    "expectedTargetRevision",
+                    "expectedAliasesRevision"
+                  ],
+                  "additionalProperties": false,
+                  "$schema": "http://json-schema.org/draft-07/schema#"
+                },
+                "inputSchema": {
+                  "type": "object"
+                },
+                "outputSchema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 4096,
+                          "minLength": 1
+                        },
+                        "image": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
+                        "bio": {
+                          "type": "string",
+                          "maxLength": 200000
+                        },
+                        "aliases": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "maxItems": 10000
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "aliases"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "target": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 4096,
+                          "minLength": 1
+                        },
+                        "image": {
+                          "type": "string",
+                          "maxLength": 4096
+                        },
+                        "bio": {
+                          "type": "string",
+                          "maxLength": 200000
+                        },
+                        "aliases": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "maxItems": 10000
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "aliases"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "sourceRevision": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "aliasesRevision": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "target",
                     "sourceRevision",
                     "revision",
                     "aliasesRevision"

@@ -66,6 +66,14 @@ const bindings: Record<string, Binding> = {
       "type": "stop"
     }
   },
+  "playback.eject": {
+    "method": "command.playback.action",
+    "wrap": false,
+    "effect": "execute",
+    "constants": {
+      "type": "eject"
+    }
+  },
   "playback.repeat": {
     "method": "command.playback.action",
     "wrap": false,
@@ -166,6 +174,11 @@ const bindings: Record<string, Binding> = {
     "wrap": false,
     "effect": "write"
   },
+  "track.restore": {
+    "method": "command.track.restore",
+    "wrap": false,
+    "effect": "write"
+  },
   "playlist.read": {
     "method": "command.playlist.read",
     "wrap": false,
@@ -208,6 +221,11 @@ const bindings: Record<string, Binding> = {
   },
   "artist.merge": {
     "method": "command.artist.merge",
+    "wrap": false,
+    "effect": "write"
+  },
+  "artist.unmerge": {
+    "method": "command.artist.unmerge",
     "wrap": false,
     "effect": "write"
   }

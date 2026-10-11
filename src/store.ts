@@ -264,6 +264,9 @@ export class MusicStore {
   private indexReady: { promise: Promise<void>; resolve(): void; reject(error: Error): void } | undefined
   private disposal: Promise<void> | undefined
   private offBeforeUnload: () => void
+  private offDatasets: () => void
+  private reloadWork: Promise<void> | null = null
+  private reloadDirty = false
 
   constructor(api: ValleyPluginApi, private retired?: Promise<void>) {
     this.api = api
@@ -311,7 +314,14 @@ export class MusicStore {
       this.emit()
       if (!this.loading && !this.synced) this.syncWhenIndexed()
     })
+    const offDatasets = [this.trackStore(), this.playlistStore(), this.artistStore(), this.playHistoryStore()].map(store => store.subscribe(() => this.reloadOnDatasetChange()))
+    this.offDatasets = () => offDatasets.forEach(off => off())
     void this.load().then(() => this.syncWhenIndexed()).catch(() => {})
+  }
+
+  /** Backend writes (rescan, playlist.update, track.delete...) land in the datasets; follow them. */
+  private reloadOnDatasetChange(): void {
+    if (!this.disposed) void this.load().catch(() => {})
   }
 
   // ---- Subscription -------------------------------------------------------
@@ -644,8 +654,22 @@ export class MusicStore {
 
   // ---- Library loading ------------------------------------------------------
 
-  async load(): Promise<void> {
-    if (this.disposed) return
+  /** Loads run one at a time; a request that arrives mid-load reruns it once afterwards. */
+  load(): Promise<void> {
+    if (this.disposed) return Promise.resolve()
+    this.reloadDirty = true
+    this.reloadWork ??= (async () => {
+      try {
+        while (this.reloadDirty && !this.disposed) {
+          this.reloadDirty = false
+          await this.loadOnce()
+        }
+      } finally { this.reloadWork = null }
+    })()
+    return this.reloadWork
+  }
+
+  private async loadOnce(): Promise<void> {
     this.loading = true
     this.libraryError = null
     this.emit()
@@ -1546,6 +1570,7 @@ export class MusicStore {
     this.indexReady?.reject(new MetadataCancelled())
     this.indexReady = undefined
     this.offBackendPlayback()
+    this.offDatasets()
     this.offMetadata()
     this.offPlaybackCover?.()
     this.metadata.dispose()
