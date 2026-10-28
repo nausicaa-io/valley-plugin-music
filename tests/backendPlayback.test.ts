@@ -134,7 +134,7 @@ describe('persistent Music queue', () => {
     await f.backend.dispose()
   })
 
-  it('keeps Music Stop queue clearing separate from host pause and serializes rapid queue actions', async () => {
+  it('keeps Up Next and the position on Music Stop and serializes rapid queue actions', async () => {
     const f = fixture()
     await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss', 'canopy'], index: 0 })
     await Promise.all([f.backend.dispatch({ type: 'next' }), f.backend.dispatch({ type: 'next' })])
@@ -146,7 +146,8 @@ describe('persistent Music queue', () => {
     await f.backend.dispatch({ type: 'stop' })
     expect(f.backend.snapshot()).toMatchObject({ current: { id: 'canopy' }, position: 45, playing: false })
     expect(f.player.stop).not.toHaveBeenCalled()
-    expect(f.datasets.get('music.queue')).toEqual([])
+    expect(f.backend.snapshot().queue.slice(f.backend.snapshot().index + 1).map(track => track.id)).toEqual(['fern', 'moss'])
+    expect(f.datasets.get('music.queue')).toHaveLength(2)
     await f.backend.dispose()
   })
 
@@ -210,14 +211,45 @@ describe('persistent Music queue', () => {
     await f.backend.dispose()
   })
 
-  it.each(['paused', 'ended'] as const)('restarts a selected recording at its end from zero when its saved status is %s', async status => {
+  it.each(['paused', 'ended'] as const)('does not replay the finished last recording when its saved status is %s and repeat is off', async status => {
     const f = fixture()
     await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
     f.observe({ status, positionSeconds: 0.1, durationSeconds: 0.1 })
-    expect(await f.backend.dispatch({ type: 'resume' })).toMatchObject({ playing: true, position: 0 })
-    expect(f.player.load).toHaveBeenLastCalledWith(expect.objectContaining({ path: 'Music/fern.mp4' }), { position: 0, autoplay: true })
+    expect(await f.backend.dispatch({ type: 'resume' })).toMatchObject({ playing: false, current: { id: 'fern' } })
+    expect(f.player.load).toHaveBeenCalledOnce()
+    expect(f.player.play).not.toHaveBeenCalled()
+    await f.backend.dispose()
+  })
+
+  it('advances to the next queued recording when resuming one paused at its end', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss'], index: 0 })
+    f.observe({ status: 'paused', positionSeconds: 180, durationSeconds: 180 })
+    expect(await f.backend.dispatch({ type: 'resume' })).toMatchObject({ playing: true, current: { id: 'moss' }, position: 0 })
+    expect(f.player.load).toHaveBeenLastCalledWith(expect.objectContaining({ path: 'Music/moss.mp4' }), { position: 0, autoplay: true })
+    expect(f.player.play).not.toHaveBeenCalled()
+    await f.backend.dispose()
+  })
+
+  it('restarts the finished recording from zero when repeat is one', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
+    await f.backend.dispatch({ type: 'repeat' })
+    await f.backend.dispatch({ type: 'repeat' })
+    expect(f.backend.snapshot().repeat).toBe('one')
+    f.observe({ status: 'paused', positionSeconds: 0.1, durationSeconds: 0.1 })
+    expect(await f.backend.dispatch({ type: 'resume' })).toMatchObject({ playing: true, current: { id: 'fern' }, position: 0 })
     expect(f.player.load).toHaveBeenCalledTimes(2)
     expect(f.player.play).not.toHaveBeenCalled()
+    await f.backend.dispose()
+  })
+
+  it('reports an unknown outcome when an observed pause still reports playing', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
+    vi.mocked(f.player.pause).mockResolvedValueOnce({ commandId: 'still-playing', target: f.getSnapshot()!.target, status: 'observed' })
+    await expect(f.backend.dispatch({ type: 'pause' })).rejects.toMatchObject({ outcome: 'unknown' })
+    expect(f.player.pause).toHaveBeenCalledOnce()
     await f.backend.dispose()
   })
 

@@ -73,7 +73,7 @@ export function musicAgentTools(api: ValleyPluginApi): AgentToolProvider {
       }
     },
     {
-      name: 'music_control', description: 'Pause, resume, skip, stop, adjust volume, or shuffle current music playback. Use this directly for transport requests.',
+      name: 'music_control', description: 'Pause, resume, skip, stop, adjust volume, or shuffle current music playback. Stop keeps the up-next queue and position; only clear the queue when explicitly asked. Use this directly for transport requests.',
       parameters: schema({
         action: { type: 'string', enum: ['play', 'resume', 'pause', 'next', 'previous', 'stop', 'shuffle', 'volume'] },
         enabled: { type: 'boolean' }, volume: { type: 'number' }

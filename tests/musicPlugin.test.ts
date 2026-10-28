@@ -218,9 +218,13 @@ describe('Music Properties and explicit automation', () => {
       await call('refresh')
       expect(tracksOf(mock)).toHaveLength(3)
       await call('open-page')
-      expect(mock.api.workspace.openMainTab).toHaveBeenCalled()
+      expect(mock.api.workspace.openMainTab).toHaveBeenLastCalledWith(undefined)
+      await call('open-page', { newTab: true })
+      expect(mock.api.workspace.openMainTab).toHaveBeenLastCalledWith({ newTab: true })
+      const upNext = getStore()?.getSnapshot().upNext.map((song) => song.id)
       await call('stop')
-      expect(getStore()?.getSnapshot()).toMatchObject({ isPlaying: false, currentTime: 0 })
+      expect(getStore()?.getSnapshot()).toMatchObject({ isPlaying: false })
+      expect(getStore()?.getSnapshot().upNext.map((song) => song.id)).toEqual(upNext)
     } finally { off() }
   })
 
@@ -1546,7 +1550,7 @@ describe('MusicStore', () => {
     } finally { off(); disposeStore(mock.api, store) }
   })
 
-  it('reports short playback as ended when resume completes before its command response', async () => {
+  it('reports nothing left to play when resuming a finished last song with repeat off', async () => {
     const song = track('a', 'Music/a.mp4')
     const mock = createMockValleyApi({ tracks: [song], indexEntries: [asset(song.file)] })
     const store = createRuntimeStore(mock)
@@ -1558,9 +1562,23 @@ describe('MusicStore', () => {
       const player = media.get(mock)!
       player.observe({ status: 'ended', positionSeconds: 0.1, durationSeconds: 0.1 })
       vi.mocked(player.player.load).mockImplementationOnce(async descriptor => ({ ...player.getSnapshot()!, descriptor, state: { ...player.getSnapshot()!.state, status: 'ended', positionSeconds: 0.1, durationSeconds: 0.1 } }))
-      expect(await mock.api.commands.execute('music:resume')).toMatchObject({ ok: true, value: { playing: false, resumed: true, track: { id: 'a' } } })
+      expect(await mock.api.commands.execute('music:resume')).toMatchObject({ ok: true, value: { playing: false, resumed: false, track: { id: 'a' } } })
       expect(store.getSnapshot()).toMatchObject({ isPlaying: false, currentTime: 0.1, duration: 0.1 })
-      expect(player.player.load).toHaveBeenCalledTimes(2)
+      expect(player.player.load).toHaveBeenCalledOnce()
+    } finally { off(); disposeStore(mock.api, store) }
+  })
+
+  it('reports the end of the queue when skipping past the last song with repeat off', async () => {
+    const song = track('a', 'Music/a.mp4')
+    const mock = createMockValleyApi({ tracks: [song], indexEntries: [asset(song.file)] })
+    const store = createRuntimeStore(mock)
+    const off = registerMusicCommands(mock.api)
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().tracks).toHaveLength(1))
+      store.playTrack(song)
+      await store.flushPersistence()
+      const result = await mock.api.commands.execute('music:skip')
+      expect(result).toMatchObject({ ok: true, value: { track: null } })
     } finally { off(); disposeStore(mock.api, store) }
   })
 

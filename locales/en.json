@@ -170,7 +170,7 @@
   "auto.f6fdbe48dc54": "Delete",
   "auto.f780dfb68950": "Music: Remove song from playlist",
   "auto.fa51c3890bc4": "Nothing left to add.",
-  "auto.fadd24d8b9d6": "Music: Stop and clear queue",
+  "auto.fadd24d8b9d6": "Music: Stop (keeps queue)",
   "auto.fb3a16f382f8": "Copy Valley link",
   "auto.fc779d1eda35": "Empty playlist — add songs above.",
   "music.count.artist.one": "{{count}} artist",

@@ -170,7 +170,7 @@
   "auto.f6fdbe48dc54": "Eliminar",
   "auto.f780dfb68950": "Music: eliminar canción de la lista de reproducción",
   "auto.fa51c3890bc4": "No queda nada que agregar.",
-  "auto.fadd24d8b9d6": "Music: detenerse y borrar la cola",
+  "auto.fadd24d8b9d6": "Music: detener (mantiene la cola)",
   "auto.fb3a16f382f8": "Copiar enlace de Valley",
   "auto.fc779d1eda35": "Lista de reproducción vacía: agrega canciones arriba.",
   "music.count.artist.one": "{{count}} artista",

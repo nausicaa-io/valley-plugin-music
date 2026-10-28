@@ -170,7 +170,7 @@
   "auto.f6fdbe48dc54": "删除",
   "auto.f780dfb68950": "音乐：从播放列表中删除歌曲",
   "auto.fa51c3890bc4": "没有什么可补充的。",
-  "auto.fadd24d8b9d6": "音乐：停止并清理队列",
+  "auto.fadd24d8b9d6": "音乐：停止（保留队列）",
   "auto.fb3a16f382f8": "复制 Valley 链接",
   "auto.fc779d1eda35": "空播放列表 — 在上面添加歌曲。",
   "music.count.artist.one": "{{count}} 位艺术家",

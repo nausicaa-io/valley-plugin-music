@@ -3429,7 +3429,7 @@
             },
             {
               "id": "playback.stop",
-              "description": "Pause playback and clear upcoming songs",
+              "description": "Stop playback, keeping Up Next and the position so play resumes where it stopped",
               "effect": "execute",
               "inputSchema": {
                 "type": "object",
@@ -3817,7 +3817,7 @@
             },
             {
               "id": "playback.eject",
-              "description": "Stop playback, unload the player and clear the queue and its resume point",
+              "description": "Only when the user explicitly asks to clear everything: unload the player and clear the queue and its resume point",
               "effect": "execute",
               "inputSchema": {
                 "type": "object",
@@ -16105,8 +16105,8 @@
                 "id": "playback.stop",
                 "type": "action",
                 "version": "1.0.0",
-                "displayName": "Pause playback and clear upcoming songs",
-                "description": "Pause playback and clear upcoming songs. Uses the owning plugin backend and its existing grants and revision checks.",
+                "displayName": "Stop playback, keeping Up Next and the position so play resumes where it stopped",
+                "description": "Stop playback, keeping Up Next and the position so play resumes where it stopped. Uses the owning plugin backend and its existing grants and revision checks.",
                 "effect": "execute",
                 "idempotent": false,
                 "executionMode": "item",
@@ -16889,8 +16889,8 @@
                 "id": "playback.eject",
                 "type": "action",
                 "version": "1.0.0",
-                "displayName": "Stop playback, unload the player and clear the queue and its resume point",
-                "description": "Stop playback, unload the player and clear the queue and its resume point. Uses the owning plugin backend and its existing grants and revision checks.",
+                "displayName": "Only when the user explicitly asks to clear everything: unload the player and clear the queue and its resume point",
+                "description": "Only when the user explicitly asks to clear everything: unload the player and clear the queue and its resume point. Uses the owning plugin backend and its existing grants and revision checks.",
                 "effect": "execute",
                 "idempotent": false,
                 "executionMode": "item",

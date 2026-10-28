@@ -10,6 +10,7 @@
 import type { PluginCommand, ValleyPluginApi } from '@valley/plugin-sdk'
 import { normalizeRelPath } from '@valley/plugin-sdk/paths'
 import { getStore, type MusicStore, type MusicSnapshot } from './store'
+import { playbackPosition } from './playback'
 import { resolveArtist, trackArtists, tracksForArtist } from './artists'
 import type { Artist, Playlist, Track } from './types'
 
@@ -935,11 +936,13 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
             { playing: true, track: snap.currentTrack, resumed: false }
           )
         }
+        const exhausted = snap.duration > 0 && snap.currentTime >= snap.duration && !snap.upNext.length && snap.repeatMode === 'off'
         store.resumeLast()
         return executed<{ playing: boolean; track: Track | null; resumed: boolean }>(
           store,
           () => {
             const current = store.getSnapshot()
+            if (!current.isPlaying && exhausted && current.currentTrack?.id === snap.currentTrack?.id) return { playing: false, track: current.currentTrack, resumed: false }
             const finished = current.duration > 0 && current.currentTime >= current.duration
             if (!current.isPlaying && !finished) throw Object.assign(new Error('Playback outcome is unknown: the player did not confirm playing. Check the player before trying again.'), { outcome: 'unknown', outcomeUnknown: true, retryable: false })
             return { playing: current.isPlaying, track: current.currentTrack, resumed: true }
@@ -947,7 +950,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         )
       },
       formatCli: (v) =>
-        !v.track ? 'Nothing to resume.' : v.resumed ? `${v.playing ? 'Resumed' : 'Played to end'}: ${describe(v.track)}` : 'Already playing.'
+        !v.track ? 'Nothing to resume.' : v.resumed ? `${v.playing ? 'Resumed' : 'Played to end'}: ${describe(v.track)}` : v.playing ? 'Already playing.' : `Nothing left to play after ${describe(v.track)}.`
     }),
 
     register({
@@ -961,7 +964,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         const store = live()
         const already = !store.getSnapshot().isPlaying
         store.pause()
-        return executed(store, { playing: false, already })
+        return executed(store, () => ({ playing: store.getSnapshot().isPlaying, already }))
       },
       formatCli: (v) => (v.already ? 'Already paused.' : 'Paused.')
     }),
@@ -985,10 +988,10 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'stop',
       outputSchema: nullResult,
-      label: 'Music: Stop and clear queue', labelKey: 'auto.fadd24d8b9d6',
+      label: 'Music: Stop (keeps queue)', labelKey: 'auto.fadd24d8b9d6',
       sideEffect: 'execute',
       revision: () => ({ playback: playbackIdentity(), queue: queueIdentity() }),
-      preview: () => ({ action: 'stop-and-clear-queue', track: playbackIdentity().track, songIds: queueIdentity() }),
+      preview: () => ({ action: 'stop-keep-queue', track: playbackIdentity().track, songIds: queueIdentity() }),
       run: async () => {
         const store = live()
         store.stop()
@@ -1006,8 +1009,10 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       preview: () => ({ action: 'next-track', track: playbackIdentity().track, songIds: queueIdentity(), repeat: live().getSnapshot().repeatMode }),
       run: async () => {
         const store = live()
+        const snap = store.getSnapshot()
+        const last = !snap.upNext.length && snap.repeatMode === 'off'
         store.next()
-        return executed(store, () => ({ track: store.getSnapshot().currentTrack }))
+        return executed(store, () => ({ track: last ? null : store.getSnapshot().currentTrack }))
       },
       formatCli: (v) => (v.track ? `→ ${describe(v.track)}` : 'End of queue.')
     }),
@@ -1114,7 +1119,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         const snap = live().getSnapshot()
         return {
           track: snap.currentTrack,
-          position: snap.currentTime,
+          position: playbackPosition({ position: snap.currentTime, duration: snap.duration, rate: snap.playbackRate, playing: snap.isPlaying, buffering: snap.buffering, sampleAgeMs: snap.playbackSampleAge }, snap.playbackSampledAt),
           duration: snap.duration,
           playing: snap.isPlaying,
           playlist: playlistName(snap, snap.currentPlaylistId),
@@ -1230,8 +1235,13 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       outputSchema: nullResult,
       label: 'Open Music page', labelKey: 'auto.d427ef454124',
       sideEffect: 'execute',
-      run: () => {
-        api.workspace.openMainTab()
+      input: {
+        schema: { type: 'object', properties: { newTab: { type: 'boolean', description: 'Open Music in a new tab. Without it Music takes over the active tab, or reveals its open tab.' } }, additionalProperties: false },
+        parse: (raw) => ({ newTab: (raw as { newTab?: unknown } | null | undefined)?.newTab === true }),
+        fromCli: (args) => ({ newTab: args.includes('--new-tab') })
+      },
+      run: ({ newTab }) => {
+        api.workspace.openMainTab(newTab ? { newTab: true } : undefined)
         return null
       },
       formatCli: () => 'Opened music page.'
