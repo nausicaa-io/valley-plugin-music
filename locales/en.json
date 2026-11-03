@@ -1,4 +1,5 @@
 {
+  "music.playbackUnavailable": "Music playback is unavailable: {{reason}}",
   "auto.003b2f036c2d": "Music: Now playing",
   "auto.007c8adbef9d": "Choose artist…",
   "auto.00e9d74dcb5b": "Music: Play a track by title",

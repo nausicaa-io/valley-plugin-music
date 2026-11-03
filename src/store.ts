@@ -286,11 +286,15 @@ export class MusicStore {
     })
     this.offMetadata = () => { offVault(); offRoot() }
     this.rebuildSnapshot()
-    this.offBackendPlayback = api.backend.on('playback.changed', value => this.applyPlayback(value as MusicPlaybackSnapshot))
-    this.playbackReady = api.backend.call<MusicPlaybackSnapshot>('playback.snapshot').then(snapshot => this.applyPlayback(snapshot)).catch(error => {
-      this.playError = error instanceof Error ? error.message : 'Music playback unavailable'
+    // The views stay usable on the library while the backend is unavailable: playback shows why it cannot start.
+    const unavailable = (error: unknown): void => {
+      this.playError = uiText('music.playbackUnavailable', { reason: (error instanceof Error ? error.message : String(error)).replace(/^(Error:\s*)+/, '') })
       this.emitPlayback()
-    })
+    }
+    let offBackendPlayback = (): void => {}
+    try { offBackendPlayback = api.backend.on('playback.changed', value => this.applyPlayback(value as MusicPlaybackSnapshot)) } catch (error) { this.playError = uiText('music.playbackUnavailable', { reason: error instanceof Error ? error.message : String(error) }) }
+    this.offBackendPlayback = offBackendPlayback
+    this.playbackReady = Promise.resolve().then(() => api.backend.call<MusicPlaybackSnapshot>('playback.snapshot')).then(snapshot => this.applyPlayback(snapshot)).catch(unavailable)
     this.offBeforeUnload = this.api.runtime.onBeforeUnload(async () => {
       do {
         if (this.navDirty) this.flushNav()
@@ -923,7 +927,7 @@ export class MusicStore {
   }
 
   private playback(action: MusicPlaybackAction): void {
-    const pending = this.api.backend.call<MusicPlaybackSnapshot>('playback.action', action).then(snapshot => {
+    const pending = Promise.resolve().then(() => this.api.backend.call<MusicPlaybackSnapshot>('playback.action', action)).then(snapshot => {
       this.applyPlayback(snapshot)
       return true
     }).catch(error => {

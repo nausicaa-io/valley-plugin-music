@@ -319,8 +319,9 @@ const CSS = `
 .music-top-plays { color:var(--text-tertiary); font-size:0.71875rem; font-variant-numeric:tabular-nums; flex-shrink:0; }
 
 /* Playlist detail */
-.music-pl-detail-head { display:flex; align-items:center; gap:12px; }
-.music-pl-detail-art { position:relative; width:168px; height:168px; border-radius:10px; overflow:hidden;
+/* A narrow page puts the title below the art instead of squeezing it to a few characters per line. */
+.music-pl-detail-head { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.music-pl-detail-art { position:relative; width:min(168px, 100%); aspect-ratio:1 / 1; border-radius:10px; overflow:hidden;
   background:var(--container-color-light); flex-shrink:0; box-shadow:0 10px 30px rgba(0,0,0,.14); }
 .music-pl-detail-art img { width:100%; height:100%; object-fit:cover; display:block; }
 .music-pl-detail-art-empty { width:100%; height:100%; display:grid; place-items:center;
@@ -335,7 +336,7 @@ const CSS = `
   padding:10px; font-size:0.75rem; font-weight:600; color:#fff; background:rgba(0,0,0,.5);
   pointer-events:none; }
 .music-pl-detail-art.dropmiss .music-pl-detail-drop { background:rgba(120,20,20,.55); }
-.music-pl-detail-info { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.music-pl-detail-info { display:flex; flex-direction:column; gap:8px; min-width:0; flex:1 1 12rem; }
 .music-pl-detail-kicker { font-size:0.6875rem; font-weight:650; text-transform:uppercase;
   letter-spacing:.04em; color:var(--text-secondary); }
 .music-pl-detail-name { font-size:1.625rem; font-weight:750; color:var(--text-color); margin:0;
