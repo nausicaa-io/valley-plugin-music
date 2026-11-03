@@ -23,6 +23,7 @@ import { initRuntime } from '../src/runtime'
 import { useMusic, useMusicCover } from '../src/hooks'
 import { SongEditor } from '../src/SongEditor'
 import { Page } from '../src/Page'
+import { injectStyles } from '../src/styles'
 import { Player } from '../src/Player'
 import { NowPlaying } from '../src/surfaces'
 import { Cover } from '../src/Panel'
@@ -2708,6 +2709,20 @@ describe('Music song editing and presentation', () => {
     } finally { await dispose() }
   })
 
+  it('keeps every breadcrumb readable when the bar is narrow: the current one shrinks first, earlier ones keep a minimum and give way below 280 px', () => {
+    const dispose = injectStyles()
+    try {
+      const css = document.getElementById('notes-music-styles')!.textContent!
+      expect(css).toContain('.music-breadcrumb-items { position:absolute; left:50%; transform:translateX(-50%);')
+      expect(css).toContain('max-width:max(0px, calc(100% - 170px))')
+      expect(css).toMatch(/\.music-breadcrumbs \{[^}]*container-type:inline-size; \}/)
+      expect(css).toContain('.music-breadcrumbs button.music-breadcrumb-parent { min-width:2.5em; }')
+      expect(css).toContain('.music-breadcrumbs button[aria-current] { color:var(--title-color); flex:0 2 auto; min-width:2.5em; }')
+      expect(css).toContain('@container (max-width: 280px) { .music-breadcrumb-parent, .music-breadcrumb-separator { display:none; } }')
+      expect(css).not.toMatch(/button\[aria-current\] \{[^}]*flex-shrink:0/)
+    } finally { dispose() }
+  })
+
   it('renders playlist/song breadcrumbs above Home and Search', async () => {
     const { song, store, dispose } = await setup()
     try {
@@ -2736,6 +2751,8 @@ describe('Music song editing and presentation', () => {
       expect(header().textContent).toBe('/canopy')
       act(() => store.showPlaylist('forest'))
       expect(header().textContent).toBe('/Forest Mix/canopy')
+      // Only the last crumb is the current page; the ones before it keep a readable minimum (see the stylesheet contract below).
+      expect([...header().querySelectorAll('button:not(.music-breadcrumb-home)')].map(button => [button.textContent, button.className, button.getAttribute('aria-current')])).toEqual([['Forest Mix', 'music-breadcrumb-parent', null], ['canopy', '', 'page']])
       fireEvent.contextMenu(header())
       let items = openMenu.mock.calls.at(-1)![0]
       expect(items.find(item => item.label === 'Playlist / song')?.checked).toBe(true)

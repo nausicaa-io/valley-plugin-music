@@ -202,14 +202,16 @@ const CSS = `
 .music-page-header { position:sticky; top:0; z-index:5; flex:none; background:var(--surface-color-alt); }
 .music-breadcrumbs { position:relative; display:flex; align-items:center; justify-content:space-between; gap:var(--space-1);
   height:var(--app-bar-height); box-sizing:border-box; border-bottom:var(--chrome-border-width) solid var(--border-light); flex:0 0 auto;
-  padding:0 var(--space-button) 0 var(--space-row); font-size:0.8125rem; color:var(--text-secondary); user-select:none; }
+  padding:0 var(--space-button) 0 var(--space-row); font-size:0.8125rem; color:var(--text-secondary); user-select:none; container-type:inline-size; }
 .music-breadcrumb-items { position:absolute; left:50%; transform:translateX(-50%); display:flex; align-items:center; justify-content:center;
   width:max-content; max-width:max(0px, calc(100% - 170px)); min-width:0; overflow:hidden; gap:var(--space-tight); }
 .music-breadcrumb-separator { color:var(--text-secondary); padding:0 var(--space-hairline); flex:0 0 auto; }
 .music-breadcrumbs button { border:none; background:transparent; color:inherit; font:inherit; cursor:pointer;
   padding:var(--space-compact) var(--space-snug); border-radius:var(--radius-sm); white-space:nowrap; flex:0 1 auto; overflow:hidden; text-overflow:ellipsis; }
 .music-breadcrumbs button.music-breadcrumb-home { flex:0 0 auto; padding:0 var(--space-hairline); color:var(--text-secondary); }
-.music-breadcrumbs button[aria-current] { color:var(--title-color); flex-shrink:0; }
+.music-breadcrumbs button.music-breadcrumb-parent { min-width:2.5em; }
+.music-breadcrumbs button[aria-current] { color:var(--title-color); flex:0 2 auto; min-width:2.5em; }
+@container (max-width: 280px) { .music-breadcrumb-parent, .music-breadcrumb-separator { display:none; } }
 .music-breadcrumbs button:hover { background:var(--hover-bg); color:var(--title-color); }
 .music-path-error { color:var(--tint-red-text); padding:4px 12px; }
 .music-page-top { box-sizing:border-box; display:flex; align-items:center; gap:8px;

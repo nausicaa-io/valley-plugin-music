@@ -919,7 +919,7 @@ export const Page: FC<MainWorkspaceViewProps> = ({ navigation }) => {
             <button className="music-breadcrumb-home" title={uiText('auto.315fed0ac88a')} aria-label={uiText('auto.315fed0ac88a')} onClick={() => { setQuery(''); store.showHome() }}>/</button>
             {crumbs.map((crumb, index) => <React.Fragment key={`${index}:${crumb.title}`}>
               {index > 0 && <span className="music-breadcrumb-separator" aria-hidden="true">/</span>}
-              <button title={crumb.title} aria-current={index === crumbs.length - 1 ? 'page' : undefined} onClick={crumb.onClick}>{crumb.label}</button>
+              <button className={index === crumbs.length - 1 ? undefined : 'music-breadcrumb-parent'} title={crumb.title} aria-current={index === crumbs.length - 1 ? 'page' : undefined} onClick={crumb.onClick}>{crumb.label}</button>
             </React.Fragment>)}
           </div>
         </nav>
