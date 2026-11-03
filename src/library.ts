@@ -10,11 +10,11 @@ export type LibraryMetadata = { title: string | null; artist: string | null; alb
 export type ArtistRevisions = { revision: number; aliasesRevision: number }
 const tracks = 'music.tracks', playlists = 'music.playlists', members = 'music.playlist_tracks', artists = 'music.artists', aliases = 'music.artist_aliases'
 const record = (value: unknown): DatasetRecord => value as DatasetRecord
+export const refusal = (code: string, message: string): Error => Object.assign(new Error(message), { code, outcome: 'not-applied' as const, retryable: false })
 export const conflict = (revision: number): never => { throw Object.assign(new Error('Music data changed; read it again before editing'), { code: 'REVISION_CONFLICT', status: 409, currentRevision: revision, outcome: 'not-applied' }) }
-const revision = (value: number): void => { if (!Number.isSafeInteger(value) || value < 0) throw new Error('A nonnegative expected revision is required') }
+const revision = (value: number): void => { if (!Number.isSafeInteger(value) || value < 0) throw refusal('INVALID_INPUT', 'A nonnegative expected revision is required') }
 const check = (expected: number, actual: number): void => { revision(expected); if (expected !== actual) conflict(actual) }
 const same = (left: unknown, right: unknown): boolean => JSON.stringify(left) === JSON.stringify(right)
-const refuse = (code: string, message: string): never => { throw Object.assign(new Error(message), { code, outcome: 'not-applied' }) }
 
 export class MusicLibrary {
   constructor(private api: LibraryOwner, private metadata: (path: string) => Promise<LibraryMetadata>) {}
@@ -27,13 +27,13 @@ export class MusicLibrary {
       const next = await this.api.data.dataset(dataset).query({ where, cursor, limit: 1000 })
       check(page.revision, next.revision)
       rows.push(...next.rows); cursor = next.cursor
-      if (rows.length > 50000) throw new Error('Music library exceeds the operation limit')
+      if (rows.length > 50000) throw refusal('RESOURCE_LIMIT', 'Music library exceeds the operation limit')
     }
     return { rows, revision: page.revision }
   }
 
   async list(kind: 'tracks' | 'playlists' | 'artists', cursor?: string, limit = 100) {
-    if (!['tracks', 'playlists', 'artists'].includes(kind) || !Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error('Invalid library page')
+    if (!['tracks', 'playlists', 'artists'].includes(kind) || !Number.isInteger(limit) || limit < 1 || limit > 500) throw refusal('INVALID_INPUT', 'Invalid library page')
     return this.api.data.dataset(`music.${kind}`).query({ cursor, limit, includeRevisions: true })
   }
 
@@ -43,11 +43,11 @@ export class MusicLibrary {
 
   async updateTrack(id: string, patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'details' | 'favorite'>>, expectedRevision: number) {
     const observed = await this.readTrack(id)
+    if (!observed.value) throw refusal('NOT_FOUND', 'Track no longer exists')
     check(expectedRevision, observed.revision)
-    if (!observed.value) throw new Error('Track no longer exists')
     const current = observed.value
     const next = { ...current, ...patch }
-    if (patch.title !== undefined) { if (!patch.title.trim()) throw new Error('Track title is required'); next.title = patch.title.trim() }
+    if (patch.title !== undefined) { if (!patch.title.trim()) throw refusal('INVALID_INPUT', 'Track title is required'); next.title = patch.title.trim() }
     if (patch.artist !== undefined) { next.artist = patch.artist.trim(); if (next.artist !== current.artist) next.artists = [] }
     if (patch.album !== undefined) next.album = patch.album.trim()
     if (Object.keys(patch).some(key => key !== 'favorite')) next.details = { ...current.details, ...patch.details, edited: true }
@@ -58,8 +58,8 @@ export class MusicLibrary {
 
   async deleteTrack(id: string, expectedRevision: number) {
     const current = await this.readTrack(id)
+    if (!current.value) throw refusal('NOT_FOUND', 'Track no longer exists')
     check(expectedRevision, current.revision)
-    if (!current.value) throw new Error('Track no longer exists')
     const result = await this.api.data.dataset(tracks).delete({ id }, { expected: [{ dataset: tracks, key: { id }, revision: expectedRevision }] })
     return { id, revision: result.revision }
   }
@@ -67,9 +67,9 @@ export class MusicLibrary {
   async restoreTrack(value: Track, expectedRevision: number) {
     const observed = await this.readTrack(value.id)
     check(expectedRevision, observed.revision)
-    if (observed.value) refuse('TRACK_EXISTS', 'Track already exists')
+    if (observed.value) throw refusal('TRACK_EXISTS', 'Track already exists')
     const songs = await this.rows(tracks, { file: value.file })
-    if (songs.rows.length) refuse('TRACK_FILE_IN_USE', 'Another track already uses this file')
+    if (songs.rows.length) throw refusal('TRACK_FILE_IN_USE', 'Another track already uses this file')
     const result = await this.api.data.transaction([{ dataset: tracks, operation: 'upsert', values: record(value) }], { expected: [{ dataset: tracks, key: { id: value.id }, revision: expectedRevision }, { dataset: tracks, revision: songs.revision }] })
     return { value, revision: result.revision }
   }
@@ -89,7 +89,7 @@ export class MusicLibrary {
   async writePlaylist(value: Playlist, expected: LibraryRevisions) {
     const current = await this.playlistState(value.id)
     check(expected.revision, current.revision); check(expected.membersRevision, current.membersRevision)
-    if (!value.name.trim() || value.songIds.length > 10000 || new Set(value.songIds).size !== value.songIds.length) throw new Error('Invalid playlist name or duplicate members')
+    if (!value.name.trim() || value.songIds.length > 10000 || new Set(value.songIds).size !== value.songIds.length) throw refusal('INVALID_INPUT', 'Invalid playlist name or duplicate members')
     const next = { ...value, name: value.name.trim() }
     if (same(current.value, next)) return { value: current.value, revision: current.revision, membersRevision: current.membersRevision }
     const operations: DatasetTransactionOperation[] = [{ dataset: playlists, operation: 'upsert', values: { id: value.id, name: next.name, cover: value.cover || null } }]
@@ -101,7 +101,7 @@ export class MusicLibrary {
     const guards: DatasetRevisionGuard[] = [{ dataset: playlists, key: { id: value.id }, revision: expected.revision }, { dataset: members, revision: expected.membersRevision }]
     if (changed.length) {
       const songs = await this.rows(tracks), known = new Set(songs.rows.map(row => row.id))
-      if (changed.some(row => !known.has(row.trackId))) throw new Error('Playlist member no longer exists in the library')
+      if (changed.some(row => !known.has(row.trackId))) throw refusal('NOT_FOUND', 'Playlist member no longer exists in the library')
       guards.push({ dataset: tracks, revision: songs.revision })
     }
     const result = await this.api.data.transaction(operations, { expected: guards })
@@ -110,8 +110,8 @@ export class MusicLibrary {
 
   async deletePlaylist(id: string, expected: LibraryRevisions) {
     const current = await this.readPlaylist(id)
+    if (!current.value) throw refusal('NOT_FOUND', 'Playlist no longer exists')
     check(expected.revision, current.revision); check(expected.membersRevision, current.membersRevision)
-    if (!current.value) throw new Error('Playlist no longer exists')
     const result = await this.api.data.transaction([{ dataset: playlists, operation: 'delete', key: { id } }], { expected: [{ dataset: playlists, key: { id }, revision: expected.revision }, { dataset: members, revision: expected.membersRevision }] })
     return { id, revision: result.revision }
   }
@@ -135,7 +135,7 @@ export class MusicLibrary {
       const before = current[index]
       check(entry.revision, before.revision); check(expectedAliasesRevision, before.aliasesRevision)
       guards.push({ dataset: artists, key: { id: entry.id }, revision: entry.revision })
-      if (entry.value && (entry.value.id !== entry.id || !entry.value.name.trim() || (entry.value.aliases?.length ?? 0) > 10000)) throw new Error('Invalid artist metadata')
+      if (entry.value && (entry.value.id !== entry.id || !entry.value.name.trim() || (entry.value.aliases?.length ?? 0) > 10000)) throw refusal('INVALID_INPUT', 'Invalid artist metadata')
       if (sameArtist(before.value, entry.value)) return false
       if (!entry.value) {
         operations.push({ dataset: artists, operation: 'delete', key: { id: entry.id } })
@@ -158,29 +158,29 @@ export class MusicLibrary {
 
   async updateArtist(id: string, patch: { name?: string; image?: string | null; bio?: string | null }, expected: ArtistRevisions) {
     const observed = await this.readArtist(id)
+    if (!observed.value) throw refusal('NOT_FOUND', 'Artist no longer exists')
     check(expected.revision, observed.revision); check(expected.aliasesRevision, observed.aliasesRevision)
-    if (!observed.value) throw new Error('Artist no longer exists')
     const value = patchArtistMetadata(observed.value, patch)
     const result = await this.writeArtists([{ id, value, revision: expected.revision }], expected.aliasesRevision)
     return { value, revision: result.revisions[0], aliasesRevision: result.aliasesRevision }
   }
 
   async mergeArtists(sourceId: string, targetId: string, expected: { sourceRevision: number; targetRevision: number; aliasesRevision: number }) {
-    if (sourceId === targetId) throw new Error('Select two different artists')
+    if (sourceId === targetId) throw refusal('INVALID_INPUT', 'Select two different artists')
     const [source, target] = await this.readArtists([sourceId, targetId])
+    if (!source.value || !target.value) throw refusal('NOT_FOUND', 'Artist no longer exists')
     check(expected.sourceRevision, source.revision); check(expected.targetRevision, target.revision); check(expected.aliasesRevision, target.aliasesRevision)
-    if (!source.value || !target.value) throw new Error('Artist no longer exists')
     const value = mergeArtistMetadata(source.value, target.value)
     const result = await this.writeArtists([{ id: sourceId, value: null, revision: expected.sourceRevision }, { id: targetId, value, revision: expected.targetRevision }], expected.aliasesRevision)
     return { value, sourceId, sourceRevision: result.revisions[0], revision: result.revisions[1], aliasesRevision: result.aliasesRevision }
   }
 
   async unmergeArtists(source: Artist, target: Artist, expected: { sourceRevision: number; targetRevision: number; aliasesRevision: number }) {
-    if (source.id === target.id) throw new Error('Select two different artists')
+    if (source.id === target.id) throw refusal('INVALID_INPUT', 'Select two different artists')
     const [before, after] = await this.readArtists([source.id, target.id])
     check(expected.sourceRevision, before.revision); check(expected.targetRevision, after.revision); check(expected.aliasesRevision, after.aliasesRevision)
-    if (before.value) refuse('ARTIST_EXISTS', 'Source artist already exists')
-    if (!after.value || !sameArtist(mergeArtistMetadata(source, target), after.value)) refuse('ARTIST_MERGE_CHANGED', 'Target artist no longer matches that merge')
+    if (before.value) throw refusal('ARTIST_EXISTS', 'Source artist already exists')
+    if (!after.value || !sameArtist(mergeArtistMetadata(source, target), after.value)) throw refusal('ARTIST_MERGE_CHANGED', 'Target artist no longer matches that merge')
     const result = await this.writeArtists([{ id: source.id, value: source, revision: expected.sourceRevision }, { id: target.id, value: target, revision: expected.targetRevision }], expected.aliasesRevision)
     return { source, target, sourceRevision: result.revisions[0], revision: result.revisions[1], aliasesRevision: result.aliasesRevision }
   }
@@ -197,14 +197,14 @@ export class MusicLibrary {
         await new Promise<void>(resolve => { wake = resolve; const timer = setTimeout(resolve, 100); wake = () => { clearTimeout(timer); resolve() } })
         page = await observation.read({ limit: 128 })
       }
-      if (page.status !== 'ready' || !page.version) throw new Error(page.error ?? 'Vault index is unavailable')
+      if (page.status !== 'ready' || !page.version) throw refusal('NOT_READY', page.error ?? 'Vault index is unavailable')
       const entries = [...page.entries], version = page.version
       while (page.next !== null) {
         signal?.throwIfAborted()
         page = await observation.read({ version, offset: page.next, limit: 128 })
-        if (page.status !== 'ready' || page.version?.revision !== version.revision || page.version.scopeGeneration !== version.scopeGeneration || page.version.vaultGeneration !== version.vaultGeneration) throw new Error('Vault index changed during scan; retry the rescan')
+        if (page.status !== 'ready' || page.version?.revision !== version.revision || page.version.scopeGeneration !== version.scopeGeneration || page.version.vaultGeneration !== version.vaultGeneration) throw refusal('REVISION_CONFLICT', 'Vault index changed during scan; retry the rescan')
         entries.push(...page.entries)
-        if (entries.length > 100000) throw new Error('Vault index exceeds the scan limit')
+        if (entries.length > 100000) throw refusal('RESOURCE_LIMIT', 'Vault index exceeds the scan limit')
       }
       return entries
     } finally { signal?.removeEventListener('abort', abort); await observation.dispose() }
@@ -238,7 +238,7 @@ export class MusicLibrary {
     if (addedArtists.length) operations.push({ dataset: artists, operation: 'insert', values: addedArtists.map(record) })
     const expected: DatasetRevisionGuard[] = [{ dataset: tracks, revision: expectedRevision }, { dataset: artists, revision: artistRows.revision }, { dataset: aliases, revision: aliasRows.revision }]
     signal?.throwIfAborted(); assertCurrent()
-    if (normalizeRelPath(this.api.settings.get().musicPath) !== musicPath) throw new Error('Music folder changed during scan; retry the rescan')
+    if (normalizeRelPath(this.api.settings.get().musicPath) !== musicPath) throw refusal('REVISION_CONFLICT', 'Music folder changed during scan; retry the rescan')
     const result = operations.length ? await this.api.data.transaction(operations, { expected }) : null
     return { revision: changed.length ? result!.revision : observed.revision, added: sync.toAdd.length, healed: sync.toHeal.length, updated: changed.length - sync.toAdd.length, missing: [...sync.missing] }
   }

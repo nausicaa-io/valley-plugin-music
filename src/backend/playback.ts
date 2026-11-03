@@ -2,6 +2,7 @@ import type { DatasetRecord, PluginBackendApi } from '@valley/plugin-sdk'
 import { VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
 import { sameMediaIdentity } from '@valley/plugin-sdk/media'
 import { trackCredits } from '../artists'
+import { refusal } from '../library'
 import { nextIndex, type MusicPlaybackAction, type MusicPlaybackSnapshot } from '../playback'
 import type { RepeatMode, Track } from '../types'
 
@@ -55,7 +56,7 @@ export class MusicPlayback {
     const byId = new Map(tracks.map(track => [track.id, track]))
     return ids.map(id => {
       const track = byId.get(id)
-      if (!track) throw new Error('A queued track no longer exists')
+      if (!track) throw refusal('NOT_FOUND', 'A queued track no longer exists')
       return track
     })
   }
@@ -168,7 +169,7 @@ export class MusicPlayback {
   }
 
   private enqueue<T>(run: () => Promise<T>): Promise<T> {
-    const result = this.tail.catch(() => {}).then(async () => { await this.ready; if (this.disposed) throw new Error('Music playback disposed'); return run() })
+    const result = this.tail.catch(() => {}).then(async () => { await this.ready; if (this.disposed) throw refusal('NOT_READY', 'Music playback disposed'); return run() })
     this.tail = result
     return result
   }
@@ -277,13 +278,14 @@ export class MusicPlayback {
   dispatch(action: MusicPlaybackAction, signal?: AbortSignal, owner: PlaybackOwner = this.api): Promise<MusicPlaybackSnapshot> {
     return this.enqueue(async () => {
       signal?.throwIfAborted()
+      const requested = action.type === 'start' || action.type === 'add' ? await this.tracks(action.ids, owner) : []
       const player = owner === this.api ? this.player : await owner.playback.createLocalPlayer({ id: 'music', canSkip: true })
-      if (!player) throw new Error('Music player unavailable')
+      if (!player) throw refusal('NOT_READY', 'Music player unavailable')
       this.errorOutcome = undefined
       const base = this.index + 1
       switch (action.type) {
         case 'start':
-          this.queue = await this.tracks(action.ids, owner)
+          this.queue = requested
           this.playlistId = action.playlistId ?? null
           if (action.shuffle) { this.shuffle = true; this.shuffleTail(0) }
           await this.start(action.index, action.position, owner, player)
@@ -318,7 +320,7 @@ export class MusicPlayback {
           break
         case 'seek': await this.receipt(player.seek(action.value), player); break
         case 'volume': await this.receipt(player.setVolume(action.value), player); break
-        case 'add': this.queue.splice(action.where === 'next' ? base : this.queue.length, 0, ...await this.tracks(action.ids, owner)); break
+        case 'add': this.queue.splice(action.where === 'next' ? base : this.queue.length, 0, ...requested); break
         case 'remove': if (action.index >= 0) this.queue.splice(base + action.index, 1); break
         case 'reorder': {
           if (action.from < 0 || action.to < 0) break

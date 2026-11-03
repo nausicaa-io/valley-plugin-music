@@ -38,7 +38,7 @@ function fixture(options: Partial<MockApiOptions> = {}) {
   return { ...mock, api, metadata, operations, invoke, dispose }
 }
 
-const operationsCall = (f: ReturnType<typeof fixture>, id: string, input: unknown) => f.operations.get(`command.${id}`)!(input, { id: `raw-${id}`, api: f.api, cancellation: new AbortController().signal } as PluginBackendOperationContext)
+const operationsCall = async (f: ReturnType<typeof fixture>, id: string, input: unknown) => f.operations.get(`command.${id}`)!(input, { id: `raw-${id}`, api: f.api, cancellation: new AbortController().signal } as PluginBackendOperationContext)
 
 describe('backend Music library owner', () => {
   it('shares artist metadata, rename and merge contracts without losing names, artwork or song membership', async () => {
@@ -161,6 +161,31 @@ describe('backend Music library owner', () => {
       const noOp = await f.invoke('playlist.update', { id: 'walk', expectedRevision: reordered.revision, expectedMembersRevision: reordered.membersRevision, patch: { songIds: ['canopy', 'fern'] } })
       expect(noOp.revision).toBe(reordered.revision)
       expect(noOp.membersRevision).toBe(reordered.membersRevision)
+    } finally { await f.dispose() }
+  })
+
+  it('reports unknown tracks, playlists and artists and invalid input as not applied before any write', async () => {
+    const f = fixture({ datasets: { 'music.tracks': ['fern', 'moss'].map(track), 'music.playlists': [{ id: 'walk', name: 'Walk' }] } })
+    try {
+      const refused = (code: string) => ({ code, outcome: 'not-applied', retryable: false })
+      const saved = () => structuredClone([...f.datasets.entries()].filter(([, rows]) => rows.length))
+      const before = saved()
+      await expect(operationsCall(f, 'track.update', { id: 'missing', expectedRevision: 0, patch: { title: 'Gone' } })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'track.update', { id: '../Music/fern.mp3', expectedRevision: 7, patch: { title: 'Gone' } })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'track.delete', { id: 'missing', expectedRevision: 0 })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'playlist.delete', { id: 'missing', expectedRevision: 3, expectedMembersRevision: 3 })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'playlist.update', { id: 'missing', expectedRevision: 0, expectedMembersRevision: 0, patch: { name: 'Gone' } })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'artist.update', { id: 'missing', expectedRevision: 0, expectedAliasesRevision: 0, patch: { bio: 'Gone' } })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'track.update', { id: 'fern', expectedRevision: 0, patch: { title: ' ' } })).rejects.toMatchObject(refused('INVALID_INPUT'))
+      await expect(operationsCall(f, 'track.update', { id: 'fern', expectedRevision: -1, patch: {} })).rejects.toMatchObject(refused('INVALID_INPUT'))
+      const walk = await f.invoke('playlist.read', { id: 'walk' })
+      await expect(operationsCall(f, 'playlist.create', { id: 'walk', name: 'Again', expectedRevision: walk.revision, expectedMembersRevision: walk.membersRevision })).rejects.toMatchObject(refused('ALREADY_EXISTS'))
+      await expect(operationsCall(f, 'playback.action', { type: 'start', ids: ['missing'], index: 0 })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'playback.action', { type: 'start', ids: ['../../etc/passwd'], index: 0 })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'playback.action', { type: 'add', ids: ['fern', 'missing'], where: 'end' })).rejects.toMatchObject(refused('NOT_FOUND'))
+      await expect(operationsCall(f, 'playback.action', { type: 'seek', value: -1 })).rejects.toMatchObject(refused('INVALID_INPUT'))
+      expect(saved()).toEqual(before)
+      expect((await operationsCall(f, 'playback.snapshot', {}) as { queue: unknown[] }).queue).toEqual([])
     } finally { await f.dispose() }
   })
 

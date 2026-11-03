@@ -40,7 +40,7 @@ export function nextIndex(length: number, index: number, repeat: RepeatMode): nu
 }
 
 export function parsePlaybackAction(value: unknown): MusicPlaybackAction {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid playback action')
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw Object.assign(new Error('Invalid playback action'), { code: 'INVALID_INPUT', outcome: 'not-applied' as const, retryable: false })
   const action = value as Record<string, unknown>
   const index = (key: string) => typeof action[key] === 'number' && Number.isSafeInteger(action[key]) && Number(action[key]) >= 0
   const ids = () => Array.isArray(action.ids) && action.ids.length <= 10000 && action.ids.every(id => typeof id === 'string' && id.length > 0 && id.length <= 512)
@@ -53,5 +53,5 @@ export function parsePlaybackAction(value: unknown): MusicPlaybackAction {
   if (action.type === 'add' && ids() && (action.where === 'next' || action.where === 'end')) return action as MusicPlaybackAction
   if ((action.type === 'remove' || action.type === 'playQueued') && index('index')) return action as MusicPlaybackAction
   if (action.type === 'reorder' && index('from') && index('to')) return action as MusicPlaybackAction
-  throw new Error('Invalid playback action')
+  throw Object.assign(new Error('Invalid playback action'), { code: 'INVALID_INPUT', outcome: 'not-applied' as const, retryable: false })
 }

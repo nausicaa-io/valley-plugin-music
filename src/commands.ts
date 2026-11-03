@@ -35,9 +35,11 @@ const playlistHolderResult = resultObject({ playlist: playlistResult })
 const historyResult = resultObject({ songId: resultText, playedAt: resultText, playlistId: resultText }, ['songId', 'playedAt'])
 const nullResult = { type: 'null' }
 
+const refused = (code: string, message: string): Error => Object.assign(new Error(message), { code, outcome: 'not-applied' as const, retryable: false })
+
 function live(): MusicStore {
   const store = getStore()
-  if (!store) throw new Error('Music store is not ready.')
+  if (!store) throw refused('NOT_READY', 'Music store is not ready.')
   return store
 }
 
@@ -196,7 +198,7 @@ function playlistInput(usage: string): {
     schema: { type: 'object', properties: { name: { type: 'string', minLength: 1 } }, required: ['name'], additionalProperties: false },
     parse: (raw) => {
       const name = asStr((raw as Record<string, unknown> | undefined)?.name).trim()
-      if (!name) throw new Error(usage)
+      if (!name) throw refused('INVALID_INPUT', usage)
       return { name }
     },
     fromCli: (args) => ({ name: args.join(' ').trim() })
@@ -213,7 +215,7 @@ function trackInput(usage: string): {
     parse: (raw) => {
       const o = (raw ?? {}) as Record<string, unknown>
       const title = asStr(o.title ?? o.query).trim()
-      if (!title) throw new Error(usage)
+      if (!title) throw refused('INVALID_INPUT', usage)
       return { title, exact: asBool(o.exact) }
     },
     fromCli: (args, flags) => ({ title: args.join(' ').trim(), exact: asBool(flags.exact) })
@@ -227,10 +229,10 @@ function findPlaylist(snap: MusicSnapshot, name: string): Playlist {
   const matches = snap.playlists
     .filter((p) => p.name.toLowerCase().includes(q))
     .sort((a, b) => a.name.toLowerCase().indexOf(q) - b.name.toLowerCase().indexOf(q))
-  if (matches.length === 0) throw new Error(`No playlist matching "${name}".`)
+  if (matches.length === 0) throw refused('NOT_FOUND', `No playlist matching "${name}".`)
   const exact = matches.filter((item) => item.name.toLowerCase() === q)
   if (exact.length === 1) return exact[0]
-  if (matches.length > 1) throw new Error(`Ambiguous playlist; use one of these IDs: ${matches.map((item) => item.id).join(', ')}`)
+  if (matches.length > 1) throw refused('AMBIGUOUS_TARGET', `Ambiguous playlist; use one of these IDs: ${matches.map((item) => item.id).join(', ')}`)
   return matches[0]
 }
 
@@ -239,14 +241,14 @@ function findTrack(snap: MusicSnapshot, query: string, exact = false): Track {
   if (byId) return byId
   const byPath = snap.tracks.filter((item) => item.file === query)
   if (byPath.length === 1) return byPath[0]
-  if (byPath.length > 1) throw new Error(`Ambiguous track path; use one of these IDs: ${byPath.map((item) => item.id).join(', ')}`)
+  if (byPath.length > 1) throw refused('AMBIGUOUS_TARGET', `Ambiguous track path; use one of these IDs: ${byPath.map((item) => item.id).join(', ')}`)
   const matches = exact
     ? snap.tracks.filter((t) => t.title.toLowerCase() === query.toLowerCase())
     : rankTracks(snap.tracks, query)
-  if (matches.length === 0) throw new Error(`No track matching "${query}".`)
+  if (matches.length === 0) throw refused('NOT_FOUND', `No track matching "${query}".`)
   const exactMatches = matches.filter((item) => item.title.toLowerCase() === query.toLowerCase())
   if (exactMatches.length === 1) return exactMatches[0]
-  if (matches.length > 1) throw new Error(`Ambiguous track; use one of these IDs: ${matches.map((item) => item.id).join(', ')}`)
+  if (matches.length > 1) throw refused('AMBIGUOUS_TARGET', `Ambiguous track; use one of these IDs: ${matches.map((item) => item.id).join(', ')}`)
   return matches[0]
 }
 
@@ -256,18 +258,18 @@ function trackIdentity(track: Track | null): { id: string; file: string } | null
 
 function queueSelection(snap: MusicSnapshot, title: string, index?: number): { track: Track; position: number } {
   const entries = snap.upNext.map((track, position) => ({ track, position: position + 1 }))
-  if (!entries.length) throw new Error('Queue is empty.')
+  if (!entries.length) throw refused('NOT_FOUND', 'Queue is empty.')
   if (index !== undefined) {
     const selected = entries[index - 1]
-    if (!Number.isInteger(index) || !selected) throw new Error(`No queued track at position ${index}. Use music queue to see available positions.`)
+    if (!Number.isInteger(index) || !selected) throw refused('NOT_FOUND', `No queued track at position ${index}. Use music queue to see available positions.`)
     return selected
   }
   const byId = entries.filter(({ track }) => track.id === title)
   const direct = byId.length ? byId : entries.filter(({ track }) => track.file === title)
   const exact = entries.filter(({ track }) => track.title.toLowerCase() === title.toLowerCase())
   const matches = direct.length ? direct : exact.length ? exact : entries.filter(({ track }) => rankTracks([track], title).length > 0)
-  if (!matches.length) throw new Error(`"${title}" is not in the queue. Use music queue to see track IDs and positions.`)
-  if (matches.length > 1) throw new Error(`Ambiguous queued track; use --index with one of these positions: ${matches.map(({ track, position }) => `${position} [${track.id}]`).join(', ')}`)
+  if (!matches.length) throw refused('NOT_FOUND', `"${title}" is not in the queue. Use music queue to see track IDs and positions.`)
+  if (matches.length > 1) throw refused('AMBIGUOUS_TARGET', `Ambiguous queued track; use --index with one of these positions: ${matches.map(({ track, position }) => `${position} [${track.id}]`).join(', ')}`)
   return matches[0]
 }
 
@@ -295,40 +297,40 @@ function playlistActionPreview(name: string, action: PlaylistAction): { action: 
 
 function deletedTrackTarget(id: string): { track: Track; playlists: Playlist[] } {
   const snap = live().getSnapshot(), track = snap.tracks.find((item) => item.id === id)
-  if (!track) throw new Error('Track no longer exists. Use music songs to select an available track ID.')
+  if (!track) throw refused('NOT_FOUND', 'Track no longer exists. Use music songs to select an available track ID.')
   return { track, playlists: snap.playlists.filter((playlist) => playlist.songIds.includes(id)) }
 }
 
 function artistTarget(id: string): Artist {
   const artist = live().getSnapshot().artists.find((item) => item.id === id)
-  if (!artist) throw new Error('Artist no longer exists. Use music library-query with kind artists to select an available artist ID.')
+  if (!artist) throw refused('NOT_FOUND', 'Artist no longer exists. Use music library-query with kind artists to select an available artist ID.')
   return artist
 }
 
 function mediaTrack(path: string): Track {
   const matches = live().getSnapshot().tracks.filter((track) => normalizeRelPath(track.file) === path)
-  if (!matches.length) throw new Error(`No song in the library for "${path}".`)
-  if (matches.length > 1) throw new Error(`Ambiguous media path; use music play with one of these track IDs: ${matches.map((track) => track.id).join(', ')}`)
+  if (!matches.length) throw refused('NOT_FOUND', `No song in the library for "${path}".`)
+  if (matches.length > 1) throw refused('AMBIGUOUS_TARGET', `Ambiguous media path; use music play with one of these track IDs: ${matches.map((track) => track.id).join(', ')}`)
   return matches[0]
 }
 
 function favoriteTarget(title: string, exact: boolean): { track: Track; favorite: boolean } {
   const snap = live().getSnapshot(), track = title ? findTrack(snap, title, exact) : snap.currentTrack
-  if (!track) throw new Error('No track to favorite (nothing playing and no title given).')
+  if (!track) throw refused('NOT_FOUND', 'No track to favorite (nothing playing and no title given).')
   return { track, favorite: snap.favorites.has(track.id) }
 }
 
 function playablePlaylist(snap: MusicSnapshot, playlist: Playlist): { playlist: Playlist; tracks: Track[] } {
   const tracks = snap.playlistTracks[playlist.id] ?? []
-  if (tracks.length === 0) throw new Error(`Playlist "${playlist.name}" has no playable tracks.`)
+  if (tracks.length === 0) throw refused('NOT_FOUND', `Playlist "${playlist.name}" has no playable tracks.`)
   return { playlist, tracks }
 }
 
 function selectedPlaylist(store: MusicStore): { playlist: Playlist; tracks: Track[] } {
   const target = store.getFocusedPlaylist()
-  if (!target) throw new Error('No selected playlist. Open or right-click a playlist first.')
+  if (!target) throw refused('NOT_FOUND', 'No selected playlist. Open or right-click a playlist first.')
   if (target.tracks.length === 0) {
-    throw new Error(`Playlist "${target.playlist.name}" has no playable tracks.`)
+    throw refused('NOT_FOUND', `Playlist "${target.playlist.name}" has no playable tracks.`)
   }
   return target
 }
@@ -387,7 +389,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         parse: (raw) => {
           const o = (raw ?? {}) as Record<string, unknown>
           const title = asStr(o.title).trim()
-          if (!title) throw new Error('Usage: music play "<title>" [--exact]')
+          if (!title) throw refused('INVALID_INPUT', 'Usage: music play "<title>" [--exact]')
           return { title, exact: asBool(o.exact) }
         },
         fromCli: (args, flags) => ({ title: args.join(' ').trim(), exact: asBool(flags.exact) })
@@ -422,7 +424,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         parse: (raw) => {
           const o = (raw ?? {}) as Record<string, unknown>
           const name = asStr(o.name).trim()
-          if (!name) throw new Error('Usage: music playlist "<name>" [--shuffle] [--index N]')
+          if (!name) throw refused('INVALID_INPUT', 'Usage: music playlist "<name>" [--shuffle] [--index N]')
           return { name, shuffle: asBool(o.shuffle), index: asInt(o.index) ?? 0 }
         },
         fromCli: (args, flags) => ({
@@ -561,7 +563,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
       run: async ({ name }) => {
         const store = live()
         const id = await store.createPlaylist(name)
-        if (!id) throw new Error('Playlist name is required.')
+        if (!id) throw refused('INVALID_INPUT', 'Playlist name is required.')
         const playlist = store.getSnapshot().playlists.find((p) => p.id === id)
         if (!playlist) throw new Error('Playlist was not created.')
         return {
@@ -589,7 +591,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
           const o = (raw ?? {}) as Record<string, unknown>
           const name = asStr(o.name).trim()
           const nextName = asStr(o.newName ?? o.to).trim()
-          if (!name || !nextName) throw new Error('Usage: music rename-playlist "<name>" --to "<new name>"')
+          if (!name || !nextName) throw refused('INVALID_INPUT', 'Usage: music rename-playlist "<name>" --to "<new name>"')
           return { name, newName: nextName }
         },
         fromCli: (args, flags) => ({ name: args.join(' ').trim(), newName: asStr(flags.to).trim() })
@@ -681,7 +683,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
           const o = (raw ?? {}) as Record<string, unknown>
           const playlist = asStr(o.playlist ?? o.name).trim()
           const query = asStr(o.query ?? o.title).trim()
-          if (!playlist || !query) throw new Error('Usage: music add-to-playlist "<playlist>" --song "<title>"')
+          if (!playlist || !query) throw refused('INVALID_INPUT', 'Usage: music add-to-playlist "<playlist>" --song "<title>"')
           return { playlist, query, exact: asBool(o.exact) }
         },
         fromCli: (args, flags) => ({ playlist: args.join(' ').trim(), query: asStr(flags.song || flags.title).trim(), exact: asBool(flags.exact) })
@@ -691,7 +693,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         const snap = store.getSnapshot()
         const playlist = findPlaylist(snap, playlistQuery)
         const track = findTrack(snap, query, exact)
-        if (playlist.songIds.includes(track.id)) throw new Error(`"${describe(track)}" is already in "${playlist.name}".`)
+        if (playlist.songIds.includes(track.id)) throw refused('ALREADY_EXISTS', `"${describe(track)}" is already in "${playlist.name}".`)
         const previousIds = [...playlist.songIds]
         await store.addToPlaylist(playlist.id, track.id)
         return {
@@ -721,7 +723,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
           const o = (raw ?? {}) as Record<string, unknown>
           const playlist = asStr(o.playlist ?? o.name).trim()
           const query = asStr(o.query ?? o.title).trim()
-          if (!playlist || !query) throw new Error('Usage: music remove-from-playlist "<playlist>" --song "<title>"')
+          if (!playlist || !query) throw refused('INVALID_INPUT', 'Usage: music remove-from-playlist "<playlist>" --song "<title>"')
           return { playlist, query, exact: asBool(o.exact) }
         },
         fromCli: (args, flags) => ({ playlist: args.join(' ').trim(), query: asStr(flags.song || flags.title).trim(), exact: asBool(flags.exact) })
@@ -731,7 +733,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         const snap = store.getSnapshot()
         const playlist = findPlaylist(snap, playlistQuery)
         const track = findTrack(snap, query, exact)
-        if (!playlist.songIds.includes(track.id)) throw new Error(`"${describe(track)}" is not in "${playlist.name}".`)
+        if (!playlist.songIds.includes(track.id)) throw refused('NOT_FOUND', `"${describe(track)}" is not in "${playlist.name}".`)
         const previousIds = [...playlist.songIds]
         await store.removeFromPlaylist(playlist.id, track.id)
         return {
@@ -799,8 +801,8 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
           const title = asStr(o.title ?? o.query).trim()
           const rawIndex = o.index ?? o.position
           const index = rawIndex === undefined ? undefined : Number(rawIndex)
-          if (index !== undefined && (!Number.isInteger(index) || index < 1)) throw new Error('Queue positions start at 1. Use music queue to see available positions.')
-          if (!title && index == null) throw new Error('Usage: music remove-from-queue "<title>" | --index N')
+          if (index !== undefined && (!Number.isInteger(index) || index < 1)) throw refused('INVALID_INPUT', 'Queue positions start at 1. Use music queue to see available positions.')
+          if (!title && index == null) throw refused('INVALID_INPUT', 'Usage: music remove-from-queue "<title>" | --index N')
           return { title, index }
         },
         fromCli: (args, flags) => ({ title: args.join(' ').trim(), index: flags.index ?? flags.position })
@@ -846,7 +848,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
           const o = (raw ?? {}) as Record<string, unknown>
           const name = asStr(o.name ?? o.playlist).trim()
           const cover = asStr(o.cover ?? o.path ?? o.image).trim()
-          if (!name) throw new Error('Usage: music set-cover "<playlist>" --image "<file>"')
+          if (!name) throw refused('INVALID_INPUT', 'Usage: music set-cover "<playlist>" --image "<file>"')
           return { name, cover }
         },
         fromCli: (args, flags) => ({ name: args.join(' ').trim(), cover: asStr(flags.image ?? flags.cover ?? flags.path).trim() })
@@ -1042,7 +1044,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         parse: (raw) => {
           const mode = asStr((raw as Record<string, unknown> | undefined)?.mode || 'toggle').toLowerCase()
           if (mode !== 'on' && mode !== 'off' && mode !== 'toggle') {
-            throw new Error('Usage: music shuffle on|off|toggle')
+            throw refused('INVALID_INPUT', 'Usage: music shuffle on|off|toggle')
           }
           return { mode: mode as 'on' | 'off' | 'toggle' }
         },
@@ -1069,7 +1071,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         schema: {"type": "object", "properties": {"level": {"type": "number"}}, "additionalProperties": false, "required": ["level"]},
         parse: (raw) => {
           const level = asInt((raw as Record<string, unknown> | undefined)?.level)
-          if (level === undefined || level < 0 || level > 100) throw new Error('Usage: music volume <0-100>')
+          if (level === undefined || level < 0 || level > 100) throw refused('INVALID_INPUT', 'Usage: music volume <0-100>')
           return { level }
         },
         fromCli: (args) => ({ level: asInt(args[0]) })
@@ -1094,7 +1096,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         schema: {"type": "object", "properties": {"seconds": {"type": "number"}}, "additionalProperties": false, "required": ["seconds"]},
         parse: (raw) => {
           const seconds = asInt((raw as Record<string, unknown> | undefined)?.seconds)
-          if (seconds === undefined || seconds < 0) throw new Error('Usage: music seek <seconds>')
+          if (seconds === undefined || seconds < 0) throw refused('INVALID_INPUT', 'Usage: music seek <seconds>')
           return { seconds }
         },
         fromCli: (args) => ({ seconds: asInt(args[0]) })
@@ -1158,7 +1160,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         schema: {"type": "object", "properties": {"query": {"type": "string"}}, "additionalProperties": false, "required": ["query"]},
         parse: (raw) => {
           const query = asStr((raw as Record<string, unknown> | undefined)?.query ?? (raw as Record<string, unknown> | undefined)?.search).trim()
-          if (!query) throw new Error('Usage: music search "<query>"')
+          if (!query) throw refused('INVALID_INPUT', 'Usage: music search "<query>"')
           return { query }
         },
         fromCli: (args) => ({ query: args.join(' ').trim() })
@@ -1258,7 +1260,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         parse: (raw) => {
           const o = (raw ?? {}) as Record<string, unknown>
           const path = normalizeRelPath(asStr(o.path ?? o.relPath ?? o.file))
-          if (!path) throw new Error('Usage: music open-media "<vault path>"')
+          if (!path) throw refused('INVALID_INPUT', 'Usage: music open-media "<vault path>"')
           return { path }
         },
         fromCli: (args) => ({ path: args.join(' ').trim() })
@@ -1303,7 +1305,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         schema: {"type": "object", "properties": {"name": {"type": "string"}}, "additionalProperties": false, "required": ["name"]},
         parse: (raw) => {
           const name = asStr((raw as Record<string, unknown> | undefined)?.name).trim()
-          if (!name) throw new Error('Usage: music open-artist "<name>"')
+          if (!name) throw refused('INVALID_INPUT', 'Usage: music open-artist "<name>"')
           return { name }
         },
         fromCli: (args) => ({ name: args.join(' ').trim() })
@@ -1313,7 +1315,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         const snap = store.getSnapshot()
         const entity = resolveArtist(snap.artists, name)
         const matches = tracksForArtist(snap.tracks, entity ?? { name: name.trim() })
-        if (matches.length === 0) throw new Error(`No songs by "${name}".`)
+        if (matches.length === 0) throw refused('NOT_FOUND', `No songs by "${name}".`)
         store.showArtist(entity ? entity.id : name)
         return { artist: entity?.name ?? name.trim(), count: matches.length }
       },
@@ -1331,7 +1333,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         const store = live()
         const track = findTrack(store.getSnapshot(), title, exact)
         const names = trackArtists(track)
-        if (names.length === 0) throw new Error(`"${describe(track)}" has no artist.`)
+        if (names.length === 0) throw refused('NOT_FOUND', `"${describe(track)}" has no artist.`)
         store.showArtist(names[0])
         return { song: track, artist: names[0], otherArtists: names.slice(1) }
       },
@@ -1350,7 +1352,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         parse: (raw) => {
           const input = (raw ?? {}) as { songId?: unknown; limit?: unknown; cursor?: unknown }
           const limit = Number(input.limit ?? 100)
-          if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500 || (input.songId !== undefined && typeof input.songId !== 'string') || (input.cursor !== undefined && typeof input.cursor !== 'string')) throw new Error('Invalid play history query')
+          if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500 || (input.songId !== undefined && typeof input.songId !== 'string') || (input.cursor !== undefined && typeof input.cursor !== 'string')) throw refused('INVALID_INPUT', 'Invalid play history query')
           return { songId: input.songId as string | undefined, limit, cursor: input.cursor as string | undefined }
         }
       },
@@ -1364,7 +1366,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         parse: (raw) => {
           const input = (raw ?? {}) as Record<string, unknown>
           const kind = String(input.kind ?? 'tracks'), limit = Number(input.limit ?? 100), offset = Number(input.offset ?? 0)
-          if (!['tracks', 'artists', 'playlists', 'history'].includes(kind) || !Number.isInteger(limit) || limit < 1 || limit > 500 || !Number.isInteger(offset) || offset < 0) throw new Error('Invalid library query')
+          if (!['tracks', 'artists', 'playlists', 'history'].includes(kind) || !Number.isInteger(limit) || limit < 1 || limit > 500 || !Number.isInteger(offset) || offset < 0) throw refused('INVALID_INPUT', 'Invalid library query')
           return { kind, id: asStr(input.id), search: asStr(input.search).toLowerCase(), limit, offset }
         }
       },
@@ -1372,14 +1374,14 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         const snapshot = live().getSnapshot()
         const source = kind === 'artists' ? snapshot.artists : kind === 'playlists' ? snapshot.playlists : kind === 'history' ? snapshot.history : snapshot.tracks
         const rows = source.filter((item) => (!id || item.id === id) && (!search || JSON.stringify(item).toLowerCase().includes(search)))
-        if (id && !rows.length) throw new Error(`Music item not found: ${id}`)
+        if (id && !rows.length) throw refused('NOT_FOUND', `Music item not found: ${id}`)
         return { total: rows.length, rows: structuredClone(rows.slice(offset, offset + limit)), nextOffset: offset + limit < rows.length ? offset + limit : null }
       }
     }),
     register({
       id: 'repeat',
       outputSchema: resultObject({ mode: { type: 'string', enum: ['off', 'all', 'one'] } }), label: 'Set music repeat mode', labelKey: 'music.surface.repeat', paletteSafe: false, sideEffect: 'execute',
-      input: { schema: { type: 'object', properties: { mode: { enum: ['off', 'all', 'one'] } }, required: ['mode'], additionalProperties: false }, parse: (raw) => { const mode = (raw as { mode?: unknown })?.mode; if (mode !== 'off' && mode !== 'all' && mode !== 'one') throw new Error('mode must be off, all, or one'); return { mode } } },
+      input: { schema: { type: 'object', properties: { mode: { enum: ['off', 'all', 'one'] } }, required: ['mode'], additionalProperties: false }, parse: (raw) => { const mode = (raw as { mode?: unknown })?.mode; if (mode !== 'off' && mode !== 'all' && mode !== 'one') throw refused('INVALID_INPUT', 'mode must be off, all, or one'); return { mode } } },
       preview: ({ mode }) => ({ previous: live().getSnapshot().repeatMode, mode }),
       revision: () => live().getSnapshot().repeatMode,
       run: async ({ mode }) => {
@@ -1395,47 +1397,47 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'queue-reorder',
       outputSchema: resultList(trackResult), label: 'Reorder music queue', labelKey: 'music.surface.queue-reorder', paletteSafe: false, sideEffect: 'execute',
-      input: { schema: { type: 'object', properties: { from: { type: 'integer', minimum: 0 }, to: { type: 'integer', minimum: 0 } }, required: ['from', 'to'], additionalProperties: false }, parse: (raw) => { const input = raw as { from?: unknown; to?: unknown }; const from = Number(input?.from), to = Number(input?.to); if (!Number.isInteger(from) || from < 0 || !Number.isInteger(to) || to < 0) throw new Error('Queue indices must be nonnegative integers'); return { from, to } } },
-      preview: ({ from, to }) => { const queue = queueIdentity(); if (from >= queue.length || to >= queue.length) throw new Error('Queue item no longer exists'); return { from, to, songIds: queue } },
+      input: { schema: { type: 'object', properties: { from: { type: 'integer', minimum: 0 }, to: { type: 'integer', minimum: 0 } }, required: ['from', 'to'], additionalProperties: false }, parse: (raw) => { const input = raw as { from?: unknown; to?: unknown }; const from = Number(input?.from), to = Number(input?.to); if (!Number.isInteger(from) || from < 0 || !Number.isInteger(to) || to < 0) throw refused('INVALID_INPUT', 'Queue indices must be nonnegative integers'); return { from, to } } },
+      preview: ({ from, to }) => { const queue = queueIdentity(); if (from >= queue.length || to >= queue.length) throw refused('NOT_FOUND', 'Queue item no longer exists'); return { from, to, songIds: queue } },
       revision: queueIdentity,
-      run: async ({ from, to }) => { const store = live(); if (from >= store.getSnapshot().upNext.length || to >= store.getSnapshot().upNext.length) throw new Error('Queue item no longer exists'); store.reorderQueue(from, to); return executed(store, () => store.getSnapshot().upNext) }
+      run: async ({ from, to }) => { const store = live(); if (from >= store.getSnapshot().upNext.length || to >= store.getSnapshot().upNext.length) throw refused('NOT_FOUND', 'Queue item no longer exists'); store.reorderQueue(from, to); return executed(store, () => store.getSnapshot().upNext) }
     }),
     register({
       id: 'playlist-reorder',
       outputSchema: resultObject({ id: resultText, songIds: resultStrings }), label: 'Reorder playlist tracks', labelKey: 'music.surface.playlist-reorder', paletteSafe: false, sideEffect: 'write',
-      input: { schema: { type: 'object', properties: { id: { type: 'string' }, songIds: { type: 'array', items: { type: 'string' }, uniqueItems: true } }, required: ['id', 'songIds'], additionalProperties: false }, parse: (raw) => { const input = raw as { id?: unknown; songIds?: unknown }; if (typeof input?.id !== 'string' || !Array.isArray(input.songIds) || !input.songIds.every((value) => typeof value === 'string')) throw new Error('A playlist ID and ordered song IDs are required'); return { id: input.id, songIds: input.songIds as string[] } } },
+      input: { schema: { type: 'object', properties: { id: { type: 'string' }, songIds: { type: 'array', items: { type: 'string' }, uniqueItems: true } }, required: ['id', 'songIds'], additionalProperties: false }, parse: (raw) => { const input = raw as { id?: unknown; songIds?: unknown }; if (typeof input?.id !== 'string' || !Array.isArray(input.songIds) || !input.songIds.every((value) => typeof value === 'string')) throw refused('INVALID_INPUT', 'A playlist ID and ordered song IDs are required'); return { id: input.id, songIds: input.songIds as string[] } } },
       preview: (input) => input, revision: ({ id }) => playlistSongs(id),
       run: async ({ id, songIds }) => {
         const store = live(), playlist = store.getSnapshot().playlists.find((item) => item.id === id)
-        if (!playlist) throw new Error('Playlist no longer exists')
-        if (songIds.length !== playlist.songIds.length || new Set(songIds).size !== songIds.length || songIds.some((songId) => !playlist.songIds.includes(songId))) throw new Error('Provide each existing playlist song exactly once')
+        if (!playlist) throw refused('NOT_FOUND', 'Playlist no longer exists')
+        if (songIds.length !== playlist.songIds.length || new Set(songIds).size !== songIds.length || songIds.some((songId) => !playlist.songIds.includes(songId))) throw refused('INVALID_INPUT', 'Provide each existing playlist song exactly once')
         const before = [...playlist.songIds]
         await store.reorderPlaylist(id, songIds)
-        return { value: { id, songIds }, revert: { label: 'Reorder playlist', run: async () => { const current = store.getSnapshot().playlists.find((item) => item.id === id); if (!current || JSON.stringify(current.songIds) !== JSON.stringify(songIds)) throw new Error('Playlist changed after reordering'); await store.reorderPlaylist(id, before) } } }
+        return { value: { id, songIds }, revert: { label: 'Reorder playlist', run: async () => { const current = store.getSnapshot().playlists.find((item) => item.id === id); if (!current || JSON.stringify(current.songIds) !== JSON.stringify(songIds)) throw refused('REVISION_CONFLICT', 'Playlist changed after reordering'); await store.reorderPlaylist(id, before) } } }
       }
     }),
     register({
       id: 'track-delete',
       outputSchema: resultObject({ id: resultText }), label: 'Remove track from music library', labelKey: 'music.surface.track-delete', paletteSafe: false, sideEffect: 'write',
-      input: { schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }, parse: (raw) => { const id = (raw as { id?: unknown })?.id; if (typeof id !== 'string' || !id) throw new Error('Track ID is required'); return { id } } },
+      input: { schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }, parse: (raw) => { const id = (raw as { id?: unknown })?.id; if (typeof id !== 'string' || !id) throw refused('INVALID_INPUT', 'Track ID is required'); return { id } } },
       preview: ({ id }) => ({ ...deletedTrackTarget(id), action: 'remove-from-library' }),
       revision: ({ id }) => deletedTrackTarget(id),
-      run: async ({ id }) => { const store = live(); if (!store.getSnapshot().tracks.some((item) => item.id === id)) throw new Error('Track no longer exists'); await store.deleteSong(id); return { value: { id }, revert: null } }
+      run: async ({ id }) => { const store = live(); if (!store.getSnapshot().tracks.some((item) => item.id === id)) throw refused('NOT_FOUND', 'Track no longer exists'); await store.deleteSong(id); return { value: { id }, revert: null } }
     }),
     register({
       id: 'artist-update',
       outputSchema: artistResult, label: 'Update artist details', labelKey: 'music.surface.artist-update', paletteSafe: false, sideEffect: 'write',
-      input: { schema: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string', minLength: 1 }, image: { type: ['string', 'null'] }, bio: { type: 'string' } }, required: ['id'], additionalProperties: false }, parse: (raw) => { const input = raw as { id?: unknown; name?: unknown; image?: unknown; bio?: unknown }; if (typeof input?.id !== 'string' || !input.id || (input.name !== undefined && (typeof input.name !== 'string' || !input.name.trim())) || (input.image !== undefined && input.image !== null && typeof input.image !== 'string') || (input.bio !== undefined && typeof input.bio !== 'string')) throw new Error('Invalid artist fields'); return input as { id: string; name?: string; image?: string | null; bio?: string } } },
+      input: { schema: { type: 'object', properties: { id: { type: 'string' }, name: { type: 'string', minLength: 1 }, image: { type: ['string', 'null'] }, bio: { type: 'string' } }, required: ['id'], additionalProperties: false }, parse: (raw) => { const input = raw as { id?: unknown; name?: unknown; image?: unknown; bio?: unknown }; if (typeof input?.id !== 'string' || !input.id || (input.name !== undefined && (typeof input.name !== 'string' || !input.name.trim())) || (input.image !== undefined && input.image !== null && typeof input.image !== 'string') || (input.bio !== undefined && typeof input.bio !== 'string')) throw refused('INVALID_INPUT', 'Invalid artist fields'); return input as { id: string; name?: string; image?: string | null; bio?: string } } },
       preview: (input) => ({ previous: artistTarget(input.id), ...input }), revision: ({ id }) => artistTarget(id),
-      run: async ({ id, name, image, bio }) => { const store = live(); if (!store.getSnapshot().artists.some((item) => item.id === id)) throw new Error('Artist no longer exists'); await store.updateArtistProperties(id, { ...(name === undefined ? {} : { name }), ...(image === undefined ? {} : { image: image ?? '' }), ...(bio === undefined ? {} : { bio }) }); return { value: store.getSnapshot().artists.find((item) => item.id === id), revert: null } }
+      run: async ({ id, name, image, bio }) => { const store = live(); if (!store.getSnapshot().artists.some((item) => item.id === id)) throw refused('NOT_FOUND', 'Artist no longer exists'); await store.updateArtistProperties(id, { ...(name === undefined ? {} : { name }), ...(image === undefined ? {} : { image: image ?? '' }), ...(bio === undefined ? {} : { bio }) }); return { value: store.getSnapshot().artists.find((item) => item.id === id), revert: null } }
     }),
     register({
       id: 'artist-merge',
       outputSchema: artistResult, label: 'Merge music artists', labelKey: 'music.surface.artist-merge', paletteSafe: false, sideEffect: 'write',
-      input: { schema: { type: 'object', properties: { sourceId: { type: 'string' }, targetId: { type: 'string' } }, required: ['sourceId', 'targetId'], additionalProperties: false }, parse: (raw) => { const input = raw as { sourceId?: unknown; targetId?: unknown }; if (typeof input?.sourceId !== 'string' || typeof input.targetId !== 'string' || input.sourceId === input.targetId) throw new Error('Two distinct artist IDs are required'); return { sourceId: input.sourceId, targetId: input.targetId } } },
+      input: { schema: { type: 'object', properties: { sourceId: { type: 'string' }, targetId: { type: 'string' } }, required: ['sourceId', 'targetId'], additionalProperties: false }, parse: (raw) => { const input = raw as { sourceId?: unknown; targetId?: unknown }; if (typeof input?.sourceId !== 'string' || typeof input.targetId !== 'string' || input.sourceId === input.targetId) throw refused('INVALID_INPUT', 'Two distinct artist IDs are required'); return { sourceId: input.sourceId, targetId: input.targetId } } },
       preview: ({ sourceId, targetId }) => ({ action: 'merge-artists', source: artistTarget(sourceId), target: artistTarget(targetId) }),
       revision: ({ sourceId, targetId }) => ({ source: artistTarget(sourceId), target: artistTarget(targetId) }),
-      run: async ({ sourceId, targetId }) => { const store = live(); if (![sourceId, targetId].every((id) => store.getSnapshot().artists.some((item) => item.id === id))) throw new Error('Artist no longer exists'); await store.mergeArtists(sourceId, targetId); return { value: store.getSnapshot().artists.find((item) => item.id === targetId), revert: null } }
+      run: async ({ sourceId, targetId }) => { const store = live(); if (![sourceId, targetId].every((id) => store.getSnapshot().artists.some((item) => item.id === id))) throw refused('NOT_FOUND', 'Artist no longer exists'); await store.mergeArtists(sourceId, targetId); return { value: store.getSnapshot().artists.find((item) => item.id === targetId), revert: null } }
     })
   )
   return () => offs.forEach((off) => off())
