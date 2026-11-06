@@ -33,6 +33,7 @@ import type { MusicPlaybackAction, MusicPlaybackSnapshot } from './playback'
 export { nextIndex } from './playback'
 import { api as runtimeApi } from './runtime'
 import { MediaMetadata, MetadataCancelled } from './mediaMetadata'
+import { isEpisode, podcastShows, readProgress, resumePosition, type EpisodeProgress, type LibraryMode, type PodcastShow } from './podcasts'
 
 const TRACKS_DATASET = 'music.tracks'
 const PLAYLISTS_DATASET = 'music.playlists'
@@ -62,6 +63,16 @@ interface DatasetStore {
 }
 
 const PLAYER_SETTINGS_KEY = 'player'
+const PROGRESS_SETTINGS_KEY = 'podcastProgress'
+const PROGRESS_LIMIT = 300
+
+/** Which podcast view the content page shows while the library is in podcast mode. */
+export type PodcastView = { mode: 'home' } | { mode: 'show'; id: string }
+
+function narrowPodcastView(value: unknown): PodcastView {
+  const record = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return record.mode === 'show' && typeof record.id === 'string' && record.id ? { mode: 'show', id: record.id } : { mode: 'home' }
+}
 
 export function normalizeMusicPath(value: unknown): string {
   return normalizeRelPath(value)
@@ -120,7 +131,11 @@ export interface MusicSnapshot {
   loading: boolean
   libraryError: string | null
   musicPath: string
+  podcastPath: string
+  /** Music tracks only; podcast episodes live in `episodes`. */
   tracks: Track[]
+  episodes: Track[]
+  shows: PodcastShow[]
   playlists: Playlist[]
   /** Artist registry (upserted from song artist names); identity for artist pages. */
   artists: Artist[]
@@ -171,6 +186,12 @@ export interface MusicSnapshot {
   rightHistoryOpen: boolean
   rightPanelScrollTop: number
   rightViewNonce: number
+  libraryMode: LibraryMode
+  podcastView: PodcastView
+  podcastCanGoBack: boolean
+  podcastCanGoForward: boolean
+  /** Saved listening position per episode id. */
+  episodeProgress: Record<string, EpisodeProgress>
 }
 
 interface PlayerPreferences {
@@ -222,6 +243,19 @@ export class MusicStore {
   private synced = false
   private musicPathOverride: string | null = null
   private observedMusicPath: string
+  private observedPodcastPath: string
+  private libraryModeOverride: LibraryMode | null = null
+  private observedLibraryMode: LibraryMode
+  private podcastView: PodcastView = { mode: 'home' }
+  private podcastHistory: PodcastView[] = [{ mode: 'home' }]
+  private podcastHistoryIndex = 0
+  private split: { tracks: Track[]; podcastPath: string; music: Track[]; episodes: Track[] } | null = null
+  private showCache: { episodes: Track[]; entries: unknown; shows: PodcastShow[] } | null = null
+  private episodeProgress: Record<string, EpisodeProgress>
+  private progressTimer: number | null = null
+  private progressWrite: Promise<boolean> = Promise.resolve(true)
+  private progressSavedAt = 0
+  private resumedEpisodeId: string | null = null
   private offSettings: () => void
 
   // Playback state
@@ -275,6 +309,9 @@ export class MusicStore {
     this.shuffle = player.shuffle
     this.repeatMode = player.repeat
     this.observedMusicPath = this.musicPath()
+    this.observedPodcastPath = this.podcastPath()
+    this.observedLibraryMode = this.libraryMode()
+    this.episodeProgress = readProgress(api.settings.get()[PROGRESS_SETTINGS_KEY])
     this.offSettings = api.settings.subscribe(() => this.onSettingsChanged())
     this.index = createIndexObserver(api, { fields: [] })
     this.metadata = new MediaMetadata(api)
@@ -298,9 +335,11 @@ export class MusicStore {
     this.offBeforeUnload = this.api.runtime.onBeforeUnload(async () => {
       do {
         if (this.navDirty) this.flushNav()
+        if (this.progressTimer !== null) this.flushProgress()
         const navigation = await this.navWrite
         const playback = await this.flushPersistence()
-        if (!navigation || !playback) throw new Error('Could not save Music state')
+        const progress = await this.progressWrite
+        if (!navigation || !playback || !progress) throw new Error('Could not save Music state')
       } while (this.navDirty || this.pendingPlayback.size > 0)
     })
 
@@ -383,18 +422,26 @@ export class MusicStore {
       playlistTracks[pl.id] = resolvePlaylistTracks(pl.songIds, this.trackById)
       playlistCovers[pl.id] = resolveCoverPath(entries, pl.cover)
     }
+    const { music, episodes } = this.splitLibrary()
+    const musicById = new Map(music.map(track => [track.id, track]))
+    if (this.showCache?.episodes !== episodes || this.showCache.entries !== entries) {
+      this.showCache = { episodes, entries, shows: podcastShows(episodes, this.podcastPath(), entries) }
+    }
     this.snapshot = {
       loading: this.loading,
       libraryError: this.libraryError,
       musicPath: this.musicPath(),
-      tracks: this.tracks,
+      podcastPath: this.podcastPath(),
+      tracks: music,
+      episodes,
+      shows: this.showCache.shows,
       playlists: this.playlists,
       artists: this.artists,
       playlistTracks,
       favorites: new Set(this.tracks.filter((t) => t.favorite).map((t) => t.id)),
       history: dedupeHistory(this.historyEntries, this.trackById),
-      recentlyPlayed: resolvePlaylistTracks(this.recentlyPlayedIds ?? [], this.trackById),
-      topPlayed: mostListened(this.historyEntries, this.trackById),
+      recentlyPlayed: resolvePlaylistTracks(this.recentlyPlayedIds ?? [], musicById),
+      topPlayed: mostListened(this.historyEntries, musicById),
       missing: this.missing,
       playlistCovers,
       ...this.playbackSnapshot(),
@@ -423,7 +470,8 @@ export class MusicStore {
       repeatMode: this.repeatMode,
       resumeTrack:
         this.currentTrack ?? (lastHistory ? this.trackById.get(lastHistory.songId) ?? null : null),
-      coverVersion: this.coverVersion
+      coverVersion: this.coverVersion,
+      episodeProgress: this.episodeProgress
     }
   }
 
@@ -443,8 +491,23 @@ export class MusicStore {
       rightQueueOpen: this.rightQueueOpen,
       rightHistoryOpen: this.rightHistoryOpen,
       rightPanelScrollTop: this.rightPanelScrollTop,
-      rightViewNonce: this.rightViewNonce
+      rightViewNonce: this.rightViewNonce,
+      libraryMode: this.libraryMode(),
+      podcastView: this.podcastView,
+      podcastCanGoBack: this.podcastHistoryIndex > 0,
+      podcastCanGoForward: this.podcastHistoryIndex < this.podcastHistory.length - 1
     }
+  }
+
+  /** Episodes are the tracks inside the podcast folder; the split keeps its identity until either input changes. */
+  private splitLibrary(): { music: Track[]; episodes: Track[] } {
+    const podcastPath = this.podcastPath()
+    if (this.split?.tracks !== this.tracks || this.split.podcastPath !== podcastPath) {
+      const music: Track[] = [], episodes: Track[] = []
+      for (const track of this.tracks) (isEpisode(track, podcastPath) ? episodes : music).push(track)
+      this.split = { tracks: this.tracks, podcastPath, music, episodes }
+    }
+    return this.split
   }
 
   // ---- Helpers -------------------------------------------------------------
@@ -652,6 +715,33 @@ export class MusicStore {
     return persisted
   }
 
+  podcastPath(): string {
+    return normalizeMusicPath(this.api.settings.get().podcastPath)
+  }
+
+  libraryMode(): LibraryMode {
+    const persisted: LibraryMode = this.api.settings.get().libraryMode === 'podcast' ? 'podcast' : 'music'
+    if (this.libraryModeOverride !== null) {
+      if (persisted === this.libraryModeOverride) this.libraryModeOverride = null
+      else return this.libraryModeOverride
+    }
+    return persisted
+  }
+
+  setLibraryMode(mode: LibraryMode): void {
+    if (mode === this.libraryMode()) return
+    this.libraryModeOverride = mode
+    this.observedLibraryMode = mode
+    this.emitView()
+    this.emitViewState()
+    void this.api.settings.set('libraryMode', mode).then(result => {
+      if (result.ok) return
+      this.libraryModeOverride = null
+      this.observedLibraryMode = this.libraryMode()
+      this.emitView()
+    }).catch(() => {})
+  }
+
   trackUrl(track: Track): string {
     return assetUrlForRelPath(track.file)
   }
@@ -726,6 +816,8 @@ export class MusicStore {
       const restored = this.validatePageView(parsePageView(navRecs[0]))
       const navRecord = navRecs[0] && typeof navRecs[0] === 'object' ? navRecs[0] as Record<string, unknown> : null
       this.pageSearch = typeof navRecord?.searchQuery === 'string' ? navRecord.searchQuery.slice(0, 500) : ''
+      this.podcastView = narrowPodcastView(navRecord?.podcast)
+      this.podcastHistory = [this.podcastView]
       if (restored.mode !== 'home') {
         this.pageView = restored
         this.pageHistory = [restored]
@@ -774,7 +866,7 @@ export class MusicStore {
    */
   private async syncArtists(): Promise<void> {
     if (this.disposed) return
-    const { next, added } = upsertArtists(this.artists, this.tracks)
+    const { next, added } = upsertArtists(this.artists, this.splitLibrary().music)
     if (added.length === 0) return
     this.artists = next
     for (const artist of added) {
@@ -815,7 +907,7 @@ export class MusicStore {
   }
 
   private async scanLibrary(generation: number): Promise<void> {
-    if (!this.musicPath()) return
+    if (!this.musicPath() && !this.podcastPath()) return
     await this.waitForIndex()
     this.metadata.assertCurrent(generation)
     this.synced = true
@@ -855,10 +947,28 @@ export class MusicStore {
   /** A folder chosen outside this store (Settings, automation, another window) rescans the library. */
   private onSettingsChanged(): void {
     if (this.disposed) return
-    const path = this.musicPath()
-    if (path === this.observedMusicPath) return
+    const mode = this.libraryMode()
+    if (mode !== this.observedLibraryMode) {
+      this.observedLibraryMode = mode
+      this.emitView()
+    }
+    const path = this.musicPath(), podcastPath = this.podcastPath()
+    if (path === this.observedMusicPath && podcastPath === this.observedPodcastPath) return
     this.observedMusicPath = path
+    this.observedPodcastPath = podcastPath
+    this.emit()
     void this.refresh().catch(() => {})
+  }
+
+  async setPodcastPath(path: string): Promise<boolean> {
+    const normalized = normalizeMusicPath(path)
+    if (path.trim() && !normalized) return false
+    const result = await this.api.settings.set('podcastPath', normalized)
+    if (!result.ok) return false
+    this.observedPodcastPath = this.podcastPath()
+    this.emit()
+    await this.refresh()
+    return true
   }
 
   // ---- Covers ---------------------------------------------------------------
@@ -895,6 +1005,8 @@ export class MusicStore {
 
   private applyPlayback(state: MusicPlaybackSnapshot): void {
     if (this.disposed || !state || state.revision < this.playbackRevision) return
+    const previousTrack = this.currentTrack, wasPlaying = this.isPlaying
+    const previousPosition = this.currentTime, previousDuration = this.duration
     this.playbackOutcome = state.errorOutcome
     const queue = state.queue.map(track => this.trackById.get(track.id) ?? track)
     const current = state.current ? this.trackById.get(state.current.id) ?? state.current : null
@@ -917,6 +1029,7 @@ export class MusicStore {
     this.playbackRate = state.rate
     this.playbackSampledAt = performance.now()
     this.playbackSampleAge = state.sampleAgeMs ?? 0
+    this.trackEpisodeProgress(previousTrack, wasPlaying, previousPosition, previousDuration, state)
     if (state.playEvent && state.playEvent.id !== this.lastPlayEventId) {
       this.lastPlayEventId = state.playEvent.id
       const { id: _id, ...entry } = state.playEvent
@@ -926,7 +1039,51 @@ export class MusicStore {
     else this.emitPlayback()
   }
 
-  private playback(action: MusicPlaybackAction): void {
+  private trackEpisodeProgress(previous: Track | null, wasPlaying: boolean, previousPosition: number, previousDuration: number, state: MusicPlaybackSnapshot): void {
+    const podcastPath = this.observedPodcastPath
+    const current = this.currentTrack
+    if (previous && previous.id !== current?.id && isEpisode(previous, podcastPath)) {
+      this.recordProgress(previous.id, previousPosition, previousDuration || previous.duration || 0)
+    }
+    if (!current || !isEpisode(current, podcastPath)) return
+    if (current.id !== previous?.id && current.id !== this.resumedEpisodeId && state.position < 3) {
+      this.resumedEpisodeId = current.id
+      const resume = resumePosition(this.episodeProgress[current.id])
+      if (resume > 0) this.seek(resume)
+      return
+    }
+    if ((wasPlaying && !state.playing) || (state.playing && Date.now() - this.progressSavedAt > 30000)) {
+      this.recordProgress(current.id, state.position, state.duration || current.duration || 0)
+    }
+  }
+
+  private recordProgress(id: string, position: number, duration: number): void {
+    if (!Number.isFinite(position) || position < 0) return
+    this.progressSavedAt = Date.now()
+    const entries = Object.entries({ ...this.episodeProgress, [id]: { position, duration, updatedAt: new Date().toISOString() } })
+      .sort((a, b) => b[1].updatedAt.localeCompare(a[1].updatedAt))
+      .slice(0, PROGRESS_LIMIT)
+    this.episodeProgress = Object.fromEntries(entries)
+    if (this.progressTimer !== null) window.clearTimeout(this.progressTimer)
+    this.progressTimer = window.setTimeout(() => this.flushProgress(), 1500)
+  }
+
+  private flushProgress(): void {
+    if (this.progressTimer !== null) window.clearTimeout(this.progressTimer)
+    this.progressTimer = null
+    this.progressWrite = this.api.settings.set(PROGRESS_SETTINGS_KEY, this.episodeProgress).then(result => result.ok, () => false)
+  }
+
+  /** Play episodes from a list, resuming the chosen one where it was left. */
+  playEpisodes(episodes: Track[], index: number): void {
+    const episode = episodes[index]
+    if (!episode) return
+    const position = resumePosition(this.episodeProgress[episode.id])
+    this.resumedEpisodeId = episode.id
+    this.startTrack(episodes, index, null, position)
+  }
+
+  private playback(action: MusicPlaybackAction): Promise<boolean> {
     const pending = Promise.resolve().then(() => this.api.backend.call<MusicPlaybackSnapshot>('playback.action', action)).then(snapshot => {
       this.applyPlayback(snapshot)
       return true
@@ -939,6 +1096,7 @@ export class MusicStore {
     })
     this.pendingPlayback.add(pending)
     void pending.then(() => this.pendingPlayback.delete(pending))
+    return pending
   }
 
   private startTrack(queue: Track[], index: number, playlistId: string | null, position = 0): void {
@@ -1004,7 +1162,7 @@ export class MusicStore {
   private flushNav(): void {
     if (this.navPersistTimer !== null) window.clearTimeout(this.navPersistTimer)
     this.navPersistTimer = null
-    const state = { ...this.pageView, searchQuery: this.pageSearch }
+    const state = { ...this.pageView, searchQuery: this.pageSearch, podcast: this.podcastView }
     const revision = this.navRevision
     this.navWrite = this.api.settings.set('navigationState', state).then((result) => {
       if (result.ok && this.navRevision === revision) this.navDirty = false
@@ -1208,6 +1366,37 @@ export class MusicStore {
     this.openView({ mode: 'artist', id: artist.id })
   }
 
+  private navigatePodcast(view: PodcastView, openTab: boolean): void {
+    if (JSON.stringify(this.podcastHistory[this.podcastHistoryIndex]) !== JSON.stringify(view)) {
+      this.podcastHistory = [...this.podcastHistory.slice(0, this.podcastHistoryIndex + 1), view].slice(-20)
+      this.podcastHistoryIndex = this.podcastHistory.length - 1
+    }
+    this.podcastView = view
+    if (openTab) this.api.workspace.openMainTab()
+    this.emitView()
+    this.persistNav()
+  }
+
+  showPodcastHome(): void {
+    this.navigatePodcast({ mode: 'home' }, false)
+  }
+
+  /** Open a show (its folder path) in the main page. */
+  showPodcastShow(id: string): void {
+    if (!this.snapshot.shows.some(show => show.id === id)) return
+    this.pageSearch = ''
+    this.navigatePodcast({ mode: 'show', id }, true)
+  }
+
+  goPodcastHistory(delta: -1 | 1): void {
+    const nextIndex = this.podcastHistoryIndex + delta
+    if (nextIndex < 0 || nextIndex >= this.podcastHistory.length) return
+    this.podcastHistoryIndex = nextIndex
+    this.podcastView = this.podcastHistory[nextIndex]
+    this.emitView()
+    this.persistNav()
+  }
+
   /** Return the page to its home view (used by the page's own Home/Back). */
   showHome(): void {
     this.navigate({ mode: 'home' }, false)
@@ -1236,7 +1425,7 @@ export class MusicStore {
   artistSummary(artistId: string): { artist: Artist; tracks: Track[]; plays: number } | null {
     const artist = this.artists.find((a) => a.id === artistId)
     if (!artist) return null
-    const tracks = tracksForArtist(this.tracks, artist)
+    const tracks = tracksForArtist(this.splitLibrary().music, artist)
     const ids = new Set(tracks.map((t) => t.id))
     const plays = this.historyEntries.reduce((n, h) => (ids.has(h.songId) ? n + 1 : n), 0)
     return { artist, tracks, plays }
@@ -1266,7 +1455,7 @@ export class MusicStore {
   stop(): void { this.playback({ type: 'stop' }) }
   next(): void { this.playback({ type: 'next' }) }
   prev(): void { this.playback({ type: 'previous' }) }
-  seek(value: number): void { this.playback({ type: 'seek', value }) }
+  seek(value: number): Promise<boolean> { return this.playback({ type: 'seek', value }) }
   setVolume(value: number): void { this.playback({ type: 'volume', value: Math.min(1, Math.max(0, value)) }) }
   resumeLast(): void { this.playback({ type: 'resume' }) }
 
@@ -1567,6 +1756,7 @@ export class MusicStore {
       this.navPersistTimer = null
       this.flushNav()
     }
+    if (this.progressTimer !== null) this.flushProgress()
     this.disposed = true
     this.offSettings()
     this.offBeforeUnload()

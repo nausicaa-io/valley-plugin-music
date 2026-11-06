@@ -37,46 +37,94 @@ function folderInfo(entries: readonly PluginIndexEntry[], query: string): {
   return { allFolders, suggestions }
 }
 
-export const Settings: FC = () => {
-  const { store, snap } = useMusic()
-  const entries = useMusicIndex()
-  const [draft, setDraft] = React.useState(snap.musicPath)
-  const [saving, setSaving] = React.useState(false)
-  const [message, setMessage] = React.useState('')
-  const [rescanMessage, setRescanMessage] = React.useState('')
-
-  React.useEffect(() => {
-    setDraft(snap.musicPath)
-  }, [snap.musicPath])
-
+function folderStatus(entries: readonly PluginIndexEntry[], draft: string): { invalid: boolean; empty: boolean; warning: boolean; count: number; status: string } {
   const normalized = normalizeMusicPath(draft)
   const invalid = draft.trim().length > 0 && !normalized
-  const info = React.useMemo(() => folderInfo(entries, draft), [entries, draft])
-  const mediaCount = normalized ? mediaFilesInFolder(entries, normalized).length : 0
-  const folderKnown = normalized ? info.allFolders.has(normalized) : false
-
+  const count = normalized ? mediaFilesInFolder(entries, normalized).length : 0
+  const folderKnown = normalized ? folderInfo(entries, draft).allFolders.has(normalized) : false
   const status = invalid
     ? uiText('auto.bd7f88ffa0fb')
-    : mediaCount > 0
-      ? uiText('auto.1705de749234', { p0: mediaCount, p1: mediaCount === 1 ? 'file' : 'files' })
+    : count > 0
+      ? uiText('auto.1705de749234', { p0: count, p1: count === 1 ? 'file' : 'files' })
       : folderKnown
         ? uiText('auto.6cf8f9207305')
         : entries.length === 0
           ? uiText('auto.c881bef02fda')
           : uiText('auto.ac95c11ac1f2')
+  return { invalid, empty: Boolean(normalized) && count === 0, warning: invalid || (!folderKnown && entries.length > 0), count, status }
+}
 
-  const save = async (path: string): Promise<void> => {
+/** A vault folder row; problems show beside it, the media count wherever the caller puts it. */
+const FolderRow: FC<{
+  value: string
+  draft: string
+  setDraft: (value: string) => void
+  title: string
+  description: string
+  saveError: string
+  save: (path: string) => Promise<boolean>
+  entries: readonly PluginIndexEntry[]
+  disabled: boolean
+}> = ({ value, draft, setDraft, title, description, saveError, save, entries, disabled }) => {
+  const [message, setMessage] = React.useState('')
+  const { invalid, empty, warning, status } = folderStatus(entries, draft)
+
+  const commit = async (path: string): Promise<void> => {
     const normalizedPath = normalizeMusicPath(path)
-    if (!store || (path.trim() && !normalizedPath) || normalizedPath === normalizeMusicPath(snap.musicPath)) return
-    setSaving(true)
+    if (disabled || (path.trim() && !normalizedPath) || normalizedPath === normalizeMusicPath(value)) return
     setMessage('')
     try {
-      const ok = await store.setMusicPath(normalizedPath)
-      setMessage(ok ? uiText('auto.6336d3512f60') : uiText('auto.824057036236'))
+      setMessage((await save(normalizedPath)) ? uiText('auto.6336d3512f60') : saveError)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
-    } finally { setSaving(false) }
+    }
   }
+
+  const { Row, VaultFolderField } = api.ui.settings
+  return (
+    <Row
+      title={title}
+      description={description}
+      extra={invalid || empty ?
+        <span className={`settings-toggle-desc ${warning ? 'music-settings-warning' : ''}`}>{status}</span>
+      : undefined}
+    >
+      <VaultFolderField
+        value={draft}
+        onChange={(v) => {
+          setDraft(v)
+          setMessage('')
+        }}
+        onCommit={(v) => {
+          setDraft(v)
+          void commit(v)
+        }}
+        requireValidCommit
+        ariaLabel={title}
+        className={`settings-path-input music-settings-input${invalid ? ' invalid' : ''}`}
+        help={message || undefined}
+      />
+    </Row>
+  )
+}
+
+function useDraft(value: string): [string, (value: string) => void] {
+  const [draft, setDraft] = React.useState(value)
+  React.useEffect(() => {
+    setDraft(value)
+  }, [value])
+  return [draft, setDraft]
+}
+
+export const Settings: FC = () => {
+  const { store, snap } = useMusic()
+  const entries = useMusicIndex()
+  const [musicDraft, setMusicDraft] = useDraft(snap.musicPath)
+  const [podcastDraft, setPodcastDraft] = useDraft(snap.podcastPath)
+  const [saving, setSaving] = React.useState(false)
+  const [rescanMessage, setRescanMessage] = React.useState('')
+  const music = React.useMemo(() => folderStatus(entries, musicDraft), [entries, musicDraft])
+  const podcasts = React.useMemo(() => folderStatus(entries, podcastDraft), [entries, podcastDraft])
 
   const rescan = async (): Promise<void> => {
     if (!store) return
@@ -90,56 +138,44 @@ export const Settings: FC = () => {
     } finally { setSaving(false) }
   }
 
-  const { Section, Row, VaultFolderField, Button } = api.ui.settings
+  const { Section, Row, Button } = api.ui.settings
 
   return (
-    <Section className="music-settings">
-      <Row
-        title={uiText('auto.a71420a4b1e3')}
-        description={uiText('auto.a09fad4110cb')}
-        extra={invalid || (normalized && mediaCount === 0) ?
-          <span
-            className={`settings-toggle-desc ${
-              invalid || (!folderKnown && entries.length > 0)
-                ? 'music-settings-warning'
-                : ''
-            }`}
-          >
-            {status}
-          </span>
-        : undefined}
-      >
-        <VaultFolderField
-          value={draft}
-          onChange={(v) => {
-            setDraft(v)
-            setMessage('')
-          }}
-          onCommit={(v) => {
-            setDraft(v)
-            void save(v)
-          }}
-          requireValidCommit
-          ariaLabel={uiText('auto.a71420a4b1e3')}
-          className={`settings-path-input music-settings-input${invalid ? ' invalid' : ''}`}
-          help={message || undefined}
+    <>
+      <Section className="music-settings" title={uiText('plugin.music.name')}>
+        <FolderRow
+          value={snap.musicPath}
+          draft={musicDraft}
+          setDraft={setMusicDraft}
+          title={uiText('auto.a71420a4b1e3')}
+          description={uiText('auto.a09fad4110cb')}
+          saveError={uiText('auto.824057036236')}
+          save={async (path) => Boolean(store && await store.setMusicPath(path))}
+          entries={entries}
+          disabled={!store}
         />
-      </Row>
-
-      <Row
-        title={uiText('auto.42f9f14387b1')}
-        description={
-          [
-            uiText('auto.43f950ef42aa'),
-            !invalid && mediaCount > 0 ? status : '',
-            rescanMessage
-          ].filter(Boolean).join(' ')
-        }
-      >
-        <Button disabled={!store || saving || !snap.musicPath} onClick={() => void rescan()}>
-          {uiText('auto.84661f6a90cc')}
-        </Button>
-      </Row>
-    </Section>
+        <Row
+          title={uiText('auto.42f9f14387b1')}
+          description={[uiText('music.settings.rescanDesc'), music.count > 0 ? music.status : '', rescanMessage].filter(Boolean).join(' ')}
+        >
+          <Button disabled={!store || saving || (!snap.musicPath && !snap.podcastPath)} onClick={() => void rescan()}>
+            {uiText('auto.84661f6a90cc')}
+          </Button>
+        </Row>
+      </Section>
+      <Section className="music-settings" title={uiText('music.podcasts')}>
+        <FolderRow
+          value={snap.podcastPath}
+          draft={podcastDraft}
+          setDraft={setPodcastDraft}
+          title={uiText('music.settings.podcastFolder')}
+          description={[uiText('music.settings.podcastFolderDesc'), podcasts.count > 0 ? podcasts.status : ''].filter(Boolean).join(' ')}
+          saveError={uiText('music.settings.podcastSaveError')}
+          save={async (path) => Boolean(store && await store.setPodcastPath(path))}
+          entries={entries}
+          disabled={!store}
+        />
+      </Section>
+    </>
   )
 }

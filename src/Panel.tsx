@@ -19,8 +19,10 @@ import {
   Search,
   User,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Podcast
 } from './icons'
+import { PodcastPanelBody } from './PodcastViews'
 
 export const Cover: FC<{ trackId?: string; size?: number }> = ({ trackId, size = 32 }) => {
   const { store } = useMusic(false)
@@ -221,8 +223,8 @@ const ArtistRow: FC<{
   )
 }
 
-const Section: FC<{
-  id: 'songs' | 'favorites' | 'playlists'
+export const Section: FC<{
+  id: string
   title: string
   icon: ReactNode
   count: number
@@ -334,11 +336,23 @@ export const Panel: FC = () => {
     if (name) await store.createPlaylist(name)
   }
 
-  return (
-    <div className="panel music-panel">
-      {songEditor}
-      <div className="panel-header">
-        <span className="panel-title">{uiText('auto.131260cbfbb0')}</span>
+  const podcastMode = snap.libraryMode === 'podcast'
+  const switchLabel = uiText(podcastMode ? 'music.mode.toMusic' : 'music.mode.toPodcasts')
+  const header = (
+    <div className="panel-header">
+      <span className="panel-title">{podcastMode ? uiText('music.podcasts') : uiText('auto.131260cbfbb0')}</span>
+      <div className="music-panel-actions">
+        <button
+          className="music-mode-toggle"
+          onClick={() => {
+            store.setLeftPanelSearch('')
+            store.setLibraryMode(podcastMode ? 'music' : 'podcast')
+          }}
+          aria-label={switchLabel}
+          title={switchLabel}
+        >
+          {podcastMode ? <Music /> : <Podcast />}
+        </button>
         <button
           className="plugin-open-page"
           onClick={() => api.workspace.openMainTab()}
@@ -346,6 +360,22 @@ export const Panel: FC = () => {
           title={uiText('auto.9ee309dcedc9')}
         />
       </div>
+    </div>
+  )
+
+  if (podcastMode) {
+    return (
+      <div className="panel music-panel">
+        {header}
+        <PodcastPanelBody />
+      </div>
+    )
+  }
+
+  return (
+    <div className="panel music-panel">
+      {songEditor}
+      {header}
       <div className="panel-body hidescrollbar">
         {snap.libraryError ? (
           <div className="music-empty" role="alert">{snap.libraryError}</div>

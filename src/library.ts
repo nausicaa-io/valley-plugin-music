@@ -2,6 +2,7 @@ import type { DatasetPage, DatasetReadResult, DatasetRecord, DatasetRevisionGuar
 import { normalizeRelPath } from '@valley/plugin-sdk/paths'
 import { computeLibrarySync, mediaFilesInFolder, newTrackId, rawTitleFromFileName, trackDetailsFromFileName } from './data'
 import { mergeArtistMetadata, patchArtistMetadata, sameArtist, upsertArtists } from './artists'
+import { isEpisode } from './podcasts'
 import type { Artist, Playlist, Track } from './types'
 
 export type LibraryOwner = Pick<PluginBackendApi, 'data' | 'index' | 'settings'>
@@ -212,11 +213,13 @@ export class MusicLibrary {
 
   async rescan(expectedRevision: number, signal?: AbortSignal, indexed?: readonly PluginIndexEntry[], assertCurrent: () => void = () => {}) {
     const musicPath = normalizeRelPath(this.api.settings.get().musicPath)
+    const podcastPath = normalizeRelPath(this.api.settings.get().podcastPath)
     const observed = await this.rows(tracks)
     check(expectedRevision, observed.revision)
-    if (!musicPath) return { revision: observed.revision, added: 0, healed: 0, updated: 0, missing: [] as string[] }
+    if (!musicPath && !podcastPath) return { revision: observed.revision, added: 0, healed: 0, updated: 0, missing: [] as string[] }
     const entries = indexed ?? await this.index(signal), current = observed.rows as unknown as Track[]
-    const sync = computeLibrarySync(current, mediaFilesInFolder(entries, musicPath), entries)
+    const folderFiles = [...new Set([...(musicPath ? mediaFilesInFolder(entries, musicPath) : []), ...(podcastPath ? mediaFilesInFolder(entries, podcastPath) : [])])]
+    const sync = computeLibrarySync(current, folderFiles, entries)
     const next = new Map(current.map(track => [track.id, track])), changed: Track[] = []
     const healed = new Map(sync.toHeal.map(value => [value.track.id, value.newPath]))
     const details = async (file: string) => { signal?.throwIfAborted(); const value = await this.metadata(file); signal?.throwIfAborted(); const fallback = trackDetailsFromFileName(file); return { title: value?.title?.trim() || fallback.title, artist: value?.artist?.trim() || fallback.artist, ...(value?.album?.trim() ? { album: value.album.trim() } : {}) } }
@@ -232,13 +235,13 @@ export class MusicLibrary {
     const snapshot = await this.api.data.snapshot([{ operation: 'query', dataset: artists, query: { limit: 1000 } }, { operation: 'query', dataset: aliases, query: { limit: 1000 } }])
     const artistRows = await this.rows(artists, undefined, snapshot.values[0] as DatasetPage), aliasRows = await this.rows(aliases, undefined, snapshot.values[1] as DatasetPage)
     const registry = artistRows.rows.map(row => ({ ...row, aliases: aliasRows.rows.filter(alias => alias.artistId === row.id).map(alias => String(alias.alias)) })) as unknown as Artist[]
-    const addedArtists = upsertArtists(registry, [...next.values()]).added
+    const addedArtists = upsertArtists(registry, [...next.values()].filter(track => !isEpisode(track, podcastPath))).added
     const operations: DatasetTransactionOperation[] = []
     if (changed.length) operations.push({ dataset: tracks, operation: 'upsert', values: changed.map(record) })
     if (addedArtists.length) operations.push({ dataset: artists, operation: 'insert', values: addedArtists.map(record) })
     const expected: DatasetRevisionGuard[] = [{ dataset: tracks, revision: expectedRevision }, { dataset: artists, revision: artistRows.revision }, { dataset: aliases, revision: aliasRows.revision }]
     signal?.throwIfAborted(); assertCurrent()
-    if (normalizeRelPath(this.api.settings.get().musicPath) !== musicPath) throw refusal('REVISION_CONFLICT', 'Music folder changed during scan; retry the rescan')
+    if (normalizeRelPath(this.api.settings.get().musicPath) !== musicPath || normalizeRelPath(this.api.settings.get().podcastPath) !== podcastPath) throw refusal('REVISION_CONFLICT', 'Music folder changed during scan; retry the rescan')
     const result = operations.length ? await this.api.data.transaction(operations, { expected }) : null
     return { revision: changed.length ? result!.revision : observed.revision, added: sync.toAdd.length, healed: sync.toHeal.length, updated: changed.length - sync.toAdd.length, missing: [...sync.missing] }
   }

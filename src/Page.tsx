@@ -8,12 +8,13 @@ import { usePlaylistMenu, useSongMenu } from './SongMenu'
 import { baseName, formatTime, resolveCoverPath } from './data'
 import { Cover, SongRow } from './Panel'
 import type { Playlist, Track } from './types'
+import { PodcastPage } from './PodcastViews'
+import { PageHeader } from './PageHeader'
 import { musicCount, uiText } from './localization'
 import {
   ChevronLeft,
   Clock,
   Heart,
-  Home,
   ImageIcon,
   ListMusic,
   Music,
@@ -500,7 +501,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
           {addCandidates.length === 0 ? (
             <div className="music-page-empty">{uiText('auto.fa51c3890bc4')}</div>
           ) : (
-            addCandidates.slice(0, 30).map((track) => (
+            <div className="music-song-list">{addCandidates.slice(0, 30).map((track) => (
               <div key={track.id} className="music-row" role="button" tabIndex={0}>
                 <Cover trackId={track.id} />
                 <div className="music-row-meta">
@@ -518,7 +519,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
                   <Plus />
                 </button>
               </div>
-            ))
+            ))}</div>
           )}
         </div>
       )}
@@ -778,14 +779,16 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
         {tracks.length === 0 ? (
           <div className="music-page-empty">{uiText('auto.1a4a0042ba94')}</div>
         ) : (
-          tracks.map((track, i) => (
-            <SongRow
-              key={track.id}
-              track={track}
-              onPlay={() => store.playQueue(tracks, i, null)}
-              onMenu={openSongMenu}
-            />
-          ))
+          <div className="music-song-list">
+            {tracks.map((track, i) => (
+              <SongRow
+                key={track.id}
+                track={track}
+                onPlay={() => store.playQueue(tracks, i, null)}
+                onMenu={openSongMenu}
+              />
+            ))}
+          </div>
         )}
       </div>
 
@@ -803,8 +806,13 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
   )
 }
 
-/** The Spotify-style full Music page (`music.page`, main workspace). */
-export const Page: FC<MainWorkspaceViewProps> = ({ navigation }) => {
+/** The full library page (`music.page`, main workspace) in the selected library mode. */
+export const Page: FC<MainWorkspaceViewProps> = (props) => {
+  const { snap } = useMusic(false)
+  return snap.libraryMode === 'podcast' ? <PodcastPage {...props} /> : <MusicPage {...props} />
+}
+
+const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const { store, snap } = useMusic(false)
   const { openSongMenu, songEditor } = useSongMenu()
   const { openPlaylistMenu } = usePlaylistMenu()
@@ -914,52 +922,16 @@ export const Page: FC<MainWorkspaceViewProps> = ({ navigation }) => {
     <div ref={scrollRef} className="music-page hidescrollbar">
       {songEditor}
       <div className="music-page-header">
-        <nav className="music-breadcrumbs" aria-label={uiText('music.header.location')} onContextMenu={showPathMenu}>
-          <div className="music-breadcrumb-items">
-            <button className="music-breadcrumb-home" title={uiText('auto.315fed0ac88a')} aria-label={uiText('auto.315fed0ac88a')} onClick={() => { setQuery(''); store.showHome() }}>/</button>
-            {crumbs.map((crumb, index) => <React.Fragment key={`${index}:${crumb.title}`}>
-              {index > 0 && <span className="music-breadcrumb-separator" aria-hidden="true">/</span>}
-              <button className={index === crumbs.length - 1 ? undefined : 'music-breadcrumb-parent'} title={crumb.title} aria-current={index === crumbs.length - 1 ? 'page' : undefined} onClick={crumb.onClick}>{crumb.label}</button>
-            </React.Fragment>)}
-          </div>
-        </nav>
+        <PageHeader
+          crumbs={crumbs}
+          homeLabel={uiText('auto.315fed0ac88a')}
+          onHome={() => { setQuery(''); store.showHome() }}
+          query={query}
+          onQuery={setQuery}
+          placeholder={uiText('auto.8d563eb9d8b9')}
+          onContextMenu={showPathMenu}
+        />
         {pathError && <div role="alert" className="music-path-error">{uiText('music.properties.saveError')}</div>}
-        <div className="music-page-top search-field-row">
-          <button
-            className="music-page-home"
-            title={uiText('auto.315fed0ac88a')}
-            aria-label={uiText('auto.315fed0ac88a')}
-            onClick={() => {
-              setQuery('')
-              store.showHome()
-            }}
-          >
-            <Home />
-          </button>
-          <div className="music-page-search search-field">
-            <Search className="search-field-icon" />
-            <input
-              className="search-field-input"
-              value={query}
-              placeholder={uiText('auto.8d563eb9d8b9')}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setQuery('')
-              }}
-            />
-            {query && (
-              <button
-                className="search-field-action"
-                aria-label={uiText('auto.67300d0fed7c')}
-                onClick={() => setQuery('')}
-              >
-                <X />
-              </button>
-            )}
-          </div>
-
-        </div>
-
       </div>
 
       {searchResults ? (
@@ -973,14 +945,16 @@ export const Page: FC<MainWorkspaceViewProps> = ({ navigation }) => {
             {searchResults.length === 0 ? (
               <div className="music-page-empty">{uiText('auto.5131795c0c2d')}</div>
             ) : (
-              searchResults.map((track, i) => (
-                <SongRow
-                  key={track.id}
-                  track={track}
-                  onPlay={() => store.playQueue(searchResults, i, null)}
-                  onMenu={openSongMenu}
-                />
-              ))
+              <div className="music-song-list">
+                {searchResults.map((track, i) => (
+                  <SongRow
+                    key={track.id}
+                    track={track}
+                    onPlay={() => store.playQueue(searchResults, i, null)}
+                    onMenu={openSongMenu}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -1072,6 +1046,7 @@ export const Page: FC<MainWorkspaceViewProps> = ({ navigation }) => {
                 <h2>{uiText('auto.c690c2d0f7eb')}</h2>
                 <span className="count">{snap.topPlayed.length}</span>
               </div>
+              <div className="music-song-list">
               {snap.topPlayed.map(({ track, plays }, i) => {
                 const active = snap.currentTrack?.id === track.id
                 return (
@@ -1100,6 +1075,7 @@ export const Page: FC<MainWorkspaceViewProps> = ({ navigation }) => {
                 </div>
                 )
               })}
+              </div>
             </div>
           )}
 
@@ -1117,14 +1093,16 @@ export const Page: FC<MainWorkspaceViewProps> = ({ navigation }) => {
               <div className="music-page-empty">
                 {snap.musicPath ? <>{uiText('auto.831bef6ea1ed')}{' '}<code>{snap.musicPath}</code> {uiText('auto.ee711996ebe4')}</> : uiText('music.library.chooseFolder')}</div>
             ) : (
-              snap.tracks.map((track, i) => (
-                <SongRow
-                  key={track.id}
-                  track={track}
-                  onPlay={() => store.playQueue(snap.tracks, i, null)}
-                  onMenu={openSongMenu}
-                />
-              ))
+              <div className="music-song-list">
+                {snap.tracks.map((track, i) => (
+                  <SongRow
+                    key={track.id}
+                    track={track}
+                    onPlay={() => store.playQueue(snap.tracks, i, null)}
+                    onMenu={openSongMenu}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </div>

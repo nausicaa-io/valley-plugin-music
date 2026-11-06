@@ -6,7 +6,10 @@ const EMPTY: MusicSnapshot = {
   loading: true,
   libraryError: null,
   musicPath: '',
+  podcastPath: '',
   tracks: [],
+  episodes: [],
+  shows: [],
   playlists: [],
   artists: [],
   playlistTracks: {},
@@ -44,7 +47,12 @@ const EMPTY: MusicSnapshot = {
   rightQueueOpen: true,
   rightHistoryOpen: false,
   rightPanelScrollTop: 0,
-  rightViewNonce: 0
+  rightViewNonce: 0,
+  libraryMode: 'music',
+  podcastView: { mode: 'home' },
+  podcastCanGoBack: false,
+  podcastCanGoForward: false,
+  episodeProgress: {}
 }
 
 const noopSubscribe = (): (() => void) => () => {}

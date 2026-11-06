@@ -1,4 +1,4 @@
-import { VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
+import { VIDEO_EXTENSIONS, assetUrlForRelPath, fileExtension } from '@valley/plugin-sdk/fileTypes'
 import { api, React } from './runtime'
 import type { FC } from 'react'
 import { useMusic, useMusicCover } from './hooks'
@@ -8,6 +8,7 @@ import { formatTime } from './data'
 import type { Track } from './types'
 import { uiText } from './localization'
 import { playbackPosition } from './playback'
+import { isEpisode, showFolder } from './podcasts'
 import {
   ChevronDown,
   ChevronRight,
@@ -20,11 +21,60 @@ import {
   Play,
   Repeat,
   Repeat1,
+  Podcast,
+  RotateCcw,
+  RotateCw,
   Shuffle,
   SkipBack,
   SkipForward,
   X
 } from './icons'
+
+/**
+ * The scrubber follows the pointer locally while seeks are coalesced: at most one
+ * seek is in flight and only the latest position is sent next, so a fast drag never
+ * queues a backlog of backend round trips. The local value is released once the
+ * final seek has landed, so the thumb never snaps back to a stale position.
+ */
+function useScrubber(seek: (value: number) => Promise<unknown>): {
+  value: number | null
+  change: (value: number) => void
+  grab: () => void
+  release: () => void
+} {
+  const [value, setValue] = React.useState<number | null>(null)
+  const dragging = React.useRef(false)
+  const inFlight = React.useRef(false)
+  const queued = React.useRef<number | null>(null)
+  const seekRef = React.useRef(seek)
+  seekRef.current = seek
+  const flush = React.useCallback((): void => {
+    if (inFlight.current) return
+    const next = queued.current
+    if (next === null) {
+      if (!dragging.current) setValue(null)
+      return
+    }
+    queued.current = null
+    inFlight.current = true
+    void seekRef.current(next).finally(() => {
+      inFlight.current = false
+      flush()
+    })
+  }, [])
+  const change = React.useCallback((next: number): void => {
+    setValue(next)
+    queued.current = next
+    flush()
+  }, [flush])
+  const grab = React.useCallback((): void => { dragging.current = true }, [])
+  const release = React.useCallback((): void => {
+    if (!dragging.current) return
+    dragging.current = false
+    flush()
+  }, [flush])
+  return { value, change, grab, release }
+}
 
 const CoverThumb: FC<{ trackId: string }> = ({ trackId }) => {
   const { store } = useMusic()
@@ -116,7 +166,9 @@ export const Player: FC = () => {
     return () => clearInterval(timer)
   }, [isPlaying, buffering])
   const currentTime = playbackPosition({ position: sampledPosition, duration: total, rate: snap.playbackRate, playing: isPlaying, buffering, sampleAgeMs: snap.playbackSampleAge }, snap.playbackSampledAt)
-  const played = total > 0 ? (Math.min(currentTime, total) / total) * 100 : 0
+  const scrubber = useScrubber(value => store?.seek(value) ?? Promise.resolve())
+  const shownTime = scrubber.value ?? currentTime
+  const played = total > 0 ? (Math.min(shownTime, total) / total) * 100 : 0
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [videoMode, setVideoMode] = React.useState(false)
@@ -125,7 +177,10 @@ export const Player: FC = () => {
   React.useEffect(() => {
     if (listsRef.current) listsRef.current.scrollTop = rightPanelScrollTop
   }, [rightViewNonce, rightPanelScrollTop])
-  const { url: coverUrl, ref: coverRef } = useMusicCover(store, track?.id)
+  const episode = track ? isEpisode(track, snap.podcastPath) : false
+  const show = episode && track ? snap.shows.find(item => item.id === showFolder(track.file, snap.podcastPath)) : undefined
+  const { url: embeddedCover, ref: coverRef } = useMusicCover(store, track?.id)
+  const coverUrl = embeddedCover ?? (show?.coverPath ? assetUrlForRelPath(show.coverPath) : null)
   const videoSurface = React.useMemo(() => snap.sessionId
     ? <api.ui.MediaSurface sessionId={snap.sessionId} fit="contain" controls={false} style={{ width: '100%', height: '100%', borderRadius: 2, background: 'transparent' }} />
     : null, [snap.sessionId])
@@ -149,7 +204,7 @@ export const Player: FC = () => {
                 <img src={coverUrl} alt="" />
               ) : (
                 <span className="player-art-empty">
-                  <Music />
+                  {episode ? <Podcast /> : <Music />}
                 </span>
               )}
             </>}
@@ -162,7 +217,9 @@ export const Player: FC = () => {
               <div className="player-titles">
                 <h2 className="player-title">{track.title}</h2>
                 <p className="player-artist">
-                  <ArtistLinks track={track} />
+                  {episode
+                    ? <span className="music-artist-link" role="button" tabIndex={0} onClick={() => show && store.showPodcastShow(show.id)}>{show?.name ?? track.artist}</span>
+                    : <ArtistLinks track={track} />}
                 </p>
               </div>
               <button
@@ -181,12 +238,17 @@ export const Player: FC = () => {
                 min={0}
                 max={total || 1}
                 step={0.5}
-                value={Math.min(currentTime, total || 0)}
-                onChange={(e) => store.seek(Number(e.target.value))}
+                value={Math.min(shownTime, total || 0)}
+                onPointerDown={scrubber.grab}
+                onPointerUp={scrubber.release}
+                onPointerCancel={scrubber.release}
+                onLostPointerCapture={scrubber.release}
+                onBlur={scrubber.release}
+                onChange={(e) => scrubber.change(Number(e.target.value))}
                 style={{ '--played': `${played}%` } as React.CSSProperties}
               />
               <div className="player-times">
-                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(shownTime)}</span>
                 <span>{formatTime(total)}</span>
               </div>
             </div>
@@ -201,14 +263,20 @@ export const Player: FC = () => {
         {playError && <div className="player-error">{playError}</div>}
 
         <div className="player-controls">
-          <button
-            className={`player-mode-btn ${shuffle ? 'active' : ''}`}
-            title={uiText('auto.5b772b7bfd0a')}
-            aria-label={uiText('auto.5b772b7bfd0a')}
-            onClick={() => store.toggleShuffle()}
-          >
-            <Shuffle />
-          </button>
+          {episode ? (
+            <button className="player-skip-btn" title={uiText('music.podcast.back15')} aria-label={uiText('music.podcast.back15')} onClick={() => store.seek(Math.max(0, currentTime - 15))}>
+              <RotateCcw /><span>15</span>
+            </button>
+          ) : (
+            <button
+              className={`player-mode-btn ${shuffle ? 'active' : ''}`}
+              title={uiText('auto.5b772b7bfd0a')}
+              aria-label={uiText('auto.5b772b7bfd0a')}
+              onClick={() => store.toggleShuffle()}
+            >
+              <Shuffle />
+            </button>
+          )}
           <button title={uiText('auto.50f94286ba30')} aria-label={uiText('auto.50f94286ba30')} onClick={() => store.prev()}>
             <SkipBack />
           </button>
@@ -223,14 +291,20 @@ export const Player: FC = () => {
           <button title={uiText('auto.bc981983e7f5')} aria-label={uiText('auto.bc981983e7f5')} onClick={() => store.next()}>
             <SkipForward />
           </button>
-          <button
-            className={`player-mode-btn ${repeatMode !== 'off' ? 'active' : ''}`}
-            title={repeatMode === 'one' ? uiText('auto.c747f173d83e') : repeatMode === 'all' ? uiText('auto.e3b1839d5f1e') : uiText('auto.659eba121958')}
-            aria-label={uiText('auto.659eba121958')}
-            onClick={() => store.cycleRepeat()}
-          >
-            {repeatMode === 'one' ? <Repeat1 /> : <Repeat />}
-          </button>
+          {episode ? (
+            <button className="player-skip-btn" title={uiText('music.podcast.forward30')} aria-label={uiText('music.podcast.forward30')} onClick={() => store.seek(total > 0 ? Math.min(total, currentTime + 30) : currentTime + 30)}>
+              <RotateCw /><span>30</span>
+            </button>
+          ) : (
+            <button
+              className={`player-mode-btn ${repeatMode !== 'off' ? 'active' : ''}`}
+              title={repeatMode === 'one' ? uiText('auto.c747f173d83e') : repeatMode === 'all' ? uiText('auto.e3b1839d5f1e') : uiText('auto.659eba121958')}
+              aria-label={uiText('auto.659eba121958')}
+              onClick={() => store.cycleRepeat()}
+            >
+              {repeatMode === 'one' ? <Repeat1 /> : <Repeat />}
+            </button>
+          )}
         </div>
       </section>
 

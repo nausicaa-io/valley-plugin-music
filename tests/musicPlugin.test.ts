@@ -1172,11 +1172,11 @@ describe('MusicStore', () => {
     expect(SettingsView).toBeDefined()
 
     render(React.createElement(SettingsView!))
-    await screen.findByText('Manually rescan the music folder for new or removed files. 1 media file found in this folder.')
+    await screen.findByText('Manually rescan the music and podcast folders for new or removed files. 1 media file found in this folder.')
 
     const folderField = screen.getByLabelText('Music folder')
     fireEvent.change(folderField, { target: { value: 'Audio' } })
-    await screen.findByText('Manually rescan the music folder for new or removed files. 2 media files found in this folder.')
+    await screen.findByText('Manually rescan the music and podcast folders for new or removed files. 2 media files found in this folder.')
     // VaultFolderField has no Save button — it commits on Enter/blur.
     fireEvent.blur(folderField)
 
@@ -1192,6 +1192,54 @@ describe('MusicStore', () => {
     })
     await screen.findByText('Saved and rescanned.')
     dispose()
+  })
+
+  it('scans the podcast folder into shows kept apart from music and navigates them in podcast mode', async () => {
+    const { store, mock } = makeStore({
+      settings: { musicPath: 'Music', podcastPath: 'Podcasts' },
+      indexEntries: [
+        asset('Music/song.mp3'),
+        asset('Podcasts/Daily/001-intro.mp3'),
+        asset('Podcasts/Daily/002-next.mp3'),
+        asset('Podcasts/Daily/cover.png'),
+        asset('Podcasts/loose.mp3')
+      ]
+    })
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().episodes).toHaveLength(3))
+      const snap = store.getSnapshot()
+      expect(snap.tracks.map((item) => item.file)).toEqual(['Music/song.mp3'])
+      expect(snap.shows.map((show) => [show.id, show.coverPath, show.episodes.map((episode) => episode.file)])).toEqual([
+        ['Podcasts/Daily', 'Podcasts/Daily/cover.png', ['Podcasts/Daily/002-next.mp3', 'Podcasts/Daily/001-intro.mp3']],
+        ['Podcasts', null, ['Podcasts/loose.mp3']]
+      ])
+      expect(snap.libraryMode).toBe('music')
+      store.setLibraryMode('podcast')
+      expect(store.getSnapshot().libraryMode).toBe('podcast')
+      await vi.waitFor(() => expect(mock.api.settings.get().libraryMode).toBe('podcast'))
+      store.showPodcastShow('Podcasts/Daily')
+      expect(store.getSnapshot()).toMatchObject({ podcastView: { mode: 'show', id: 'Podcasts/Daily' }, podcastCanGoBack: true })
+      store.goPodcastHistory(-1)
+      expect(store.getSnapshot().podcastView).toEqual({ mode: 'home' })
+    } finally { await store.dispose() }
+  })
+
+  it('resumes an episode at its saved position and records progress on pause', async () => {
+    const episode: Track = { id: 'ep', title: 'Episode', artist: '', file: 'Podcasts/Show/ep.mp3' }
+    const { store, mock } = makeStore({
+      settings: { musicPath: 'Music', podcastPath: 'Podcasts', podcastProgress: { ep: { position: 120, duration: 1800, updatedAt: '2026-11-01T00:00:00.000Z' } } },
+      tracks: [episode],
+      indexEntries: [asset(episode.file)]
+    })
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().episodes).toHaveLength(1))
+      store.playEpisodes(store.getSnapshot().episodes, 0)
+      await store.flushPersistence()
+      expect(media.get(mock)!.getSnapshot()?.state.positionSeconds).toBe(120)
+      store.pause()
+      await store.flushPersistence()
+      await vi.waitFor(() => expect((mock.api.settings.get().podcastProgress as Record<string, { position: number }>).ep.position).toBe(120))
+    } finally { await store.dispose() }
   })
 
   it('keeps the initial path empty and persists only an explicit valid choice once', async () => {
@@ -2723,7 +2771,7 @@ describe('Music song editing and presentation', () => {
     } finally { dispose() }
   })
 
-  it('renders playlist/song breadcrumbs above Home and Search', async () => {
+  it('keeps breadcrumbs and search in one header row that expands search in place', async () => {
     const { song, store, dispose } = await setup()
     try {
       store.showPlaylist('forest')
@@ -2731,7 +2779,15 @@ describe('Music song editing and presentation', () => {
       render(React.createElement(Page, { navigation: { setController: vi.fn() } }))
       const navigation = screen.getByRole('navigation', { name: 'Music location' })
       expect(navigation.textContent).toBe('/Forest Mix/canopy')
-      expect(navigation.nextElementSibling).toHaveClass('search-field-row')
+      expect(navigation.nextElementSibling).toBeNull()
+      fireEvent.click(within(navigation).getByRole('button', { name: 'Search songs by title, artist or filename…' }))
+      const input = within(navigation).getByRole('textbox')
+      expect(input).toHaveFocus()
+      fireEvent.change(input, { target: { value: 'can' } })
+      expect(store.getSnapshot().pageSearch).toBe('can')
+      fireEvent.keyDown(input, { key: 'Escape' })
+      expect(store.getSnapshot().pageSearch).toBe('')
+      expect(navigation.textContent).toBe('/Forest Mix/canopy')
     } finally { await dispose() }
   })
 
@@ -2752,7 +2808,7 @@ describe('Music song editing and presentation', () => {
       act(() => store.showPlaylist('forest'))
       expect(header().textContent).toBe('/Forest Mix/canopy')
       // Only the last crumb is the current page; the ones before it keep a readable minimum (see the stylesheet contract below).
-      expect([...header().querySelectorAll('button:not(.music-breadcrumb-home)')].map(button => [button.textContent, button.className, button.getAttribute('aria-current')])).toEqual([['Forest Mix', 'music-breadcrumb-parent', null], ['canopy', '', 'page']])
+      expect([...header().querySelectorAll('button:not(.music-breadcrumb-home):not(.music-header-btn)')].map(button => [button.textContent, button.className, button.getAttribute('aria-current')])).toEqual([['Forest Mix', 'music-breadcrumb-parent', null], ['canopy', '', 'page']])
       fireEvent.contextMenu(header())
       let items = openMenu.mock.calls.at(-1)![0]
       expect(items.find(item => item.label === 'Playlist / song')?.checked).toBe(true)
@@ -2840,6 +2896,25 @@ describe('Music song editing and presentation', () => {
       await act(async () => { store.playTrack(audio); await store.flushPersistence() })
       expect(screen.queryByRole('button', { name: 'Video' })).toBeNull()
       expect(view.container.querySelector('video, audio')).toBeNull()
+    } finally { await dispose() }
+  })
+
+  it('coalesces a fast scrubber drag into at most one in-flight seek and lands on the last position', async () => {
+    const { song, mock, store, dispose } = await setup()
+    try {
+      store.playTrack(song)
+      await store.flushPersistence()
+      render(React.createElement(Player))
+      const slider = document.querySelector<HTMLInputElement>('.player-scrub input[type="range"]')!
+      const seek = vi.mocked(media.get(mock)!.player.seek)
+      seek.mockClear()
+      fireEvent.pointerDown(slider)
+      for (const value of [10, 40, 80, 120, 160]) fireEvent.change(slider, { target: { value: String(value) } })
+      expect(slider).toHaveValue('160')
+      fireEvent.pointerUp(slider)
+      await act(async () => { await store.flushPersistence() })
+      await vi.waitFor(() => expect(seek).toHaveBeenLastCalledWith(160))
+      expect(seek.mock.calls.length).toBeLessThanOrEqual(2)
     } finally { await dispose() }
   })
 

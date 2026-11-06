@@ -349,6 +349,41 @@
         "required": false
       },
       {
+        "key": "podcastPath",
+        "label": "Podcast folder",
+        "type": "text",
+        "default": "",
+        "description": "Vault-relative folder scanned for podcasts. Each subfolder is a show and its media files are episodes.",
+        "labelKey": "music.settings.podcastFolder",
+        "descriptionKey": "music.settings.podcastFolderDesc",
+        "validate": "vault-folder",
+        "required": false
+      },
+      {
+        "key": "libraryMode",
+        "label": "Library mode",
+        "type": "custom",
+        "settingsVisible": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "music",
+            "podcast"
+          ]
+        },
+        "default": "music"
+      },
+      {
+        "key": "podcastProgress",
+        "label": "Podcast progress",
+        "type": "custom",
+        "settingsVisible": false,
+        "schema": {
+          "type": "object"
+        },
+        "description": "Owner-managed listening positions per episode."
+      },
+      {
         "key": "breadcrumbMode",
         "label": "Breadcrumb display",
         "type": "custom",
