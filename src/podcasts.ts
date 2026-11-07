@@ -34,13 +34,24 @@ export function showFolder(file: string, podcastPath: string): string {
   return rest.length > 1 ? `${podcastPath}/${rest[0]}` : podcastPath
 }
 
-function showCover(folder: string, entries: readonly PluginIndexEntry[]): string | null {
-  const images = entries
-    .map(entry => entry.relPath)
-    .filter(path => path.startsWith(`${folder}/`) && !path.slice(folder.length + 1).includes('/') &&
-      (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(path)))
-    .sort(collator.compare)
-  return images.find(path => COVER_NAMES.includes(rawTitleFromFileName(path).toLowerCase())) ?? images[0] ?? null
+/** Images directly inside each folder, by folder path. */
+function folderImages(entries: readonly PluginIndexEntry[]): Map<string, string[]> {
+  const byFolder = new Map<string, string[]>()
+  for (const { relPath: path } of entries) {
+    const slash = path.lastIndexOf('/')
+    if (slash < 0 || !(IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(path))) continue
+    const folder = path.slice(0, slash)
+    const list = byFolder.get(folder)
+    if (list) list.push(path)
+    else byFolder.set(folder, [path])
+  }
+  return byFolder
+}
+
+function showCover(images: readonly string[] | undefined): string | null {
+  if (!images) return null
+  const sorted = [...images].sort(collator.compare)
+  return sorted.find(path => COVER_NAMES.includes(rawTitleFromFileName(path).toLowerCase())) ?? sorted[0] ?? null
 }
 
 /** The shared album tag when every episode carries the same one, else the humanized folder name. */
@@ -66,12 +77,13 @@ export function podcastShows(episodes: readonly Track[], podcastPath: string, en
     if (list) list.push(episode)
     else byFolder.set(folder, [episode])
   }
+  const images = folderImages(entries)
   return [...byFolder.entries()]
     .map(([id, list]) => ({
       id,
       name: showName(id, list),
       episodes: sortEpisodes(list),
-      coverPath: showCover(id, entries)
+      coverPath: showCover(images.get(id))
     }))
     .sort((a, b) => collator.compare(a.name, b.name))
 }

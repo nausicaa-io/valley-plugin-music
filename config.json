@@ -1,6 +1,7 @@
 {
   "icon": "icon.svg",
   "main": "runtime/index.js",
+  "assets": "runtime/assets",
   "indexState": "scoped",
   "uiSlots": {
     "left_sidebar": "music.panel",
@@ -29683,6 +29684,25 @@
     ],
     "largeDataOperations": [
       "workflow.execute"
+    ],
+    "wasm": [
+      {
+        "id": "credits",
+        "path": "runtime/assets/credits.wasm",
+        "sha256": "3fa1e5cd340cf38ad670067e1884e1d3765ff5d5588b6b1f2420fe01ca2aaf82",
+        "target": "ui",
+        "memoryPagesMax": 512,
+        "exports": [
+          "credits_input",
+          "credits_counts",
+          "credits_run",
+          "credits_output",
+          "credits_output_len",
+          "credits_strings",
+          "credits_strings_len",
+          "credits_reset"
+        ]
+      }
     ]
   },
   "locales": {

@@ -5,7 +5,7 @@ import { IMAGE_EXTENSIONS, assetUrlForRelPath, fileExtension } from '@valley/plu
 import { useMusic, useMusicCover, useMusicIndex } from './hooks'
 import { ArtistLinks } from './ArtistLinks'
 import { usePlaylistMenu, useSongMenu } from './SongMenu'
-import { baseName, formatTime, resolveCoverPath } from './data'
+import { baseName, formatTime, resolveCoverPath, searchTracks } from './data'
 import { Cover, SongRow } from './Panel'
 import type { Playlist, Track } from './types'
 import { PodcastPage } from './PodcastViews'
@@ -324,16 +324,8 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
   const playingHere = !!snap.currentTrack && tracks.some((t) => t.id === snap.currentTrack!.id)
   const plPlaying = playingHere && snap.isPlaying
   const memberIds = new Set(pl.songIds)
-  const addCandidates = snap.tracks.filter((t) => {
-    if (memberIds.has(t.id)) return false
-    const q = addQuery.trim().toLowerCase()
-    if (!q) return true
-    return (
-      t.title.toLowerCase().includes(q) ||
-      t.artist.toLowerCase().includes(q) ||
-      baseName(t.file).toLowerCase().includes(q)
-    )
-  })
+  const addQ = addQuery.trim().toLowerCase()
+  const addCandidates = (addQ ? searchTracks(snap.tracks, addQ, true) : snap.tracks).filter((t) => !memberIds.has(t.id))
 
   const reorder = (from: number, to: number): void => {
     const ids = [...pl.songIds]
@@ -876,14 +868,7 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const query = snap.pageSearch
   const setQuery = (value: string): void => store?.setPageSearch(value)
   const q = query.trim().toLowerCase()
-  const searchResults = React.useMemo(() => q
-    ? snap.tracks.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.artist.toLowerCase().includes(q) ||
-          baseName(t.file).toLowerCase().includes(q)
-      )
-    : null, [q, snap.tracks])
+  const searchResults = React.useMemo(() => q ? searchTracks(snap.tracks, q, true) : null, [q, snap.tracks])
 
   const songId = pageView.mode === 'song' ? pageView.id : 'reveal' in pageView ? pageView.reveal : undefined
   const playbackInView = pageView.mode === 'home' || (pageView.mode === 'playlist' && pageView.id === snap.currentPlaylistId)

@@ -1,13 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { METADATA_PANEL_SEGMENT_V1, PLUGIN_SURFACE_V1 } from '@valley/plugin-sdk'
 import type { ValleyPluginManifest } from '@valley/plugin-sdk/types'
-import { createMockValleyApi } from '@valley/plugin-testkit'
+import { createMockValleyApi, loadPackageWasm, type PackageWasmModule } from '@valley/plugin-testkit'
 
 const packages = [['music', () => import('../src/index'), () => import('../manifest.json'), () => import('../config.json')]] as const
 
 describe('plugin automation source catalog', () => {
   const createObjectURL = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
-  beforeAll(() => { Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: () => 'blob:catalog-test' }) })
+  let credits: PackageWasmModule
+  beforeAll(async () => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: () => 'blob:catalog-test' })
+    credits = await loadPackageWasm(process.cwd(), 'credits')
+  })
   afterAll(() => {
     if (createObjectURL) Object.defineProperty(URL, 'createObjectURL', createObjectURL)
     else Reflect.deleteProperty(URL, 'createObjectURL')
@@ -15,7 +19,7 @@ describe('plugin automation source catalog', () => {
   it.each(packages)('%s declares input schemas and main-content-only Properties', async (id, module, manifest, config) => {
     const [plugin, metadata, configuration] = await Promise.all([module(), manifest(), config()])
     const declared = { ...metadata.default, ...configuration.default } as unknown as ValleyPluginManifest
-    const mock = createMockValleyApi({ manifest: declared })
+    const mock = createMockValleyApi({ manifest: declared, wasm: { modules: [credits] } })
     const dispose = plugin.register(mock.api)
     try {
       await Promise.resolve()

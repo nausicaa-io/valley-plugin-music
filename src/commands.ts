@@ -11,7 +11,7 @@ import type { PluginCommand, ValleyPluginApi } from '@valley/plugin-sdk'
 import { normalizeRelPath } from '@valley/plugin-sdk/paths'
 import { getStore, type MusicStore, type MusicSnapshot } from './store'
 import { playbackPosition } from './playback'
-import { resolveArtist, trackArtists, tracksForArtist } from './artists'
+import { libraryCredits, resolveArtist, trackArtists, tracksForArtist } from './artists'
 import type { Artist, Playlist, Track } from './types'
 
 const resultText = { type: 'string', maxLength: 16384 }
@@ -90,7 +90,7 @@ function optionalSearchInput(): {
 
 /** Substring match on title/artist, ranked title-prefix → title-substring → artist. */
 function rankTracks(tracks: Track[], query: string): Track[] {
-  if (!query) return [...tracks].sort((a, b) => describe(a).localeCompare(describe(b)))
+  if (!query) return tracks.map((t) => ({ t, key: describe(t) })).sort((a, b) => a.key.localeCompare(b.key)).map((x) => x.t)
   const q = query.toLowerCase()
   return tracks
     .map((t) => {
@@ -121,8 +121,8 @@ function rankPlaylists(playlists: Playlist[], query: string): Playlist[] {
 function artistsFor(tracks: Track[], query = ''): ArtistSummary[] {
   const q = query.toLowerCase()
   const counts = new Map<string, number>()
-  for (const track of tracks) {
-    for (const artist of trackArtists(track)) {
+  for (const names of libraryCredits(tracks).names) {
+    for (const artist of names) {
       if (q && !artist.toLowerCase().includes(q)) continue
       counts.set(artist, (counts.get(artist) ?? 0) + 1)
     }

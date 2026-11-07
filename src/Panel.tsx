@@ -4,7 +4,7 @@ import { assetUrlForRelPath } from '@valley/plugin-sdk/fileTypes'
 import { useMusic, useMusicCover } from './hooks'
 import { ArtistLinks } from './ArtistLinks'
 import { tracksForArtist } from './artists'
-import { resolveCoverPath } from './data'
+import { resolveCoverPath, searchTracks } from './data'
 import { usePlaylistMenu, useSongMenu } from './SongMenu'
 import type { Artist, Playlist, Track } from './types'
 import { musicCount, uiText } from './localization'
@@ -278,11 +278,7 @@ export const Panel: FC = () => {
 
   const q = query.trim().toLowerCase()
   const searching = q.length > 0
-  const songResults = searching
-    ? tracks.filter(
-        (t) => t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
-      )
-    : []
+  const songResults = searching ? searchTracks(tracks, q, false) : []
   const playlistResults = searching ? playlists.filter((pl) => pl.name.toLowerCase().includes(q)) : []
   const artistResults = searching
     ? artists.filter(

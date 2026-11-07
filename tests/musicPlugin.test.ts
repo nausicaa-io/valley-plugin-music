@@ -95,7 +95,7 @@ function createMockValleyApi(options: MusicMockOptions = {}): MockValleyApi {
     if (method === 'audio.read') return { base64: Buffer.from(await audioRead()).toString('base64'), done: true }
     if (method === 'audio.close') return null
     throw new Error(`Unexpected backend call: ${method}`)
-  }) as typeof mock.api.backend.call
+  }) as unknown as typeof mock.api.backend.call
   const registrations = vi.spyOn(mock.api.commands, 'register')
   const execute = mock.api.commands.execute.bind(mock.api.commands)
   const validator = new Ajv({ strict: false, strictSchema: true, allErrors: true, validateFormats: false, ownProperties: true })

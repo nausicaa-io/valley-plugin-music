@@ -10,7 +10,9 @@ Copy this repository into `<vault>/.valley/plugins/packages/local/music` or inst
 
 ## Development
 
-Use Node 24.19.0 and npm 11.17.0. Run `npm ci` and `npm run check` in this directory. The package owns its dependencies, tests, localization, and vendored SDK/tool/testkit archives; no Valley app checkout is required. `npm run check` validates imports, types, tests, and builds `runtime/index.js`. Commit rebuilt runtime files with source changes.
+Use Node 24.19.0 and npm 11.17.0, and Rust from `rustup` (the toolchain pinned in `rust-toolchain.toml`) with binaryen's `wasm-opt` at the version plugin-tools names. Run `npm ci` and `npm run check` in this directory. The package owns its dependencies, tests, localization, and vendored SDK/tool/testkit archives; no Valley app checkout is required. `npm run check` validates imports, types, tests, builds the artist-credits kernel in `src/wasm/` twice (the bytes must match each other and the `sha256` declared under `runtime.wasm` in `config.json`) and builds `runtime/index.js` and `runtime/assets/credits.wasm`. After a kernel change, commit the digest the build reports. Commit rebuilt runtime files with source changes.
+
+The kernel computes every track's split artist names in one call, matching `trackArtists` exactly (`tests/libraryParity.test.ts` compares both on edge cases and randomized libraries). Music computes them in TypeScript until the kernel loads, when it cannot load, and for input it cannot encode faithfully (control characters in names, unpaired surrogates, libraries above 12 MiB of credit text).
 
 ## Song editing and playback
 

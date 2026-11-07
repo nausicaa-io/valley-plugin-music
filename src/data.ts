@@ -58,13 +58,20 @@ export function mostListened(
     if (!entry?.songId) continue
     counts.set(entry.songId, (counts.get(entry.songId) ?? 0) + 1)
   }
-  const ranked: { track: Track; plays: number }[] = []
+  // The first `limit` of a stable sort: an entry goes after every kept entry that does not rank below it.
+  const top: { track: Track; plays: number }[] = []
+  const order = (a: { track: Track; plays: number }, b: { track: Track; plays: number }): number => b.plays - a.plays || a.track.title.localeCompare(b.track.title)
   for (const [songId, plays] of counts) {
     const track = byId.get(songId)
-    if (track) ranked.push({ track, plays })
+    if (!track || limit <= 0) continue
+    const entry = { track, plays }
+    if (top.length === limit && order(top[limit - 1], entry) <= 0) continue
+    let at = top.length
+    while (at > 0 && order(top[at - 1], entry) > 0) at--
+    top.splice(at, 0, entry)
+    if (top.length > limit) top.pop()
   }
-  ranked.sort((a, b) => b.plays - a.plays || a.track.title.localeCompare(b.track.title))
-  return ranked.slice(0, limit)
+  return top
 }
 
 /** Queue tracks → queue.jsonl records. */
@@ -77,13 +84,26 @@ export function resolveQueue(entries: QueueEntry[], byId: Map<string, Track>): T
   return entries.map((e) => byId.get(e.songId)).filter((t): t is Track => Boolean(t))
 }
 
+const searchTexts = new WeakMap<readonly Track[], { title: string[]; artist: string[]; file: string[] }>()
+
+/** Tracks whose lowercased title, artist or (with `withFile`) file name contains `q`, in library order. */
+export function searchTracks(tracks: readonly Track[], q: string, withFile: boolean): Track[] {
+  let text = searchTexts.get(tracks)
+  if (!text) {
+    text = { title: tracks.map((t) => t.title.toLowerCase()), artist: tracks.map((t) => t.artist.toLowerCase()), file: tracks.map((t) => baseName(t.file).toLowerCase()) }
+    searchTexts.set(tracks, text)
+  }
+  const { title, artist, file } = text
+  return tracks.filter((_, i) => title[i].includes(q) || artist[i].includes(q) || (withFile && file[i].includes(q)))
+}
+
 // ---- Library ↔ folder sync -------------------------------------------------
 
 const MEDIA_EXTENSIONS = new Set<string>([...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS])
 
 /** Last path segment, e.g. `a/b/song.mp4` → `song.mp4`. */
 export function baseName(path: string): string {
-  return path.split('/').pop() ?? path
+  return path.slice(path.lastIndexOf('/') + 1)
 }
 
 /** File name without its extension, used to recognize legacy scan-generated titles. */
@@ -149,9 +169,13 @@ export function computeLibrarySync(
 ): LibrarySync {
   const known = new Set(tracks.map((t) => t.file))
   const present = new Set(folderFiles)
-  const vaultPaths = new Set(allEntries.map(entry => entry.relPath))
   const toAdd = folderFiles.filter((f) => !known.has(f))
+  const toHeal: { track: Track; newPath: string }[] = []
+  const missing = new Set<string>()
+  const lost = tracks.filter((track) => !present.has(track.file))
+  if (!lost.length) return { toAdd, toHeal, missing }
 
+  const vaultPaths = new Set(allEntries.map(entry => entry.relPath))
   // Vault-wide media basename → paths, for healing moved files.
   const byBase = new Map<string, string[]>()
   for (const entry of allEntries) {
@@ -162,27 +186,37 @@ export function computeLibrarySync(
     else byBase.set(base, [entry.relPath])
   }
 
-  const toHeal: { track: Track; newPath: string }[] = []
-  const missing = new Set<string>()
+  // `pending` counts each path's remaining occurrences in `toAdd`; a heal takes the first one out, as `splice` did.
+  const pending = new Map<string, number>()
+  for (const file of toAdd) pending.set(file, (pending.get(file) ?? 0) + 1)
+  const healedAdds = new Map<string, number>()
   const claimed = new Set([...known, ...toAdd])
-  for (const track of tracks) {
-    if (present.has(track.file)) continue
+  for (const track of lost) {
     const inVault = vaultPaths.has(track.file)
     if (inVault) continue // moved out of the music folder but still valid
     const candidates = (byBase.get(baseName(track.file).toLowerCase()) ?? []).filter(
-      (p) => !claimed.has(p) || toAdd.includes(p)
+      (p) => !claimed.has(p) || (pending.get(p) ?? 0) > 0
     )
     if (candidates.length === 1) {
       toHeal.push({ track, newPath: candidates[0] })
       claimed.add(candidates[0])
-      const addIdx = toAdd.indexOf(candidates[0])
-      if (addIdx !== -1) toAdd.splice(addIdx, 1) // healed, not a new song
+      const left = pending.get(candidates[0]) ?? 0
+      if (left > 0) { // healed, not a new song
+        pending.set(candidates[0], left - 1)
+        healedAdds.set(candidates[0], (healedAdds.get(candidates[0]) ?? 0) + 1)
+      }
     } else {
       missing.add(track.id)
     }
   }
-
-  return { toAdd, toHeal, missing }
+  if (!healedAdds.size) return { toAdd, toHeal, missing }
+  const kept = toAdd.filter((file) => {
+    const skip = healedAdds.get(file) ?? 0
+    if (!skip) return true
+    healedAdds.set(file, skip - 1)
+    return false
+  })
+  return { toAdd: kept, toHeal, missing }
 }
 
 /** Stable-but-unique id for a newly scanned track. */
@@ -197,12 +231,27 @@ export function newTrackId(): string {
  */
 export function resolveCoverPath(entries: readonly PluginIndexEntry[], cover: string | undefined): string | null {
   if (!cover) return null
-  const exact = entries.find((e) => e.relPath === cover)
-  if (exact) return exact.relPath
+  const index = coverIndex(entries)
+  if (index.paths.has(cover)) return cover
   // An explicit vault path (e.g. an image imported into `.valley/`, which the
   // index doesn't list) is trusted as-is; bare file names match by basename.
   if (cover.includes('/')) return cover
-  const base = baseName(cover).toLowerCase()
-  const match = entries.find((e) => baseName(e.relPath).toLowerCase() === base)
-  return match ? match.relPath : null
+  return index.byBase.get(baseName(cover).toLowerCase()) ?? null
+}
+
+const coverIndexes = new WeakMap<readonly PluginIndexEntry[], { paths: Set<string>; byBase: Map<string, string> }>()
+
+/** Every path, and the first path per lowercase basename, built once per index snapshot. */
+function coverIndex(entries: readonly PluginIndexEntry[]): { paths: Set<string>; byBase: Map<string, string> } {
+  let index = coverIndexes.get(entries)
+  if (!index) {
+    index = { paths: new Set(), byBase: new Map() }
+    for (const entry of entries) {
+      index.paths.add(entry.relPath)
+      const base = baseName(entry.relPath).toLowerCase()
+      if (!index.byBase.has(base)) index.byBase.set(base, entry.relPath)
+    }
+    coverIndexes.set(entries, index)
+  }
+  return index
 }

@@ -28,11 +28,21 @@ import { Page } from './Page'
 import { Settings } from './Settings'
 import { initLocalization } from './localization'
 import { musicAgentTools } from './agentTools'
+import { installCreditsKernel } from './artists'
+import { loadCreditsKernel } from './credits'
 
 export function register(api: ValleyPluginApi): () => Promise<void> {
   initLocalization(api)
   initRuntime(api)
   const disposeStyles = injectStyles()
+  // Artist credits run in the Rust kernel once it loads; until then, and if it cannot, TypeScript computes the same.
+  let disposed = false
+  if (api.wasm.list().some((module) => module.id === 'credits')) {
+    void loadCreditsKernel(api).then(
+      (kernel) => { if (!disposed) installCreditsKernel(kernel) },
+      (error: unknown) => console.warn('Music credits kernel unavailable; using TypeScript', error)
+    )
+  }
 
   // Views observe the persistent backend's queue and host media session.
   const store = createStore(api)
@@ -82,6 +92,8 @@ export function register(api: ValleyPluginApi): () => Promise<void> {
   ]
 
   return () => {
+    disposed = true
+    installCreditsKernel(null)
     offOwnLink()
     offWorkspaceViews.forEach((off) => off())
     offMetadata()

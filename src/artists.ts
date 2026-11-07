@@ -1,3 +1,4 @@
+import type { CreditsKernel, LibraryCredits } from './credits'
 import type { Artist, Track } from './types'
 
 /**
@@ -102,10 +103,63 @@ export function resolveArtist(registry: Artist[], nameOrId: string): Artist | nu
   return registry.find((a) => artistKeys(a).has(norm)) ?? null
 }
 
+type CachedCredits = LibraryCredits & { byKey?: Map<string, number[]> }
+const creditsCache = new WeakMap<readonly Track[], CachedCredits>()
+let creditsKernel: CreditsKernel | null = null
+
+/** Routes `libraryCredits` through the WebAssembly kernel; null restores the TypeScript path. */
+export function installCreditsKernel(kernel: CreditsKernel | null): void {
+  creditsKernel = kernel
+}
+
+function scriptCredits(tracks: readonly Track[]): LibraryCredits {
+  const names = tracks.map(trackArtists)
+  return { names, keys: names.map((list) => list.map(normalizeArtistName)) }
+}
+
+/**
+ * Every track's `trackArtists` names and their normalized keys, computed once per
+ * library array (the store replaces its arrays, never mutates them).
+ */
+export function libraryCredits(tracks: readonly Track[]): LibraryCredits {
+  let credits = creditsCache.get(tracks)
+  if (!credits) {
+    let computed: LibraryCredits | null = null
+    try {
+      computed = creditsKernel?.(tracks) ?? null
+    } catch (error) {
+      creditsKernel = null
+      console.warn('Music credits kernel failed; using TypeScript', error)
+    }
+    credits = computed ?? scriptCredits(tracks)
+    creditsCache.set(tracks, credits)
+  }
+  return credits
+}
+
+function tracksByKey(tracks: readonly Track[]): Map<string, number[]> {
+  const credits: CachedCredits = libraryCredits(tracks)
+  if (!credits.byKey) {
+    const byKey = new Map<string, number[]>()
+    credits.keys.forEach((keys, index) => {
+      for (const key of keys) {
+        const list = byKey.get(key)
+        if (list) list.push(index)
+        else byKey.set(key, [index])
+      }
+    })
+    credits.byKey = byKey
+  }
+  return credits.byKey
+}
+
 /** Songs that credit an artist (by its name or any alias), in library order. */
 export function tracksForArtist(tracks: Track[], artist: Pick<Artist, 'name' | 'aliases'>): Track[] {
-  const keys = artistKeys(artist)
-  return tracks.filter((t) => trackArtists(t).some((n) => keys.has(normalizeArtistName(n))))
+  const byKey = tracksByKey(tracks)
+  const keys = [...artistKeys(artist)]
+  if (keys.length === 1) return (byKey.get(keys[0]) ?? []).map((index) => tracks[index])
+  const indexes = new Set(keys.flatMap((key) => byKey.get(key) ?? []))
+  return [...indexes].sort((a, b) => a - b).map((index) => tracks[index])
 }
 
 /** Stable-but-unique id for a newly registered artist. */
@@ -128,9 +182,11 @@ export function upsertArtists(
   for (const a of registry) for (const k of artistKeys(a)) covered.add(k)
 
   const added: Artist[] = []
-  for (const track of tracks) {
-    for (const name of trackArtists(track)) {
-      const key = normalizeArtistName(name)
+  const credits = libraryCredits(tracks)
+  for (let index = 0; index < tracks.length; index++) {
+    const keys = credits.keys[index]
+    for (const [position, name] of credits.names[index].entries()) {
+      const key = keys[position]
       if (!key || covered.has(key)) continue
       covered.add(key)
       added.push({ id: makeId(), name: name.trim() })

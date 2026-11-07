@@ -17,6 +17,7 @@ import {
   resolvePlaylistTracks
 } from './data'
 import {
+  libraryCredits,
   newArtistId,
   mergeArtistMetadata,
   normalizeArtistName,
@@ -1356,7 +1357,7 @@ export class MusicStore {
     let artist = resolveArtist(this.artists, key)
     if (!artist) {
       const norm = normalizeArtistName(key)
-      const credited = this.tracks.some((t) => trackArtists(t).some((n) => normalizeArtistName(n) === norm))
+      const credited = libraryCredits(this.tracks).keys.some((keys) => keys.includes(norm))
       if (!credited) return
       artist = { id: newArtistId(), name: key }
       this.artists = [...this.artists, artist]
