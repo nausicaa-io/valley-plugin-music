@@ -1,5 +1,5 @@
 /**
- * Music — the vault music library and player as a fully disk-loaded plugin.
+ * Music — the realm music library and player as a fully disk-loaded plugin.
  * Library data flows through plugin-isolated track, playlist, play-event,
  * artist, and queue datasets; playback registers with the core controller through
  * `api.playback`, so the footer mini player, volume slider and OS media keys

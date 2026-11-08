@@ -121,7 +121,7 @@ const reference = {
   computeLibrarySync(tracks: Track[], folderFiles: string[], allEntries: readonly PluginIndexEntry[]) {
     const media = new Set<string>([...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS])
     const base = (p: string) => p.split('/').pop() ?? p
-    const known = new Set(tracks.map((t) => t.file)), present = new Set(folderFiles), vaultPaths = new Set(allEntries.map(e => e.relPath))
+    const known = new Set(tracks.map((t) => t.file)), present = new Set(folderFiles), realmPaths = new Set(allEntries.map(e => e.relPath))
     const toAdd = folderFiles.filter((f) => !known.has(f))
     const byBase = new Map<string, string[]>()
     for (const entry of allEntries) {
@@ -131,7 +131,7 @@ const reference = {
     }
     const toHeal: { track: Track; newPath: string }[] = [], missing = new Set<string>(), claimed = new Set([...known, ...toAdd])
     for (const track of tracks) {
-      if (present.has(track.file) || vaultPaths.has(track.file)) continue
+      if (present.has(track.file) || realmPaths.has(track.file)) continue
       const candidates = (byBase.get(base(track.file).toLowerCase()) ?? []).filter((p) => !claimed.has(p) || toAdd.includes(p))
       if (candidates.length === 1) {
         toHeal.push({ track, newPath: candidates[0] })

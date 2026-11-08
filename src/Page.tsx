@@ -30,7 +30,7 @@ import {
   X
 } from './icons'
 
-/** Pick a cover from the vault's images, searched by file name. */
+/** Pick a cover from the realm's images, searched by file name. */
 const CoverPicker: FC<{
   current: string | null
   onPick: (fileName: string | null) => void
@@ -49,8 +49,8 @@ const CoverPicker: FC<{
 
   /**
    * Drop an image onto the picker. An external file (dragged from Finder) is
-   * imported into the vault through the file sorter and the created file becomes
-   * the cover. A file already in the vault — or an internal drag carrying its
+   * imported into the realm through the file sorter and the created file becomes
+   * the cover. A file already in the realm — or an internal drag carrying its
    * path — is matched by name and stored as the cover with nothing copied.
    */
   const onDropImage = (e: React.DragEvent): void => {
@@ -334,7 +334,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
     void store.reorderPlaylist(pl.id, ids)
   }
 
-  /** Drop an image onto the cover box: match the dropped file to a vault image by name. */
+  /** Drop an image onto the cover box: match the dropped file to a realm image by name. */
   const dropCover = (e: React.DragEvent): void => {
     e.preventDefault()
     const dropped = e.dataTransfer.files?.[0]?.name ?? e.dataTransfer.getData('text/plain')

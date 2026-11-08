@@ -2,7 +2,7 @@
  * What Music publishes about itself to Settings → Metadata.
  *
  * Music owns no file extension — it is not a `.md` or a `.quiz`, it just plays
- * what is in the vault — but it still has metadata worth showing: which folder
+ * what is in the realm — but it still has metadata worth showing: which folder
  * it scanned, how much it found, and which media extensions it treats as songs.
  * Identity (version, author, data files, search sources) core reads off the
  * manifest; this is the part only the running plugin knows.

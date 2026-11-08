@@ -2,7 +2,7 @@
 
 `valley music <command>` controls the music player in the running Valley app.
 Requires Valley to be open (see the repo README for `npm link` setup and
-multi-vault targeting with `--vault`). Run `valley music --help` for the live
+multi-realm targeting with `--realm`). Run `valley music --help` for the live
 list.
 
 ## Playback
@@ -49,7 +49,7 @@ list.
 | `valley music open-playlist "<name>"` | Open a playlist's **page** by fuzzy name (distinct from `playlist`, which plays it). |
 | `valley music open-artist "<name>"` | Open an artist's page. Errors if no song credits that name. |
 | `valley music open-song-artist "<title>" [--exact]` | Open the artist page for the (first) artist of the best-matching song. |
-| `valley music open-media "<vault path>"` | Reveal the song at that vault path and start playing it. Errors when the library has no entry for the path. |
+| `valley music open-media "<realm path>"` | Reveal the song at that realm path and start playing it. Errors when the library has no entry for the path. |
 
 The page you open is remembered, so reopening Music returns to the same
 playlist/artist/song rather than the home view.

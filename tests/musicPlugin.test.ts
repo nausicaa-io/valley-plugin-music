@@ -456,7 +456,7 @@ describe('computeLibrarySync', () => {
     expect(sync.missing.size).toBe(0)
   })
 
-  it('heals a moved file by searching the vault for its filename', () => {
+  it('heals a moved file by searching the realm for its filename', () => {
     const moved = track('a', 'Music/a.mp4')
     const entries = [asset('Archive/old/a.mp4')]
     const sync = computeLibrarySync([moved], [], entries)
@@ -474,7 +474,7 @@ describe('computeLibrarySync', () => {
     expect(sync.toAdd).toEqual([])
   })
 
-  it('flags tracks whose file is gone from the vault entirely', () => {
+  it('flags tracks whose file is gone from the realm entirely', () => {
     const lost = track('a', 'Music/a.mp4')
     const sync = computeLibrarySync([lost], [], [])
     expect(sync.missing.has('a')).toBe(true)
@@ -700,9 +700,9 @@ describe('MusicStore', () => {
     } finally { store.dispose() }
   })
 
-  it.each(['dispose', 'vault round trip'] as const)('does not write a held scan after %s', async (change) => {
-    const vault = { path: '/fixture-a', name: 'fixture-a', displayName: 'Fixture A' }
-    const mock = createMockValleyApi({ vault, settings: { musicPath: 'Music' }, indexEntries: [asset('Music/fresh.mp3')] })
+  it.each(['dispose', 'realm round trip'] as const)('does not write a held scan after %s', async (change) => {
+    const realm = { path: '/fixture-a', name: 'fixture-a', displayName: 'Fixture A' }
+    const mock = createMockValleyApi({ realm, settings: { musicPath: 'Music' }, indexEntries: [asset('Music/fresh.mp3')] })
     let settle!: (result: SongMetadataResult) => void
     const read = vi.spyOn(mock.api.drivers.media, 'readMetadata').mockReturnValue(new Promise((resolve) => { settle = resolve }))
     const store = new MusicStore(mock.api)
@@ -711,8 +711,8 @@ describe('MusicStore', () => {
       const pending = store.syncLibrary()
       if (change === 'dispose') store.dispose()
       else {
-        mock.emitState({ vault: { ...vault, path: '/fixture-b' } })
-        mock.emitState({ vault })
+        mock.emitState({ realm: { ...realm, path: '/fixture-b' } })
+        mock.emitState({ realm })
       }
       settle({ ok: true, data: { title: 'Late', artist: 'Canopy', album: null, cover: null } })
       await pending
@@ -722,12 +722,12 @@ describe('MusicStore', () => {
     } finally { store.dispose() }
   })
 
-  it('invalidates retained native metadata on vault changes and detaches on unload', async () => {
+  it('invalidates retained native metadata on realm changes and detaches on unload', async () => {
     const songs = [track('a', 'Music/a.mp3')]
     const mock = createMockValleyApi({ tracks: songs, indexEntries: songs.map((song) => asset(song.file)) })
     let changed!: () => void
     const detached = vi.fn()
-    vi.spyOn(mock.api.vault, 'onChanged').mockImplementation((listener) => { changed = () => listener({ full: true }); return detached })
+    vi.spyOn(mock.api.realm, 'onChanged').mockImplementation((listener) => { changed = () => listener({ full: true }); return detached })
     const read = vi.spyOn(mock.api.drivers.media, 'readMetadata')
     const store = new MusicStore(mock.api)
     try {
@@ -1177,7 +1177,7 @@ describe('MusicStore', () => {
     const folderField = screen.getByLabelText('Music folder')
     fireEvent.change(folderField, { target: { value: 'Audio' } })
     await screen.findByText('Manually rescan the music and podcast folders for new or removed files. 2 media files found in this folder.')
-    // VaultFolderField has no Save button — it commits on Enter/blur.
+    // RealmFolderField has no Save button — it commits on Enter/blur.
     fireEvent.blur(folderField)
 
     await waitFor(() => {
@@ -1254,7 +1254,7 @@ describe('MusicStore', () => {
     const folderField = screen.getByLabelText('Music folder')
     expect(folderField).toHaveValue('')
     expect(folderField).not.toHaveAttribute('placeholder', 'Lifestyle/music')
-    expect(screen.queryByText('Folder is not in the current vault index yet.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Folder is not in the current realm index yet.')).not.toBeInTheDocument()
 
     const settingsWrites = (): typeof mock.driverCalls =>
       mock.driverCalls.filter((call) => call.driver === 'settings' && call.method === 'updatePluginSettings')
@@ -1482,7 +1482,7 @@ describe('MusicStore', () => {
       expect(store.getSnapshot().playlistCovers['p1']).toBe('Pictures/strand.jpg')
     })
 
-    // A full vault path (as the picker now stores) round-trips verbatim.
+    // A full realm path (as the picker now stores) round-trips verbatim.
     await store.setPlaylistCover('p1', 'Pictures/strand.jpg')
     await vi.waitFor(() => {
       expect(store.getSnapshot().playlists[0].cover).toBe('Pictures/strand.jpg')
@@ -2318,7 +2318,7 @@ describe('Music panel navigation and file actions', () => {
   }> {
     const song = { ...track('canopy', 'Music/canopy.mp3'), title: 'Canopy Song', artist: 'Forest Duo' }
     const mock = createMockValleyApi({
-      vault: { path: '/vault', name: 'vault', displayName: 'Vault' },
+      realm: { path: '/realm', name: 'realm', displayName: 'Realm' },
       settings: { musicPath: 'Music' },
       tracks: [song],
       playlists: [{ id: 'forest', name: 'Forest Mix', songIds: [song.id] }],

@@ -10,7 +10,7 @@ export function connectPlayback(api: ValleyPluginApi) {
   const listeners = new Set<(snapshot: Snapshot) => void>()
   const events = new Set<(payload: unknown) => void>()
   let snapshot: Snapshot | null = {
-    target: { vaultGeneration: 1, sessionId: 'music-session', sessionGeneration: 1, sourceGeneration: 0 },
+    target: { realmGeneration: 1, sessionId: 'music-session', sessionGeneration: 1, sourceGeneration: 0 },
     descriptor: { key: 'music', providerId: 'music', sourceId: 'music', kind: 'audio', path: '', title: '', artists: [], feat: [] },
     revision: 0, primary: false, effectiveGain: 1, sampleAgeMs: 0,
     capabilities: { seek: true, rate: true, next: true, previous: true },
@@ -32,7 +32,7 @@ export function connectPlayback(api: ValleyPluginApi) {
     sourceId: 'music', sessionId: 'music-session',
     load: vi.fn(async (descriptor, options) => {
       snapshot = {
-        target: { vaultGeneration: 1, sessionId: 'music-session', sessionGeneration: 1, sourceGeneration: ++sourceGeneration }, descriptor,
+        target: { realmGeneration: 1, sessionId: 'music-session', sessionGeneration: 1, sourceGeneration: ++sourceGeneration }, descriptor,
         revision: sourceGeneration, primary: true, effectiveGain: 1, sampleAgeMs: 0,
         capabilities: { seek: true, rate: true, next: true, previous: true },
         state: { status: options?.autoplay ? 'playing' : 'paused', positionSeconds: options?.position ?? 0, durationSeconds: 180, volume: snapshot?.state.volume ?? 0.8, muted: false, rate: 1 }
@@ -43,7 +43,7 @@ export function connectPlayback(api: ValleyPluginApi) {
     prepareNext: vi.fn(async () => {}),
     unload: vi.fn(async () => {
       snapshot = {
-        target: { vaultGeneration: 1, sessionId: 'music-session', sessionGeneration: 1, sourceGeneration: ++sourceGeneration },
+        target: { realmGeneration: 1, sessionId: 'music-session', sessionGeneration: 1, sourceGeneration: ++sourceGeneration },
         descriptor: { key: 'music:music', providerId: 'music', sourceId: 'music', kind: 'audio', path: '', title: '', artists: [], feat: [] },
         revision: sourceGeneration, primary: false, effectiveGain: 1, sampleAgeMs: 0,
         capabilities: { seek: true, rate: true, next: true, previous: true },

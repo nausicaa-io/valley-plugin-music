@@ -7,7 +7,7 @@ export type LibraryMode = 'music' | 'podcast'
 
 /** One show: a direct subfolder of the podcast folder (loose files form a show named after the folder itself). */
 export interface PodcastShow {
-  /** Vault-relative folder path; stable identity for navigation. */
+  /** Realm-relative folder path; stable identity for navigation. */
   id: string
   name: string
   /** Numbered files newest first; otherwise alphabetical by title. */

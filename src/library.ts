@@ -198,14 +198,14 @@ export class MusicLibrary {
         await new Promise<void>(resolve => { wake = resolve; const timer = setTimeout(resolve, 100); wake = () => { clearTimeout(timer); resolve() } })
         page = await observation.read({ limit: 128 })
       }
-      if (page.status !== 'ready' || !page.version) throw refusal('NOT_READY', page.error ?? 'Vault index is unavailable')
+      if (page.status !== 'ready' || !page.version) throw refusal('NOT_READY', page.error ?? 'Realm index is unavailable')
       const entries = [...page.entries], version = page.version
       while (page.next !== null) {
         signal?.throwIfAborted()
         page = await observation.read({ version, offset: page.next, limit: 128 })
-        if (page.status !== 'ready' || page.version?.revision !== version.revision || page.version.scopeGeneration !== version.scopeGeneration || page.version.vaultGeneration !== version.vaultGeneration) throw refusal('REVISION_CONFLICT', 'Vault index changed during scan; retry the rescan')
+        if (page.status !== 'ready' || page.version?.revision !== version.revision || page.version.scopeGeneration !== version.scopeGeneration || page.version.realmGeneration !== version.realmGeneration) throw refusal('REVISION_CONFLICT', 'Realm index changed during scan; retry the rescan')
         entries.push(...page.entries)
-        if (entries.length > 100000) throw refusal('RESOURCE_LIMIT', 'Vault index exceeds the scan limit')
+        if (entries.length > 100000) throw refusal('RESOURCE_LIMIT', 'Realm index exceeds the scan limit')
       }
       return entries
     } finally { signal?.removeEventListener('abort', abort); await observation.dispose() }

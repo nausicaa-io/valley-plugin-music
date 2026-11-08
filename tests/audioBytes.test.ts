@@ -6,7 +6,7 @@ import { register } from '../src/backend'
 function fixture(content: Uint8Array) {
   const handlers = new Map<string, (payload: unknown) => unknown>()
   const files = {
-    openVault: vi.fn(async () => ({ handle: 'audio-handle', size: content.length, name: 'Fixture.wav' })),
+    openRealm: vi.fn(async () => ({ handle: 'audio-handle', size: content.length, name: 'Fixture.wav' })),
     read: vi.fn(async (_handle: string, { offset, maxBytes }: { offset: number; maxBytes: number }) => ({
       base64: Buffer.from(content.slice(offset, offset + maxBytes)).toString('base64'),
       done: offset + maxBytes >= content.length
@@ -29,7 +29,7 @@ describe('sandbox audio file bridge', () => {
     const bytes = Uint8Array.from({ length: 700_001 }, (_, index) => index % 256)
     const mock = fixture(bytes)
     expect(new Uint8Array(await readAudioBytes(mock.api, 'Music/Fixture.wav'))).toEqual(bytes)
-    expect(mock.files.openVault).toHaveBeenCalledWith('Music/Fixture.wav')
+    expect(mock.files.openRealm).toHaveBeenCalledWith('Music/Fixture.wav')
     expect(mock.files.read.mock.calls.map(([, options]) => options)).toEqual([
       { offset: 0, maxBytes: 262144 }, { offset: 262144, maxBytes: 262144 }, { offset: 524288, maxBytes: 262144 }
     ])
@@ -67,7 +67,7 @@ describe('sandbox audio file bridge', () => {
   it('releases an opening handle if the package is disposed before it resolves', async () => {
     const mock = fixture(new Uint8Array(4))
     let opened!: (value: { handle: string; size: number; name: string }) => void
-    mock.files.openVault.mockImplementationOnce(() => new Promise((resolve) => { opened = resolve }))
+    mock.files.openRealm.mockImplementationOnce(() => new Promise((resolve) => { opened = resolve }))
     const request = mock.api.backend.call('audio.open', { file: 'Music/Fixture.wav' })
     mock.dispose()
     opened({ handle: 'late', size: 4, name: 'Fixture.wav' })

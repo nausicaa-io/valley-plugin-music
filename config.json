@@ -343,10 +343,10 @@
         "label": "Music folder",
         "type": "text",
         "default": "",
-        "description": "Vault-relative folder scanned for songs (media files become library entries).",
+        "description": "Realm-relative folder scanned for songs (media files become library entries).",
         "labelKey": "auto.a71420a4b1e3",
         "descriptionKey": "auto.a09fad4110cb",
-        "validate": "vault-folder",
+        "validate": "realm-folder",
         "required": false
       },
       {
@@ -354,10 +354,10 @@
         "label": "Podcast folder",
         "type": "text",
         "default": "",
-        "description": "Vault-relative folder scanned for podcasts. Each subfolder is a show and its media files are episodes.",
+        "description": "Realm-relative folder scanned for podcasts. Each subfolder is a show and its media files are episodes.",
         "labelKey": "music.settings.podcastFolder",
         "descriptionKey": "music.settings.podcastFolderDesc",
-        "validate": "vault-folder",
+        "validate": "realm-folder",
         "required": false
       },
       {
@@ -29714,7 +29714,7 @@
   },
   "permissions": {
     "storage": {
-      "vault": true
+      "realm": true
     },
     "largeData": true
   },

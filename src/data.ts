@@ -140,7 +140,7 @@ export function trackDetailsFromFileName(path: string): { title: string; artist:
   }
 }
 
-/** Media files inside the music folder, from the vault index. */
+/** Media files inside the music folder, from the realm index. */
 export function mediaFilesInFolder(entries: readonly PluginIndexEntry[], musicPath: string): string[] {
   const prefix = musicPath.replace(/\/+$/, '') + '/'
   return entries
@@ -153,13 +153,13 @@ export interface LibrarySync {
   toAdd: string[]
   /** Tracks whose file vanished but whose file name exists elsewhere — heal to that path. */
   toHeal: { track: Track; newPath: string }[]
-  /** Track ids whose file is gone and not found anywhere in the vault. */
+  /** Track ids whose file is gone and not found anywhere in the realm. */
   missing: Set<string>
 }
 
 /**
  * Diff the on-disk music folder against the tracks dataset: new files get rows,
- * tracks whose file moved are re-matched by file name anywhere in the vault
+ * tracks whose file moved are re-matched by file name anywhere in the realm
  * (the "search for filename" recovery), tracks whose file is gone are flagged.
  */
 export function computeLibrarySync(
@@ -175,8 +175,8 @@ export function computeLibrarySync(
   const lost = tracks.filter((track) => !present.has(track.file))
   if (!lost.length) return { toAdd, toHeal, missing }
 
-  const vaultPaths = new Set(allEntries.map(entry => entry.relPath))
-  // Vault-wide media basename → paths, for healing moved files.
+  const realmPaths = new Set(allEntries.map(entry => entry.relPath))
+  // Realm-wide media basename → paths, for healing moved files.
   const byBase = new Map<string, string[]>()
   for (const entry of allEntries) {
     if (!MEDIA_EXTENSIONS.has(fileExtension(entry.relPath))) continue
@@ -192,8 +192,8 @@ export function computeLibrarySync(
   const healedAdds = new Map<string, number>()
   const claimed = new Set([...known, ...toAdd])
   for (const track of lost) {
-    const inVault = vaultPaths.has(track.file)
-    if (inVault) continue // moved out of the music folder but still valid
+    const inRealm = realmPaths.has(track.file)
+    if (inRealm) continue // moved out of the music folder but still valid
     const candidates = (byBase.get(baseName(track.file).toLowerCase()) ?? []).filter(
       (p) => !claimed.has(p) || (pending.get(p) ?? 0) > 0
     )
@@ -225,7 +225,7 @@ export function newTrackId(): string {
 }
 
 /**
- * Resolve a cover file name to its current vault-relative path by searching the
+ * Resolve a cover file name to its current realm-relative path by searching the
  * index (case-insensitive basename match). Accepts a stored path too — its
  * basename is what gets matched, with an exact-path hit preferred.
  */
@@ -233,7 +233,7 @@ export function resolveCoverPath(entries: readonly PluginIndexEntry[], cover: st
   if (!cover) return null
   const index = coverIndex(entries)
   if (index.paths.has(cover)) return cover
-  // An explicit vault path (e.g. an image imported into `.valley/`, which the
+  // An explicit realm path (e.g. an image imported into `.valley/`, which the
   // index doesn't list) is trusted as-is; bare file names match by basename.
   if (cover.includes('/')) return cover
   return index.byBase.get(baseName(cover).toLowerCase()) ?? null

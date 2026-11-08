@@ -26,7 +26,7 @@ export function register(api: PluginBackendApi): () => Promise<void> {
     api.rpc.handle('audio.open', async (value) => {
       const { file } = payload(value)
       if (disposed || typeof file !== 'string' || !file) throw new Error('Invalid audio file')
-      const opened = await api.files.openVault(file)
+      const opened = await api.files.openRealm(file)
       if (disposed) {
         await api.files.release([opened.handle])
         throw new Error('Audio reader disposed')

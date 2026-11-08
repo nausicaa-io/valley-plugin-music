@@ -16,7 +16,7 @@ export interface Track {
   artists?: string[]
   album?: string
   details?: { feat?: string; songwriter?: string; author?: string; composer?: string; genre?: string; year?: string; lyrics?: string; cover?: string; edited?: boolean }
-  /** Vault-relative path to the media file. */
+  /** Realm-relative path to the media file. */
   file: string
   /** Length in seconds (used before media metadata loads). */
   duration?: number
@@ -35,7 +35,7 @@ export interface Track {
 export interface Artist {
   id: string
   name: string
-  /** Cover image file name, re-resolved against the vault index (like playlists). */
+  /** Cover image file name, re-resolved against the realm index (like playlists). */
   image?: string
   bio?: string
   /** Other names that resolve to this artist (from renames / merges). */
@@ -52,8 +52,8 @@ export interface Playlist {
   /** Ordered song ids. */
   songIds: string[]
   /**
-   * Cover image: the file name of a vault image (e.g. `summer.jpg`). Stored by
-   * name, not path — re-resolved against the vault index on every load so the
+   * Cover image: the file name of a realm image (e.g. `summer.jpg`). Stored by
+   * name, not path — re-resolved against the realm index on every load so the
    * cover survives the image being moved.
   */
   cover?: string

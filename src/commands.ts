@@ -1260,7 +1260,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
         parse: (raw) => {
           const o = (raw ?? {}) as Record<string, unknown>
           const path = normalizeRelPath(asStr(o.path ?? o.relPath ?? o.file))
-          if (!path) throw refused('INVALID_INPUT', 'Usage: music open-media "<vault path>"')
+          if (!path) throw refused('INVALID_INPUT', 'Usage: music open-media "<realm path>"')
           return { path }
         },
         fromCli: (args) => ({ path: args.join(' ').trim() })

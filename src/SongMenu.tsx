@@ -17,7 +17,7 @@ export function useSongMenu(onRemove?: (track: Track) => void): {
     e.stopPropagation()
     if (!store) return
     const point = { x: e.clientX, y: e.clientY }
-    const vaultPath = api.getState().vault?.path
+    const realmPath = api.getState().realm?.path
     void api.ui.openMenu([
       { label: uiText('auto.3f661e5cfad7'), icon: <ListPlus />, onSelect: () => store.addToQueue(track, 'next') },
       { label: uiText('auto.f0ad6eb7a669'), icon: <ListPlus />, onSelect: () => store.addToQueue(track, 'end') },
@@ -57,7 +57,7 @@ export function useSongMenu(onRemove?: (track: Track) => void): {
       {
         label: uiText('auto.b96d429c4495'),
         icon: <Copy />,
-        onSelect: () => navigator.clipboard.writeText(vaultPath ? `${vaultPath}/${track.file}` : track.file)
+        onSelect: () => navigator.clipboard.writeText(realmPath ? `${realmPath}/${track.file}` : track.file)
       },
       ...(onRemove ? [
         { type: 'separator' as const },

@@ -147,9 +147,9 @@ export interface MusicSnapshot {
   recentlyPlayed: Track[]
   /** Tracks ranked by play count. */
   topPlayed: { track: Track; plays: number }[]
-  /** Track ids whose file is gone from the vault. */
+  /** Track ids whose file is gone from the realm. */
   missing: Set<string>
-  /** Playlist id → resolved vault path of its cover image (or null). */
+  /** Playlist id → resolved realm path of its cover image (or null). */
   playlistCovers: Record<string, string | null>
   sessionId: string | null
   playbackRevision: number
@@ -316,13 +316,13 @@ export class MusicStore {
     this.offSettings = api.settings.subscribe(() => this.onSettingsChanged())
     this.index = createIndexObserver(api, { fields: [] })
     this.metadata = new MediaMetadata(api)
-    const vault = api.getState().vault?.path
-    const offVault = api.vault.onChanged(() => this.metadata.invalidate())
-    const offRoot = api.subscribeState(['vault'], state => {
-      const next = state.state.vault?.path
-      if (next !== vault) { this.metadataRevoked = true; this.metadata.dispose() }
+    const realm = api.getState().realm?.path
+    const offRealm = api.realm.onChanged(() => this.metadata.invalidate())
+    const offRoot = api.subscribeState(['realm'], state => {
+      const next = state.state.realm?.path
+      if (next !== realm) { this.metadataRevoked = true; this.metadata.dispose() }
     })
-    this.offMetadata = () => { offVault(); offRoot() }
+    this.offMetadata = () => { offRealm(); offRoot() }
     this.rebuildSnapshot()
     // The views stay usable on the library while the backend is unavailable: playback shows why it cannot start.
     const unavailable = (error: unknown): void => {
@@ -887,7 +887,7 @@ export class MusicStore {
 
   /**
    * Scan the music folder: add track rows for new media files, heal
-   * tracks whose file moved (matched by file name anywhere in the vault), and
+   * tracks whose file moved (matched by file name anywhere in the realm), and
    * flag tracks whose file is gone.
    */
   syncLibrary(): Promise<void> {

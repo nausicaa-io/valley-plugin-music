@@ -54,7 +54,7 @@ function folderStatus(entries: readonly PluginIndexEntry[], draft: string): { in
   return { invalid, empty: Boolean(normalized) && count === 0, warning: invalid || (!folderKnown && entries.length > 0), count, status }
 }
 
-/** A vault folder row; problems show beside it, the media count wherever the caller puts it. */
+/** A realm folder row; problems show beside it, the media count wherever the caller puts it. */
 const FolderRow: FC<{
   value: string
   draft: string
@@ -80,7 +80,7 @@ const FolderRow: FC<{
     }
   }
 
-  const { Row, VaultFolderField } = api.ui.settings
+  const { Row, RealmFolderField } = api.ui.settings
   return (
     <Row
       title={title}
@@ -89,7 +89,7 @@ const FolderRow: FC<{
         <span className={`settings-toggle-desc ${warning ? 'music-settings-warning' : ''}`}>{status}</span>
       : undefined}
     >
-      <VaultFolderField
+      <RealmFolderField
         value={draft}
         onChange={(v) => {
           setDraft(v)

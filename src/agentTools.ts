@@ -45,7 +45,7 @@ export function musicAgentTools(api: ValleyPluginApi): AgentToolProvider {
       }
     },
     {
-      name: 'music_library', description: 'Inspect tracks, artists, playlists, queue, or current playback. Use this for library questions and artist or playlist searches instead of searching vault files.',
+      name: 'music_library', description: 'Inspect tracks, artists, playlists, queue, or current playback. Use this for library questions and artist or playlist searches instead of searching realm files.',
       parameters: schema({
         kind: { type: 'string', enum: ['tracks', 'artists', 'playlists', 'queue', 'now'] }, query: text('Search term')
       }, ['kind']),
