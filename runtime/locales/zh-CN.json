@@ -293,5 +293,15 @@
   "music.podcast.home": "播客主页",
   "music.podcast.noResults": "没有匹配的单集。",
   "music.podcast.back15": "后退 15 秒",
-  "music.podcast.forward30": "前进 30 秒"
+  "music.podcast.forward30": "前进 30 秒",
+  "menu.playPause": "播放/暂停",
+  "menu.nextTrack": "下一曲",
+  "menu.previousTrack": "上一曲",
+  "menu.stop": "停止",
+  "menu.toggleShuffle": "切换随机播放",
+  "menu.playSelectedPlaylist": "播放所选播放列表",
+  "menu.shuffleSelectedPlaylist": "随机播放所选播放列表",
+  "menu.playSelectedPlaylistNext": "接下来播放所选播放列表",
+  "menu.addSelectedPlaylistToQueue": "将所选播放列表添加到队列",
+  "menu.refreshLibrary": "刷新音乐库"
 }

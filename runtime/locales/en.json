@@ -293,5 +293,15 @@
   "music.podcast.home": "Podcasts home",
   "music.podcast.noResults": "No episodes match.",
   "music.podcast.back15": "Back 15 seconds",
-  "music.podcast.forward30": "Forward 30 seconds"
+  "music.podcast.forward30": "Forward 30 seconds",
+  "menu.playPause": "Play/Pause",
+  "menu.nextTrack": "Next Track",
+  "menu.previousTrack": "Previous Track",
+  "menu.stop": "Stop",
+  "menu.toggleShuffle": "Toggle Shuffle",
+  "menu.playSelectedPlaylist": "Play Selected Playlist",
+  "menu.shuffleSelectedPlaylist": "Shuffle Selected Playlist",
+  "menu.playSelectedPlaylistNext": "Play Selected Playlist Next",
+  "menu.addSelectedPlaylistToQueue": "Add Selected Playlist to Queue",
+  "menu.refreshLibrary": "Refresh Library"
 }

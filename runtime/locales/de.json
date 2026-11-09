@@ -293,5 +293,15 @@
   "music.podcast.home": "Podcast-Startseite",
   "music.podcast.noResults": "Keine passenden Folgen.",
   "music.podcast.back15": "15 Sekunden zurück",
-  "music.podcast.forward30": "30 Sekunden vor"
+  "music.podcast.forward30": "30 Sekunden vor",
+  "menu.playPause": "Wiedergabe/Pause",
+  "menu.nextTrack": "Nächster Titel",
+  "menu.previousTrack": "Vorheriger Titel",
+  "menu.stop": "Stopp",
+  "menu.toggleShuffle": "Zufallswiedergabe umschalten",
+  "menu.playSelectedPlaylist": "Ausgewählte Playlist abspielen",
+  "menu.shuffleSelectedPlaylist": "Ausgewählte Playlist zufällig abspielen",
+  "menu.playSelectedPlaylistNext": "Ausgewählte Playlist als Nächstes",
+  "menu.addSelectedPlaylistToQueue": "Ausgewählte Playlist anhängen",
+  "menu.refreshLibrary": "Bibliothek aktualisieren"
 }

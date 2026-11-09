@@ -498,6 +498,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'selected-playlist-play',
       outputSchema: playlistActionResult,
+      menu: { group: 'playlist', order: 60, label: 'Play Selected Playlist', labelKey: 'menu.playSelectedPlaylist' },
       label: 'Music: Play selected playlist', labelKey: 'auto.7bc86b4f19b0',
       sideEffect: 'execute',
       revision: () => playlistIdentity(selectedPlaylist(live()).playlist.id),
@@ -512,6 +513,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'selected-playlist-shuffle',
       outputSchema: playlistActionResult,
+      menu: { group: 'playlist', order: 70, label: 'Shuffle Selected Playlist', labelKey: 'menu.shuffleSelectedPlaylist' },
       label: 'Music: Shuffle selected playlist', labelKey: 'auto.ac48461321a4',
       sideEffect: 'execute',
       revision: () => playlistIdentity(selectedPlaylist(live()).playlist.id),
@@ -526,6 +528,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'selected-playlist-next',
       outputSchema: playlistActionResult,
+      menu: { group: 'playlist', order: 80, label: 'Play Selected Playlist Next', labelKey: 'menu.playSelectedPlaylistNext' },
       label: 'Music: Play selected playlist next', labelKey: 'auto.c6984153ca04',
       sideEffect: 'execute',
       revision: () => playlistIdentity(selectedPlaylist(live()).playlist.id),
@@ -540,6 +543,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'selected-playlist-last',
       outputSchema: playlistActionResult,
+      menu: { group: 'playlist', order: 90, label: 'Add Selected Playlist to Queue', labelKey: 'menu.addSelectedPlaylistToQueue' },
       label: 'Music: Play selected playlist last', labelKey: 'auto.8ceadb633b0c',
       sideEffect: 'execute',
       revision: () => playlistIdentity(selectedPlaylist(live()).playlist.id),
@@ -919,6 +923,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'resume',
       outputSchema: resultObject({ playing: resultFlag, track: nullableResult(trackResult), resumed: resultFlag }),
+      menu: false,
       label: 'Music: Resume', labelKey: 'auto.9bfab6b5a9c7',
       sideEffect: 'execute',
       revision: playbackIdentity,
@@ -958,6 +963,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'pause',
       outputSchema: resultObject({ playing: resultFlag, already: resultFlag }),
+      menu: false,
       label: 'Music: Pause', labelKey: 'auto.19b6e93580d6',
       sideEffect: 'execute',
       revision: playbackIdentity,
@@ -974,6 +980,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'toggle',
       outputSchema: resultObject({ playing: resultFlag }),
+      menu: { group: 'playback', order: 10, label: 'Play/Pause', labelKey: 'menu.playPause' },
       label: 'Music: Toggle play/pause', labelKey: 'auto.65b6a2ac6520',
       sideEffect: 'execute',
       revision: playbackIdentity,
@@ -990,6 +997,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'stop',
       outputSchema: nullResult,
+      menu: { group: 'playback', order: 40, label: 'Stop', labelKey: 'menu.stop' },
       label: 'Music: Stop (keeps queue)', labelKey: 'auto.fadd24d8b9d6',
       sideEffect: 'execute',
       revision: () => ({ playback: playbackIdentity(), queue: queueIdentity() }),
@@ -1005,6 +1013,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'skip',
       outputSchema: resultObject({ track: nullableResult(trackResult) }),
+      menu: { group: 'playback', order: 20, label: 'Next Track', labelKey: 'menu.nextTrack' },
       label: 'Music: Next track', labelKey: 'auto.44b369ff5538',
       sideEffect: 'execute',
       revision: () => ({ track: playbackIdentity().track, queue: queueIdentity(), repeat: live().getSnapshot().repeatMode }),
@@ -1022,6 +1031,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'back',
       outputSchema: resultObject({ track: nullableResult(trackResult) }),
+      menu: { group: 'playback', order: 30, label: 'Previous Track', labelKey: 'menu.previousTrack' },
       label: 'Music: Previous track', labelKey: 'auto.571421e4405b',
       sideEffect: 'execute',
       revision: () => ({ track: playbackIdentity().track, queue: queueIdentity(), repeat: live().getSnapshot().repeatMode }),
@@ -1037,6 +1047,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'shuffle',
       outputSchema: resultObject({ shuffle: resultFlag }),
+      menu: { group: 'playback', order: 50, label: 'Toggle Shuffle', labelKey: 'menu.toggleShuffle' },
       label: 'Music: Toggle shuffle', labelKey: 'auto.dbb071bdf7c8',
       sideEffect: 'execute',
       input: {
@@ -1115,6 +1126,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'now',
       outputSchema: resultObject({ track: nullableResult(trackResult), position: resultNumber, duration: resultNumber, playing: resultFlag, playlist: nullableResult(resultText), shuffle: resultFlag }),
+      menu: false,
       label: 'Music: Now playing', labelKey: 'auto.003b2f036c2d',
       sideEffect: 'read',
       run: () => {
@@ -1216,6 +1228,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'refresh',
       outputSchema: resultObject({ added: resultCount, missing: resultCount }),
+      menu: { group: 'library', order: 100, label: 'Refresh Library', labelKey: 'menu.refreshLibrary' },
       label: 'Music: Refresh library', labelKey: 'auto.20f8f918db22',
       sideEffect: 'write',
       revision: () => live().getSnapshot().musicPath,
@@ -1235,6 +1248,7 @@ export function registerMusicCommands(api: ValleyPluginApi): () => void {
     register({
       id: 'open-page',
       outputSchema: nullResult,
+      menu: false,
       label: 'Open Music page', labelKey: 'auto.d427ef454124',
       sideEffect: 'execute',
       input: {
