@@ -142,7 +142,7 @@ export const Settings: FC = () => {
 
   return (
     <>
-      <Section className="music-settings" title={uiText('plugin.music.name')}>
+      <Section className="music-settings">
         <FolderRow
           value={snap.musicPath}
           draft={musicDraft}

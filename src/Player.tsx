@@ -1,4 +1,5 @@
 import { VIDEO_EXTENSIONS, assetUrlForRelPath, fileExtension } from '@valley/plugin-sdk/fileTypes'
+import { visibleTimer } from './visibleTimer'
 import { api, React } from './runtime'
 import type { FC } from 'react'
 import { useMusic, useMusicCover } from './hooks'
@@ -162,8 +163,7 @@ export const Player: FC = () => {
   const [, updateClock] = React.useState(0)
   React.useEffect(() => {
     if (!isPlaying || buffering) return
-    const timer = setInterval(() => updateClock(value => value + 1), 100)
-    return () => clearInterval(timer)
+    return visibleTimer(listsRef.current?.ownerDocument ?? document, () => updateClock(value => value + 1), 100)
   }, [isPlaying, buffering])
   const currentTime = playbackPosition({ position: sampledPosition, duration: total, rate: snap.playbackRate, playing: isPlaying, buffering, sampleAgeMs: snap.playbackSampleAge }, snap.playbackSampledAt)
   const scrubber = useScrubber(value => store?.seek(value) ?? Promise.resolve())

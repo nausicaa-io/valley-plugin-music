@@ -41,6 +41,23 @@ function fixture(options: Partial<MockApiOptions> = {}) {
 const operationsCall = async (f: ReturnType<typeof fixture>, id: string, input: unknown) => f.operations.get(`command.${id}`)!(input, { id: `raw-${id}`, api: f.api, cancellation: new AbortController().signal } as PluginBackendOperationContext)
 
 describe('backend Music library owner', () => {
+  it('removes episode rows of the previous podcast folder when it changes and keeps every other row', async () => {
+    const f = fixture({
+      settings: { musicPath: 'Music', podcastPath: 'Podcasts' },
+      datasets: { 'music.tracks': [track('fern'), { id: 'ep1', file: 'Podcasts/Show/ep1.mp3', title: 'ep1', artist: '' }, { id: 'nested', file: 'Music/Podcasts/n.mp3', title: 'nested', artist: '' }] },
+      indexEntries: ['Music/fern.mp3', 'Podcasts/Show/ep1.mp3', 'Music/Podcasts/n.mp3'].map(asset)
+    })
+    try {
+      const first = await f.invoke('library.list', { kind: 'tracks' })
+      await f.invoke('library.rescan', { expectedRevision: first.revision })
+      expect(f.datasets.get('music.tracks')?.map(row => row.id).sort()).toEqual(['ep1', 'fern', 'nested'])
+      await f.api.settings.set('podcastPath', '')
+      const second = await f.invoke('library.list', { kind: 'tracks' })
+      await f.invoke('library.rescan', { expectedRevision: second.revision })
+      expect(f.datasets.get('music.tracks')?.map(row => row.id).sort()).toEqual(['fern', 'nested'])
+    } finally { await f.dispose() }
+  })
+
   it('shares artist metadata, rename and merge contracts without losing names, artwork or song membership', async () => {
     const f = fixture({ datasets: {
       'music.tracks': [{ ...track('fern'), artist: 'Source' }],

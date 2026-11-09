@@ -9,6 +9,9 @@ export type LibraryOwner = Pick<PluginBackendApi, 'data' | 'index' | 'settings'>
 export type LibraryRevisions = { revision: number; membersRevision: number }
 export type LibraryMetadata = { title: string | null; artist: string | null; album: string | null } | null
 export type ArtistRevisions = { revision: number; aliasesRevision: number }
+const inFolder = (file: string, folder: string): boolean => Boolean(folder) && file.startsWith(`${folder}/`)
+const SCAN_STATE = 'library-scan.json'
+
 const tracks = 'music.tracks', playlists = 'music.playlists', members = 'music.playlist_tracks', artists = 'music.artists', aliases = 'music.artist_aliases'
 const record = (value: unknown): DatasetRecord => value as DatasetRecord
 export const refusal = (code: string, message: string): Error => Object.assign(new Error(message), { code, outcome: 'not-applied' as const, retryable: false })
@@ -211,21 +214,37 @@ export class MusicLibrary {
     } finally { signal?.removeEventListener('abort', abort); await observation.dispose() }
   }
 
+  /** The podcast folder of the previous scan, or null before the first one; the scan only needs it to notice a folder change. */
+  private async scannedPodcastPath(): Promise<string | null> {
+    const text = await this.api.data.files.readText(SCAN_STATE).catch(() => null)
+    if (!text) return null
+    try { const { podcastPath } = JSON.parse(text) as { podcastPath?: unknown }; return typeof podcastPath === 'string' ? podcastPath : null } catch { return null }
+  }
+
+  private async rememberPodcastPath(podcastPath: string): Promise<void> {
+    const current = await this.api.data.files.readTextBaseline(SCAN_STATE).catch(() => null)
+    await this.api.data.files.writeTextGuarded(SCAN_STATE, JSON.stringify({ podcastPath }), current?.baseline ?? null).catch(() => undefined)
+  }
+
   async rescan(expectedRevision: number, signal?: AbortSignal, indexed?: readonly PluginIndexEntry[], assertCurrent: () => void = () => {}) {
     const musicPath = normalizeRelPath(this.api.settings.get().musicPath)
     const podcastPath = normalizeRelPath(this.api.settings.get().podcastPath)
     const observed = await this.rows(tracks)
     check(expectedRevision, observed.revision)
-    if (!musicPath && !podcastPath) return { revision: observed.revision, added: 0, healed: 0, updated: 0, missing: [] as string[] }
-    const entries = indexed ?? await this.index(signal), current = observed.rows as unknown as Track[]
+    const current = observed.rows as unknown as Track[]
+    const scanned = await this.scannedPodcastPath()
+    const previousPodcast = scanned !== null && scanned !== podcastPath ? scanned : ''
+    if (!musicPath && !podcastPath && !previousPodcast) return { revision: observed.revision, added: 0, healed: 0, updated: 0, missing: [] as string[] }
+    const entries = indexed ?? await this.index(signal)
     const folderFiles = [...new Set([...(musicPath ? mediaFilesInFolder(entries, musicPath) : []), ...(podcastPath ? mediaFilesInFolder(entries, podcastPath) : [])])]
     const sync = computeLibrarySync(current, folderFiles, entries)
-    const next = new Map(current.map(track => [track.id, track])), changed: Track[] = []
+    const next = new Map(current.map(track => [track.id, track])), changed: Track[] = [], removed: string[] = []
     const healed = new Map(sync.toHeal.map(value => [value.track.id, value.newPath]))
     const details = async (file: string) => { signal?.throwIfAborted(); const value = await this.metadata(file); signal?.throwIfAborted(); const fallback = trackDetailsFromFileName(file); return { title: value?.title?.trim() || fallback.title, artist: value?.artist?.trim() || fallback.artist, ...(value?.album?.trim() ? { album: value.album.trim() } : {}) } }
     for (const track of current) {
       signal?.throwIfAborted()
       const file = healed.get(track.id) ?? track.file
+      if (inFolder(track.file, previousPodcast) && !inFolder(track.file, podcastPath) && !inFolder(track.file, musicPath)) { removed.push(track.id); next.delete(track.id); continue }
       const autoNamed = !track.details?.edited && Boolean(track.addedAt) && track.title === rawTitleFromFileName(track.file)
       if (!autoNamed && file === track.file) continue
       const value = { ...track, ...(autoNamed ? await details(file) : {}), file }
@@ -238,11 +257,13 @@ export class MusicLibrary {
     const addedArtists = upsertArtists(registry, [...next.values()].filter(track => !isEpisode(track, podcastPath))).added
     const operations: DatasetTransactionOperation[] = []
     if (changed.length) operations.push({ dataset: tracks, operation: 'upsert', values: changed.map(record) })
+    for (const id of removed) operations.push({ dataset: tracks, operation: 'delete', key: { id } })
     if (addedArtists.length) operations.push({ dataset: artists, operation: 'insert', values: addedArtists.map(record) })
     const expected: DatasetRevisionGuard[] = [{ dataset: tracks, revision: expectedRevision }, { dataset: artists, revision: artistRows.revision }, { dataset: aliases, revision: aliasRows.revision }]
     signal?.throwIfAborted(); assertCurrent()
     if (normalizeRelPath(this.api.settings.get().musicPath) !== musicPath || normalizeRelPath(this.api.settings.get().podcastPath) !== podcastPath) throw refusal('REVISION_CONFLICT', 'Music folder changed during scan; retry the rescan')
     const result = operations.length ? await this.api.data.transaction(operations, { expected }) : null
-    return { revision: changed.length ? result!.revision : observed.revision, added: sync.toAdd.length, healed: sync.toHeal.length, updated: changed.length - sync.toAdd.length, missing: [...sync.missing] }
+    if (scanned !== podcastPath) await this.rememberPodcastPath(podcastPath)
+    return { revision: result?.revision ?? observed.revision, added: sync.toAdd.length, healed: sync.toHeal.length, updated: changed.length - sync.toAdd.length, missing: [...sync.missing] }
   }
 }
