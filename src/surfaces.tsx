@@ -1,4 +1,4 @@
-import { METADATA_PANEL_SEGMENT_V1, provideBookmarkSurface, WORKSPACE_DETAILS_V1, type MetadataPanelSegmentContext, type PluginInspectionSubject, type PluginProperty, type ValleyPluginApi, type PluginCommand, type UiVisual } from '@valley/plugin-sdk'
+import { METADATA_PANEL_SEGMENT_V1, provideBookmarkSurface, WORKSPACE_DETAILS_V1, type MetadataPanelSegmentContext, type PluginInspectionSubject, type PluginProperty, type ValleyPluginApi, type PluginCommand } from '@valley/plugin-sdk'
 import { formatTime, resolveCoverPath } from './data'
 import { isEpisode, resumePosition } from './podcasts'
 import { normalizeArtistName, trackArtists, tracksForArtist } from './artists'
@@ -8,7 +8,7 @@ import { Music } from './icons'
 import { React, api as runtimeApi } from './runtime'
 import { narrowPageView, type MusicSnapshot, type MusicStore, type PageView } from './store'
 import { useMusic, useMusicCover } from './hooks'
-import { RefreshCw, Settings } from './icons'
+import { RefreshCw, Settings, tabVisual } from './icons'
 import { uiText } from './localization'
 import type { InteropValueSchema } from '@valley/plugin-sdk'
 import { navStateTitle, pinnedNavigator, subscribePinnedTabs } from './pageNavigator'
@@ -439,10 +439,9 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
     { id: 'settings', label: uiText('auto.c7f73bb54d92'), icon: <Settings />, onSelect: () => api.workspace.openOwnSettings() }
   ]
   // The tab shows its library's icon, animated (`<icon>-playing`) while anything plays.
-  const tabVisual = (library: 'music' | 'podcast'): UiVisual => {
+  const libraryVisual = (library: 'music' | 'podcast') => {
     const snapshot = store.getSnapshot()
-    const icon = library === 'podcast' ? 'podcast' : 'headphones'
-    return { kind: 'icon', name: snapshot.isPlaying && snapshot.currentTrack ? `${icon}-playing` : icon }
+    return tabVisual(library, Boolean(snapshot.isPlaying && snapshot.currentTrack))
   }
   // A tab pinned with ⌘-click reports and restores its own view; it never reads or writes the main page.
   const pinnedSnapshot = (nav: NonNullable<ReturnType<typeof pinnedNavigator>>) => {
@@ -456,7 +455,7 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
     }
     return {
       title: snapshot.loading ? 'Music' : navStateTitle(snapshot, podcast ? 'podcast' : 'music', state), view: link,
-      visual: tabVisual(podcast ? 'podcast' : 'music'),
+      visual: libraryVisual(podcast ? 'podcast' : 'music'),
       ...(entity ? { item: { id: entity.id, title: 'title' in entity ? entity.title : entity.name, state: link } } : {}),
       navigation: podcast
         ? { canGoBack: state.podcastCanGoBack, canGoForward: state.podcastCanGoForward, goBack: () => nav.goPodcastHistory(-1), goForward: () => nav.goPodcastHistory(1) }
@@ -483,7 +482,7 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
       return {
         ...(surface === 'main_workspace' && podcastShow ? { item: { id: podcastShow.id, title: podcastShow.name, state: view } } : {}),
         title: snapshot.libraryMode === 'podcast' ? 'Podcasts' : 'Music', view,
-        ...(surface === 'main_workspace' ? { visual: tabVisual(snapshot.libraryMode) } : {}),
+        ...(surface === 'main_workspace' ? { visual: libraryVisual(snapshot.libraryMode) } : {}),
         ...(entity ? { item: { id: entity.id, title: 'title' in entity ? entity.title : entity.name, state: view } } : {}),
         ...(surface === 'main_workspace' ? { navigation: { canGoBack: snapshot.canGoBack, canGoForward: snapshot.canGoForward, goBack: () => store.goPageBack(), goForward: () => store.goPageForward() } } : {}),
         actions: actions()
