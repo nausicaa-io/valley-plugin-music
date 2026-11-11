@@ -24,7 +24,7 @@ const resultList = (items: Record<string, unknown>, maxItems = 10000): Record<st
 const nullableResult = (value: Record<string, unknown>): Record<string, unknown> => ({ anyOf: [value, { type: 'null' }] })
 const trackResult = resultObject({ id: resultText, title: resultText, artist: resultText, artists: nullableResult(resultStrings), album: nullableResult(resultText), file: resultText,
   duration: nullableResult(resultNumber), favorite: nullableResult(resultFlag), addedAt: nullableResult(resultText),
-  details: nullableResult(resultObject({ feat: resultText, songwriter: resultText, author: resultText, composer: resultText, genre: resultText, year: resultText, lyrics: resultText, cover: resultText, edited: resultFlag }, []))
+  details: nullableResult(resultObject({ feat: resultText, songwriter: resultText, author: resultText, composer: resultText, genre: resultText, year: resultText, lyrics: resultText, cover: resultText, description: resultText, episode: resultText, season: resultText, published: resultText, guests: resultText, edited: resultFlag }, []))
 }, ['id', 'title', 'artist', 'file'])
 const artistResult = resultObject({ id: resultText, name: resultText, image: nullableResult(resultText), bio: nullableResult(resultText), aliases: resultStrings }, ['id', 'name'])
 const playlistResult = resultObject({ id: resultText, name: resultText, songIds: resultStrings, cover: resultText }, ['id', 'name', 'songIds'])

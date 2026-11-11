@@ -12,10 +12,10 @@ const revision = (value: unknown): number => { if (typeof value !== 'number' || 
 const ids = (value: unknown): string[] => { if (!Array.isArray(value) || value.length > 10000) throw refusal('INVALID_INPUT', 'Invalid playlist members'); const result = value.map(value => text(value, 256)); if (new Set(result).size !== result.length) throw refusal('INVALID_INPUT', 'Duplicate playlist members'); return result }
 const expected = (input: Record<string, unknown>) => ({ revision: revision(input.expectedRevision), membersRevision: revision(input.expectedMembersRevision) })
 const details = (value: unknown): Track['details'] => {
-  const result = object(value, ['feat', 'songwriter', 'author', 'composer', 'genre', 'year', 'lyrics', 'cover', 'edited'])
+  const result = object(value, ['feat', 'songwriter', 'author', 'composer', 'genre', 'year', 'lyrics', 'cover', 'description', 'episode', 'season', 'published', 'guests', 'edited'])
   for (const [key, value] of Object.entries(result)) {
     if (key === 'edited') { if (typeof value !== 'boolean') throw refusal('INVALID_INPUT', 'Invalid metadata flag') }
-    else text(value, key === 'lyrics' ? 200000 : 4096, true)
+    else text(value, key === 'lyrics' || key === 'description' ? 200000 : 4096, true)
   }
   return result as Track['details']
 }

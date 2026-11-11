@@ -27,6 +27,7 @@ import { injectStyles } from '../src/styles'
 import { Player } from '../src/Player'
 import { NowPlaying } from '../src/surfaces'
 import { Cover } from '../src/Panel'
+import { formatPageTarget, parsePageTarget, pinnedNavigator } from '../src/pageNavigator'
 import {
   normalizeArtistName,
   resolveArtist,
@@ -1268,6 +1269,55 @@ describe('MusicStore', () => {
       await store.flushPersistence()
       await vi.waitFor(() => expect((mock.api.settings.get().podcastProgress as Record<string, { position: number }>).ep.position).toBe(120))
     } finally { await store.dispose() }
+  })
+
+  it('keeps key moments per episode and applies the podcast speed only to episodes', async () => {
+    const episode: Track = { id: 'ep', title: 'Episode', artist: '', file: 'Podcasts/Show/ep.mp3', duration: 1800 }
+    const song: Track = { id: 'song', title: 'Song', artist: 'Band', file: 'Music/song.mp3' }
+    const { store, mock } = makeStore({ settings: { musicPath: 'Music', podcastPath: 'Podcasts' }, tracks: [episode, song], indexEntries: [asset(episode.file), asset(song.file)] })
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().episodes).toHaveLength(1))
+      store.addMoment('ep', 300, 'Intro ends')
+      store.addMoment('ep', 120)
+      store.addMoment('ep', 301)
+      expect(store.getSnapshot().episodeMoments.ep).toEqual([{ at: 120, label: '' }, { at: 300, label: 'Intro ends' }])
+      store.renameMoment('ep', 120, '  Guest joins ')
+      store.removeMoment('ep', 300)
+      expect(store.getSnapshot().episodeMoments.ep).toEqual([{ at: 120, label: 'Guest joins' }])
+      await vi.waitFor(() => expect(mock.api.settings.get().podcastMoments).toEqual({ ep: [{ at: 120, label: 'Guest joins' }] }))
+
+      store.setPodcastRate(1.5)
+      store.playEpisodes(store.getSnapshot().episodes, 0)
+      await store.flushPersistence()
+      await vi.waitFor(() => expect(media.get(mock)!.getSnapshot()?.state.rate).toBe(1.5))
+      expect(mock.api.settings.get().podcastRate).toBe(1.5)
+      store.playTrack(store.getSnapshot().tracks.find(track => track.id === 'song')!)
+      await store.flushPersistence()
+      await vi.waitFor(() => expect(media.get(mock)!.getSnapshot()?.state.rate).toBe(1))
+    } finally { await store.dispose() }
+  })
+
+  it('shows the podcast player with speed, ±seconds and key moments instead of the queue for an episode', async () => {
+    const episode: Track = { id: 'ep', title: 'Episode one', artist: 'Host', file: 'Podcasts/Show/ep.mp3', duration: 1800, details: { description: 'What we talk about', season: '2', episode: '7' } }
+    const mock = createMockValleyApi({ settings: { musicPath: 'Music', podcastPath: 'Podcasts', podcastMoments: { ep: [{ at: 90, label: 'Topic' }] } }, tracks: [episode], indexEntries: [asset(episode.file)] })
+    const dispose = register(mock.api)
+    const store = getStore()!
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().episodes).toHaveLength(1))
+      store.playEpisodes(store.getSnapshot().episodes, 0)
+      await store.flushPersistence()
+      render(React.createElement(Player))
+      await screen.findByText('Episode one')
+      expect(screen.getByText('Key moments')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('Topic')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('What we talk about')).toBeInTheDocument()
+      expect(screen.getByText('Host · S2 · E7')).toBeInTheDocument()
+      expect(screen.getByLabelText('Back 15 seconds')).toBeInTheDocument()
+      expect(screen.queryByText('Up Next')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Previous')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByLabelText('Playback speed 1×'))
+      expect(store.getSnapshot().podcastRate).toBe(1.25)
+    } finally { await dispose() }
   })
 
   it('keeps the initial path empty and persists only an explicit valid choice once', async () => {
@@ -2995,6 +3045,167 @@ describe('Music song editing and presentation', () => {
       expect(renders).toBe(before)
       await act(async () => store.toggleFavorite(song.id))
       expect(renders).toBeGreaterThan(before)
+    } finally { await dispose() }
+  })
+})
+
+describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () => {
+  let restoreAudio: () => void
+  beforeEach(() => { restoreAudio = installFakeAudio() })
+  afterEach(() => { cleanup(); restoreAudio(); vi.restoreAllMocks() })
+
+  async function setup() {
+    const canopy = { ...track('canopy', 'Music/canopy.mp3'), title: 'Canopy Song', artist: 'Forest Duo' }
+    const moss = { ...track('moss', 'Music/moss.mp3'), title: 'Moss Song', artist: 'Moss Ensemble' }
+    const loose = { ...track('loose', 'Music/loose.mp3'), title: 'Loose Song', artist: '' }
+    const mock = createMockValleyApi({
+      realm: { path: '/realm', name: 'realm', displayName: 'Realm' },
+      settings: { musicPath: 'Music' },
+      tracks: [canopy, moss, loose],
+      playlists: [{ id: 'forest', name: 'Forest Mix', songIds: [canopy.id] }],
+      indexEntries: [canopy, moss, loose].map((song) => asset(song.file))
+    })
+    const dispose = register(mock.api)
+    const store = getStore()!
+    await vi.waitFor(() => expect(store.getSnapshot().loading).toBe(false))
+    await vi.waitFor(() => expect(store.getSnapshot().artists.map((artist) => artist.name)).toContain('Moss Ensemble'))
+    const mossArtist = store.getSnapshot().artists.find((artist) => artist.name === 'Moss Ensemble')!
+    const openMainTab = mock.api.workspace.openMainTab as ReturnType<typeof vi.fn>
+    return { mock, store, dispose, mossArtist, openMainTab }
+  }
+
+  it('encodes destinations as parseable instance ids that stay unique per tab', () => {
+    const show = formatPageTarget({ kind: 'show', id: 'Podcasts/Forest: Talks' }, 'a1')
+    expect(show).toBe('show:Podcasts%2FForest%3A%20Talks:a1')
+    expect(parsePageTarget(show)).toEqual({ kind: 'show', id: 'Podcasts/Forest: Talks' })
+    expect(parsePageTarget('playlist:forest')).toEqual({ kind: 'playlist', id: 'forest' })
+    expect(parsePageTarget(formatPageTarget({ kind: 'home' }))).toEqual({ kind: 'home' })
+    expect(formatPageTarget({ kind: 'song', id: 'x' })).not.toBe(formatPageTarget({ kind: 'song', id: 'x' }))
+    for (const invalid of [undefined, '', 'music', 'playlist:', 'unknown:x', 'song:%E0:t', 'home:x:t', 'artist:a:b:c']) expect(parsePageTarget(invalid)).toBeNull()
+  })
+
+  it('resolves a destination view without navigating, matching revealSong and showArtist', async () => {
+    const { store, dispose, mossArtist, openMainTab } = await setup()
+    try {
+      const nonce = store.getSnapshot().pageViewNonce
+      expect(store.resolvePageView({ kind: 'song', id: 'canopy' })).toEqual({ mode: 'playlist', id: 'forest', reveal: 'canopy' })
+      expect(store.resolvePageView({ kind: 'song', id: 'moss' })).toEqual({ mode: 'artist', id: mossArtist.id, reveal: 'moss' })
+      expect(store.resolvePageView({ kind: 'song', id: 'loose' })).toEqual({ mode: 'song', id: 'loose' })
+      expect(store.resolvePageView({ kind: 'artist', id: 'Moss Ensemble' })).toEqual({ mode: 'artist', id: mossArtist.id })
+      expect(store.resolvePageView({ kind: 'playlist', id: 'forest' })).toEqual({ mode: 'playlist', id: 'forest' })
+      expect(store.resolvePageView({ kind: 'home' })).toEqual({ mode: 'home' })
+      for (const kind of ['song', 'artist', 'playlist'] as const) expect(store.resolvePageView({ kind, id: 'missing' })).toBeNull()
+      expect(store.getSnapshot()).toMatchObject({ pageView: { mode: 'home' }, pageViewNonce: nonce })
+      expect(openMainTab).not.toHaveBeenCalled()
+      store.revealSong('moss')
+      expect(store.getSnapshot().pageView).toEqual(store.resolveSongView('moss'))
+    } finally { await dispose() }
+  })
+
+  it('opens ⌘-clicked and middle-clicked sidebar rows in new pinned tabs; a plain click is unchanged', async () => {
+    const { mock, store, dispose, mossArtist, openMainTab } = await setup()
+    try {
+      const calls = (mock.api.registerView as unknown as { mock: { calls: [string, React.ComponentType][] } }).mock.calls
+      render(React.createElement(calls.find(([key]) => key === 'music.panel')![1]))
+      const playlistRow = (await screen.findByText('Forest Mix')).closest('.music-row') as HTMLElement
+      fireEvent.click(playlistRow, { metaKey: true })
+      expect(openMainTab).toHaveBeenLastCalledWith({ instanceId: expect.stringMatching(/^playlist:forest:/), title: 'Forest Mix', newTab: true })
+      playlistRow.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, button: 1 }))
+      expect(openMainTab).toHaveBeenCalledTimes(2)
+      expect(openMainTab.mock.calls[1][0].instanceId).not.toBe(openMainTab.mock.calls[0][0].instanceId)
+      fireEvent.click(screen.getByText('Moss Ensemble').closest('.music-row')!, { ctrlKey: true })
+      expect(openMainTab).toHaveBeenLastCalledWith({ instanceId: expect.stringMatching(new RegExp(`^artist:${encodeURIComponent(mossArtist.id)}:`)), title: 'Moss Ensemble', newTab: true })
+      fireEvent.change(screen.getByPlaceholderText('Search songs & playlists'), { target: { value: 'Canopy Song' } })
+      const songRow = (await screen.findByText('Canopy Song')).closest('.music-row') as HTMLElement
+      fireEvent.click(songRow, { metaKey: true })
+      expect(openMainTab).toHaveBeenLastCalledWith({ instanceId: expect.stringMatching(/^song:canopy:/), title: 'Canopy Song', newTab: true })
+      expect(store.getSnapshot().pageView).toEqual({ mode: 'home' })
+
+      fireEvent.click(songRow)
+      expect(openMainTab).toHaveBeenLastCalledWith()
+      expect(store.getSnapshot().pageView).toEqual({ mode: 'playlist', id: 'forest', reveal: 'canopy' })
+      const cover = within(songRow).getByRole('button', { name: 'Play' })
+      fireEvent.click(cover, { metaKey: true })
+      cover.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, button: 1 }))
+      expect(openMainTab).toHaveBeenCalledTimes(5)
+    } finally { await dispose() }
+  })
+
+  it('renders a pinned tab from its own view and navigates it without touching the main page', async () => {
+    const { mock, store, dispose, mossArtist, openMainTab } = await setup()
+    try {
+      store.showPlaylist('forest')
+      await vi.waitFor(() => expect(mock.api.settings.get().navigationState).toMatchObject({ mode: 'playlist', id: 'forest' }))
+      const settingsSet = vi.spyOn(mock.api.settings, 'set')
+      openMainTab.mockClear()
+      const instanceId = formatPageTarget({ kind: 'artist', id: mossArtist.id }, 't1')
+      const navigation = { setController: vi.fn() }
+      render(React.createElement(Page, { instanceId, navigation }))
+      expect(await screen.findByRole('heading', { name: 'Moss Ensemble' })).toBeInTheDocument()
+      expect(mock.api.workspace.setMainTabTitle).toHaveBeenLastCalledWith('Moss Ensemble', instanceId)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Moss Ensemble', current: 'page' }), { metaKey: true })
+      expect(openMainTab).toHaveBeenLastCalledWith({ instanceId: expect.stringMatching(/^artist:/), title: 'Moss Ensemble', newTab: true })
+      expect(screen.getByRole('heading', { name: 'Moss Ensemble' })).toBeInTheDocument()
+
+      fireEvent.click(screen.getAllByRole('button', { name: 'Library home' })[0])
+      expect(await screen.findByText('Forest Mix', { selector: '.music-pl-card-name' })).toBeInTheDocument()
+      fireEvent.click(screen.getByText('Forest Mix', { selector: '.music-pl-card-name' }))
+      expect(await screen.findByRole('heading', { name: 'Forest Mix' })).toBeInTheDocument()
+      const controller = navigation.setController.mock.calls.at(-1)![0]
+      expect(controller).toMatchObject({ canGoBack: true, canGoForward: false })
+      act(() => { controller.goBack() })
+      expect(await screen.findByText('Forest Mix', { selector: '.music-pl-card-name' })).toBeInTheDocument()
+      act(() => { navigation.setController.mock.calls.at(-1)![0].goBack() })
+      expect(await screen.findByRole('heading', { name: 'Moss Ensemble' })).toBeInTheDocument()
+      expect(pinnedNavigator(store, instanceId)!.getState()).toMatchObject({ pageView: { mode: 'artist', id: mossArtist.id }, canGoForward: true })
+
+      expect(store.getSnapshot()).toMatchObject({ pageView: { mode: 'playlist', id: 'forest' }, pageSearch: '' })
+      expect(openMainTab).toHaveBeenCalledTimes(1)
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      expect(settingsSet).not.toHaveBeenCalledWith('navigationState', expect.anything())
+    } finally { await dispose() }
+  })
+
+  it('opens a pinned song tab in the context revealSong would choose', async () => {
+    const { store, dispose } = await setup()
+    try {
+      render(React.createElement(Page, { instanceId: formatPageTarget({ kind: 'song', id: 'canopy' }), navigation: { setController: vi.fn() } }))
+      expect(await screen.findByRole('heading', { name: 'Forest Mix' })).toBeInTheDocument()
+      expect(store.getSnapshot().pageView).toEqual({ mode: 'home' })
+    } finally { await dispose() }
+  })
+
+  it('reports and restores a pinned tab through its own surface state, never the main page', async () => {
+    const { mock, store, dispose } = await setup()
+    try {
+      const surface = mock.api.interop.extensions.providers(PLUGIN_SURFACE_V1).find(({ extension }) => extension.surface === 'main_workspace')!.extension
+      const instanceId = formatPageTarget({ kind: 'playlist', id: 'forest' }, 'r1')
+      expect(surface.getSnapshot(instanceId)).toMatchObject({ title: 'Forest Mix', view: { v: 1, view: { mode: 'playlist', id: 'forest' }, searchQuery: '' }, item: { id: 'forest' } })
+      expect(surface.getSnapshot()).toMatchObject({ view: { view: { mode: 'home' } } })
+      const settingsSet = vi.spyOn(mock.api.settings, 'set')
+      await surface.restore({ v: 1, view: { mode: 'song', id: 'moss' }, searchQuery: 'moss' }, instanceId, { background: true })
+      expect(pinnedNavigator(store, instanceId)!.getState()).toMatchObject({ pageView: { mode: 'song', id: 'moss' }, pageSearch: 'moss', canGoBack: false })
+      expect(store.getSnapshot()).toMatchObject({ pageView: { mode: 'home' }, pageSearch: '' })
+      await expect(surface.restore({ v: 1, view: { mode: 'playlist', id: 'missing' }, searchQuery: '' }, instanceId)).rejects.toThrow('no longer exists')
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      expect(settingsSet).not.toHaveBeenCalledWith('navigationState', expect.anything())
+    } finally { await dispose() }
+  })
+
+  it('opens a song file in a new tab when its menu item is ⌘-selected', async () => {
+    const { mock, dispose } = await setup()
+    try {
+      const openMenu = vi.spyOn(mock.api.ui, 'openMenu').mockResolvedValue(null)
+      const calls = (mock.api.registerView as unknown as { mock: { calls: [string, React.ComponentType][] } }).mock.calls
+      render(React.createElement(calls.find(([key]) => key === 'music.panel')![1]))
+      fireEvent.change(screen.getByPlaceholderText('Search songs & playlists'), { target: { value: 'Canopy Song' } })
+      fireEvent.contextMenu((await screen.findByText('Canopy Song')).closest('.music-row')!)
+      const open = openMenu.mock.calls.at(-1)![0].find((item) => item.label === 'Open file in Valley')!
+      ;(open.onSelect as (context?: { newTab?: boolean }) => void)({ newTab: true })
+      expect(mock.api.workspace.openFile).toHaveBeenLastCalledWith('Music/canopy.mp3', undefined, { newTab: true })
+      open.onSelect!()
+      expect(mock.api.workspace.openFile).toHaveBeenLastCalledWith('Music/canopy.mp3')
     } finally { await dispose() }
   })
 })

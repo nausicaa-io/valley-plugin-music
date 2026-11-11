@@ -5,16 +5,20 @@ import type { FC } from 'react'
 import { useMusic, useMusicCover } from './hooks'
 import { useSongMenu } from './SongMenu'
 import { ArtistLinks } from './ArtistLinks'
+import { navigateOrOpenTab, onMiddleClick, openPageTargetInNewTab } from './pageNavigator'
 import { formatTime, isVideoFile } from './data'
 import type { Track } from './types'
 import { uiText } from './localization'
 import { playbackPosition } from './playback'
-import { isEpisode, showFolder } from './podcasts'
+import { isEpisode, nextPodcastRate, resumePosition, showFolder, type PodcastShow } from './podcasts'
 import type { MusicSnapshot } from './store'
 import {
+  Bookmark,
+  BookmarkPlus,
   ChevronDown,
   ChevronRight,
   Clock,
+  FileText,
   GripVertical,
   Heart,
   ListMusic,
@@ -80,13 +84,19 @@ function useScrubber(seek: (value: number) => Promise<unknown>): {
 
 const CLOCK_INTERVAL_MS = 250
 
+function useVideoSurface(sessionId: string | null): React.ReactNode {
+  return React.useMemo(() => sessionId
+    ? <api.ui.MediaSurface sessionId={sessionId} fit="contain" controls={false} style={{ width: '100%', height: '100%', borderRadius: 2, background: 'transparent' }} />
+    : null, [sessionId])
+}
+
 /** Where playback is right now, extrapolated from the last sample. */
 function livePosition(snap: MusicSnapshot, total: number): number {
   return playbackPosition({ position: snap.currentTime, duration: total, rate: snap.playbackRate, playing: snap.isPlaying, buffering: snap.buffering, sampleAgeMs: snap.playbackSampleAge }, snap.playbackSampledAt)
 }
 
 /** The only part of the player that follows the clock, so the queue and history below it do not re-render with every tick. */
-const PlayerScrub: FC<{ fallbackDuration: number }> = ({ fallbackDuration }) => {
+const PlayerScrub: FC<{ fallbackDuration: number; markers?: readonly number[] }> = ({ fallbackDuration, markers }) => {
   const { store, snap } = useMusic()
   const { isPlaying, buffering } = snap
   const total = snap.duration || fallbackDuration
@@ -101,6 +111,13 @@ const PlayerScrub: FC<{ fallbackDuration: number }> = ({ fallbackDuration }) => 
   const played = total > 0 ? (Math.min(shownTime, total) / total) * 100 : 0
   return (
     <div ref={rootRef} className="player-scrub">
+      {markers && total > 0 && markers.length > 0 && (
+        <div className="player-scrub-markers" aria-hidden>
+          {markers.filter(at => at <= total).map(at => (
+            <span key={at} className="player-scrub-marker" style={{ left: `${(at / total) * 100}%` }} />
+          ))}
+        </div>
+      )}
       <input
         type="range"
         min={0}
@@ -137,9 +154,10 @@ const PlayerPlayButton: FC = () => {
   )
 }
 
-const CoverThumb: FC<{ trackId: string }> = ({ trackId }) => {
+const CoverThumb: FC<{ trackId: string; fallback?: string | null }> = ({ trackId, fallback }) => {
   const { store } = useMusic(false)
-  const { url, ref } = useMusicCover(store, trackId)
+  const { url: embedded, ref } = useMusicCover(store, trackId)
+  const url = embedded ?? fallback ?? null
   return (
     <span ref={ref} className={`player-queue-cover ${url ? '' : 'player-queue-cover-empty'}`} style={{ display: 'grid' }}>
       {url ? <img className="player-queue-cover" src={url} alt="" loading="lazy" /> : <Music />}
@@ -196,7 +214,7 @@ const PlayerQueueRow: FC<{
   </div>
 )
 
-export const Player: FC = () => {
+const MusicPlayer: FC = () => {
   const { store, snap } = useMusic(false)
   const { openSongMenu, songEditor } = useSongMenu()
   const {
@@ -216,10 +234,6 @@ export const Player: FC = () => {
 
   const track = currentTrack ?? resumeTrack
   const fallbackDuration = track?.duration || 0
-  const position = (): number => {
-    const live = store?.getSnapshot()
-    return live ? livePosition(live, live.duration || fallbackDuration) : 0
-  }
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [videoMode, setVideoMode] = React.useState(false)
@@ -228,13 +242,8 @@ export const Player: FC = () => {
   React.useEffect(() => {
     if (listsRef.current) listsRef.current.scrollTop = rightPanelScrollTop
   }, [rightViewNonce, rightPanelScrollTop])
-  const episode = track ? isEpisode(track, snap.podcastPath) : false
-  const show = episode && track ? snap.shows.find(item => item.id === showFolder(track.file, snap.podcastPath)) : undefined
-  const { url: embeddedCover, ref: coverRef } = useMusicCover(store, track?.id, { eager: true })
-  const coverUrl = embeddedCover ?? (show?.coverPath ? assetUrlForRelPath(show.coverPath) : null)
-  const videoSurface = React.useMemo(() => snap.sessionId
-    ? <api.ui.MediaSurface sessionId={snap.sessionId} fit="contain" controls={false} style={{ width: '100%', height: '100%', borderRadius: 2, background: 'transparent' }} />
-    : null, [snap.sessionId])
+  const { url: coverUrl, ref: coverRef } = useMusicCover(store, track?.id, { eager: true })
+  const videoSurface = useVideoSurface(snap.sessionId)
 
   if (!store) return null
 
@@ -255,7 +264,7 @@ export const Player: FC = () => {
                 <img src={coverUrl} alt="" />
               ) : (
                 <span className="player-art-empty">
-                  {episode ? <Podcast /> : <Music />}
+                  <Music />
                 </span>
               )}
             </>}
@@ -268,9 +277,7 @@ export const Player: FC = () => {
               <div className="player-titles">
                 <h2 className="player-title">{track.title}</h2>
                 <p className="player-artist">
-                  {episode
-                    ? <span className="music-artist-link" role="button" tabIndex={0} onClick={() => show && store.showPodcastShow(show.id)}>{show?.name ?? track.artist}</span>
-                    : <ArtistLinks track={track} />}
+                  <ArtistLinks track={track} />
                 </p>
               </div>
               <button
@@ -295,20 +302,14 @@ export const Player: FC = () => {
         {playError && <div className="player-error">{playError}</div>}
 
         <div className="player-controls">
-          {episode ? (
-            <button className="player-skip-btn" title={uiText('music.podcast.back15')} aria-label={uiText('music.podcast.back15')} onClick={() => store.seek(Math.max(0, position() - 15))}>
-              <RotateCcw /><span>15</span>
-            </button>
-          ) : (
-            <button
-              className={`player-mode-btn ${shuffle ? 'active' : ''}`}
-              title={uiText('auto.5b772b7bfd0a')}
-              aria-label={uiText('auto.5b772b7bfd0a')}
-              onClick={() => store.toggleShuffle()}
-            >
-              <Shuffle />
-            </button>
-          )}
+          <button
+            className={`player-mode-btn ${shuffle ? 'active' : ''}`}
+            title={uiText('auto.5b772b7bfd0a')}
+            aria-label={uiText('auto.5b772b7bfd0a')}
+            onClick={() => store.toggleShuffle()}
+          >
+            <Shuffle />
+          </button>
           <button title={uiText('auto.50f94286ba30')} aria-label={uiText('auto.50f94286ba30')} onClick={() => store.prev()}>
             <SkipBack />
           </button>
@@ -316,20 +317,14 @@ export const Player: FC = () => {
           <button title={uiText('auto.bc981983e7f5')} aria-label={uiText('auto.bc981983e7f5')} onClick={() => store.next()}>
             <SkipForward />
           </button>
-          {episode ? (
-            <button className="player-skip-btn" title={uiText('music.podcast.forward30')} aria-label={uiText('music.podcast.forward30')} onClick={() => { const live = store.getSnapshot(), end = live.duration || fallbackDuration, next = position() + 30; store.seek(end > 0 ? Math.min(end, next) : next) }}>
-              <RotateCw /><span>30</span>
-            </button>
-          ) : (
-            <button
-              className={`player-mode-btn ${repeatMode !== 'off' ? 'active' : ''}`}
-              title={repeatMode === 'one' ? uiText('auto.c747f173d83e') : repeatMode === 'all' ? uiText('auto.e3b1839d5f1e') : uiText('auto.659eba121958')}
-              aria-label={uiText('auto.659eba121958')}
-              onClick={() => store.cycleRepeat()}
-            >
-              {repeatMode === 'one' ? <Repeat1 /> : <Repeat />}
-            </button>
-          )}
+          <button
+            className={`player-mode-btn ${repeatMode !== 'off' ? 'active' : ''}`}
+            title={repeatMode === 'one' ? uiText('auto.c747f173d83e') : repeatMode === 'all' ? uiText('auto.e3b1839d5f1e') : uiText('auto.659eba121958')}
+            aria-label={uiText('auto.659eba121958')}
+            onClick={() => store.cycleRepeat()}
+          >
+            {repeatMode === 'one' ? <Repeat1 /> : <Repeat />}
+          </button>
         </div>
       </section>
 
@@ -426,4 +421,219 @@ export const Player: FC = () => {
       </div>
     </div>
   )
+}
+
+/** One key moment: its time seeks, its label edits in place, the cross removes it. */
+const MomentRow: FC<{ at: number; label: string; onSeek: () => void; onRename: (label: string) => void; onRemove: () => void }> = ({ at, label, onSeek, onRename, onRemove }) => {
+  const [draft, setDraft] = React.useState(label)
+  React.useEffect(() => setDraft(label), [label])
+  return (
+    <div className="podcast-moment-row">
+      <button className="podcast-moment-time" onClick={onSeek} title={uiText('music.podcast.jumpTo', { time: formatTime(at) })}>{formatTime(at)}</button>
+      <input
+        className="podcast-moment-label"
+        value={draft}
+        placeholder={uiText('music.podcast.momentPlaceholder')}
+        aria-label={uiText('music.edit.momentLabel')}
+        maxLength={120}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { if (draft.trim() !== label) onRename(draft) }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur()
+          if (e.key === 'Escape') { setDraft(label); e.currentTarget.blur() }
+        }}
+      />
+      <button className="player-queue-remove" title={uiText('music.podcast.removeMoment')} aria-label={uiText('music.podcast.removeMoment')} onClick={onRemove}>
+        <X />
+      </button>
+    </div>
+  )
+}
+
+const PlayerSection: FC<{ id: string; icon: React.ReactNode; title: string; count?: number; open: boolean; onToggle: () => void; action?: React.ReactNode; children: React.ReactNode }> = ({ id, icon, title, count, open, onToggle, action, children }) => (
+  <section className={`player-queue podcast-section podcast-section-${id}`} aria-label={title}>
+    <button className="player-queue-head" onClick={onToggle}>
+      <div className="player-queue-label">
+        {icon}
+        <span>{title}</span>
+        {count !== undefined && <span className="player-queue-count">{count}</span>}
+      </div>
+      <div className="player-queue-head-right">
+        {open && action}
+        {open ? <ChevronDown /> : <ChevronRight />}
+      </div>
+    </button>
+    {open && children}
+  </section>
+)
+
+function formatPublished(value: string | undefined): string {
+  if (!value) return ''
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : null
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : value
+}
+
+function formatRate(rate: number): string {
+  return `${Number.isInteger(rate) ? rate.toFixed(0) : String(rate)}×`
+}
+
+/** Show notes typed straight into the sidebar; saved to the episode's description when the field loses focus. */
+const ShowNotesField: FC<{ track: Track }> = ({ track }) => {
+  const { store } = useMusic(false)
+  const saved = track.details?.description ?? ''
+  const [draft, setDraft] = React.useState(saved)
+  const [error, setError] = React.useState('')
+  React.useEffect(() => setDraft(saved), [saved, track.id])
+  const save = (): void => {
+    if (!store || draft === saved) return
+    setError('')
+    void store.updateTrack(track.id, { title: track.title, artist: track.artist, album: track.album ?? '', details: { ...track.details, description: draft } }, track)
+      .catch(reason => setError(reason instanceof Error ? reason.message : uiText('music.properties.saveError')))
+  }
+  return <>
+    <textarea
+      className="podcast-notes-input"
+      value={draft}
+      placeholder={uiText('music.podcast.notesPlaceholder')}
+      aria-label={uiText('music.podcast.notes')}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => { if (e.key === 'Escape') { setDraft(saved); e.currentTarget.blur() } }}
+    />
+    {error && <p className="podcast-notes-error" role="alert">{error}</p>}
+  </>
+}
+
+/** The right sidebar while an episode is loaded: listen/watch, speed, ±seconds, key moments, notes, and the rest of the show. */
+const PodcastPlayer: FC<{ track: Track }> = ({ track }) => {
+  const { store, snap } = useMusic(false)
+  const { openSongMenu, songEditor } = useSongMenu()
+  const [videoMode, setVideoMode] = React.useState(false)
+  const [open, setOpen] = React.useState({ moments: true, notes: true, more: true })
+  const hasVideo = isVideoFile(track.file)
+  const show: PodcastShow | undefined = snap.shows.find(item => item.id === showFolder(track.file, snap.podcastPath))
+  const { url: embeddedCover, ref: coverRef } = useMusicCover(store, track.id, { eager: true })
+  const coverUrl = embeddedCover ?? (show?.coverPath ? assetUrlForRelPath(show.coverPath) : null)
+  const videoSurface = useVideoSurface(snap.sessionId)
+  const moments = snap.episodeMoments[track.id] ?? []
+  const details = track.details ?? {}
+  const meta = [
+    details.season ? uiText('music.podcast.seasonShort', { value: details.season }) : '',
+    details.episode ? uiText('music.podcast.episodeShort', { value: details.episode }) : '',
+    formatPublished(details.published)
+  ].filter(Boolean).join(' · ')
+  const fallbackDuration = track.duration || 0
+  const listsRef = React.useRef<HTMLDivElement>(null)
+  React.useEffect(() => {
+    if (listsRef.current) listsRef.current.scrollTop = snap.rightPanelScrollTop
+  }, [snap.rightViewNonce, snap.rightPanelScrollTop])
+  if (!store) return null
+  const position = (): number => {
+    const live = store.getSnapshot()
+    return livePosition(live, live.duration || fallbackDuration)
+  }
+  const markNow = (): void => store.addMoment(track.id, position())
+  const more = show ? show.episodes.filter(episode => episode.id !== track.id).slice(0, 20) : []
+  const openShow = (e: React.MouseEvent): void => { if (show) navigateOrOpenTab(e, store, { kind: 'show', id: show.id }, () => store.showPodcastShow(show.id)) }
+
+  return (
+    <div className="player-view podcast-player">
+      {songEditor}
+      <section className="player-now" onContextMenu={event => openSongMenu(event, track)}>
+        <div className="player-media">
+          <div className="music-player-mode-row">
+            {hasVideo && <div className="music-video-mode" role="group" aria-label={uiText('music.player.mode')}>
+              <button aria-pressed={!videoMode} onClick={() => setVideoMode(false)}>{uiText('music.podcast.listen')}</button>
+              <button aria-pressed={videoMode} onClick={() => setVideoMode(true)}>{uiText('music.podcast.watch')}</button>
+            </div>}
+          </div>
+          <div ref={coverRef} className="player-art" data-plugin-widget-layout="fill">
+            {hasVideo && videoMode && videoSurface ? videoSurface : coverUrl ? <img src={coverUrl} alt="" /> : <span className="player-art-empty"><Podcast /></span>}
+          </div>
+        </div>
+
+        <div className="player-head podcast-head">
+          <div className="player-titles">
+            <span className="podcast-kicker music-artist-link" role="button" tabIndex={0} onClick={openShow} onAuxClick={onMiddleClick(() => show && openPageTargetInNewTab(store, { kind: 'show', id: show.id }))}>{show?.name ?? track.album ?? uiText('music.podcast.kicker')}</span>
+            <h2 className="player-title">{track.title}</h2>
+            {(track.artist || meta) && <p className="player-artist">{[track.artist, meta].filter(Boolean).join(' · ')}</p>}
+          </div>
+        </div>
+
+        <PlayerScrub fallbackDuration={fallbackDuration} markers={moments.map(moment => moment.at)} />
+
+        {snap.playError && <div className="player-error">{snap.playError}</div>}
+
+        <div className="player-controls podcast-controls">
+          <button className="podcast-rate-btn" title={uiText('music.podcast.speed')} aria-label={uiText('music.podcast.speedValue', { rate: formatRate(snap.podcastRate) })} onClick={() => store.setPodcastRate(nextPodcastRate(snap.podcastRate))}>
+            {formatRate(snap.podcastRate)}
+          </button>
+          <button className="player-skip-btn" title={uiText('music.podcast.back15')} aria-label={uiText('music.podcast.back15')} onClick={() => store.seek(Math.max(0, position() - 15))}>
+            <RotateCcw /><span>15</span>
+          </button>
+          <PlayerPlayButton />
+          <button className="player-skip-btn" title={uiText('music.podcast.forward30')} aria-label={uiText('music.podcast.forward30')} onClick={() => { const live = store.getSnapshot(), end = live.duration || fallbackDuration, next = position() + 30; store.seek(end > 0 ? Math.min(end, next) : next) }}>
+            <RotateCw /><span>30</span>
+          </button>
+          <button className="podcast-mark-btn" title={uiText('music.podcast.addMoment')} aria-label={uiText('music.podcast.addMoment')} onClick={markNow}>
+            <BookmarkPlus />
+          </button>
+        </div>
+      </section>
+
+      <div className="player-lists" ref={listsRef} onScroll={(event) => store.setRightPanelScrollTop(event.currentTarget.scrollTop)}>
+        <PlayerSection id="moments" icon={<Bookmark />} title={uiText('music.podcast.moments')} count={moments.length} open={open.moments} onToggle={() => setOpen(value => ({ ...value, moments: !value.moments }))}
+          action={<span className="player-queue-clear" role="button" onClick={(e) => { e.stopPropagation(); markNow() }}>{uiText('music.podcast.markNow')}</span>}>
+          <div className="player-queue-list">
+            {moments.length === 0
+              ? <div className="player-queue-empty">{uiText('music.podcast.momentsEmpty')}</div>
+              : moments.map(moment => (
+                <MomentRow key={moment.at} at={moment.at} label={moment.label}
+                  onSeek={() => void store.seek(moment.at)}
+                  onRename={(label) => store.renameMoment(track.id, moment.at, label)}
+                  onRemove={() => store.removeMoment(track.id, moment.at)} />
+              ))}
+          </div>
+        </PlayerSection>
+
+        <PlayerSection id="notes" icon={<FileText />} title={uiText('music.podcast.notes')} open={open.notes} onToggle={() => setOpen(value => ({ ...value, notes: !value.notes }))}>
+          <div className="podcast-notes">
+            {details.guests && <p className="podcast-notes-meta"><span>{uiText('music.edit.guests')}</span> {details.guests}</p>}
+            <ShowNotesField track={track} />
+          </div>
+        </PlayerSection>
+
+        {more.length > 0 && (
+          <PlayerSection id="more" icon={<ListMusic />} title={uiText('music.podcast.moreFrom', { show: show?.name ?? '' })} count={more.length} open={open.more} onToggle={() => setOpen(value => ({ ...value, more: !value.more }))}>
+            <div className="player-queue-list">
+              {more.map(episode => {
+                const progress = snap.episodeProgress[episode.id]
+                const resume = resumePosition(progress)
+                const duration = progress?.duration || episode.duration || 0
+                const fraction = duration > 0 && resume > 0 ? Math.min(1, resume / duration) : 0
+                const play = (): void => { if (show) store.playEpisodes(show.episodes, show.episodes.indexOf(episode)) }
+                return (
+                  <div key={episode.id} className="player-history-row podcast-more-row" role="button" tabIndex={0} onDoubleClick={play} onContextMenu={event => openSongMenu(event, episode)}>
+                    <CoverThumb trackId={episode.id} fallback={show?.coverPath ? assetUrlForRelPath(show.coverPath) : null} />
+                    <button className="player-queue-meta" onClick={play} title={uiText('auto.5d12bd53552c')}>
+                      <span className="player-queue-title">{episode.title}</span>
+                      <span className="player-queue-artist">{resume > 0 && duration > resume ? uiText('music.podcast.timeLeft', { time: formatTime(duration - resume) }) : duration > 0 ? formatTime(duration) : ''}</span>
+                      {fraction > 0 && <span className="podcast-progress" aria-hidden><span style={{ width: `${fraction * 100}%` }} /></span>}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </PlayerSection>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Right sidebar: the podcast player while an episode is loaded, otherwise the music player. */
+export const Player: FC = () => {
+  const { snap } = useMusic(false)
+  const track = snap.currentTrack ?? snap.resumeTrack
+  return track && isEpisode(track, snap.podcastPath) ? <PodcastPlayer track={track} /> : <MusicPlayer />
 }

@@ -34,7 +34,7 @@ import type { MusicPlaybackAction, MusicPlaybackSnapshot } from './playback'
 export { nextIndex } from './playback'
 import { api as runtimeApi } from './runtime'
 import { MediaMetadata, MetadataCancelled } from './mediaMetadata'
-import { isEpisode, podcastShows, readProgress, resumePosition, type EpisodeProgress, type LibraryMode, type PodcastShow } from './podcasts'
+import { MOMENT_LABEL_LIMIT, MOMENT_LIMIT, isEpisode, podcastShows, readMoments, readPodcastRate, readProgress, resumePosition, type EpisodeMoment, type EpisodeProgress, type LibraryMode, type PodcastShow } from './podcasts'
 
 const TRACKS_DATASET = 'music.tracks'
 const PLAYLISTS_DATASET = 'music.playlists'
@@ -66,6 +66,8 @@ interface DatasetStore {
 const PLAYER_SETTINGS_KEY = 'player'
 const PROGRESS_SETTINGS_KEY = 'podcastProgress'
 const PROGRESS_LIMIT = 300
+const MOMENTS_SETTINGS_KEY = 'podcastMoments'
+const RATE_SETTINGS_KEY = 'podcastRate'
 
 /** Which podcast view the content page shows while the library is in podcast mode. */
 export type PodcastView = { mode: 'home' } | { mode: 'show'; id: string }
@@ -91,7 +93,7 @@ export type PageView =
   | { mode: 'song'; id: string }
   | { mode: 'artist'; id: string; reveal?: string }
 
-function narrowPageView(rec: unknown): PageView | null {
+export function narrowPageView(rec: unknown): PageView | null {
   if (rec && typeof rec === 'object') {
     const o = rec as Record<string, unknown>
     if ((o.mode === 'playlist' || o.mode === 'song' || o.mode === 'artist') && typeof o.id === 'string') {
@@ -112,6 +114,12 @@ function narrowPageView(rec: unknown): PageView | null {
 function parsePageView(rec: unknown): PageView {
   return narrowPageView(rec) ?? { mode: 'home' }
 }
+
+/** A destination a Music tab can be pinned to: its instance id encodes it (see `pageNavigator.ts`). */
+export type PageTarget =
+  | { kind: 'home' }
+  | { kind: 'podcasts' }
+  | { kind: 'playlist' | 'artist' | 'song' | 'show'; id: string }
 
 export interface MusicLinkState extends Record<string, unknown> {
   v: 1
@@ -194,6 +202,10 @@ export interface MusicSnapshot {
   podcastCanGoForward: boolean
   /** Saved listening position per episode id. */
   episodeProgress: Record<string, EpisodeProgress>
+  /** Listener-marked key moments per episode id, ordered by time. */
+  episodeMoments: Record<string, EpisodeMoment[]>
+  /** Playback speed applied to podcast episodes; songs always play at 1×. */
+  podcastRate: number
 }
 
 interface PlayerPreferences {
@@ -258,6 +270,9 @@ export class MusicStore {
   private progressWrite: Promise<boolean> = Promise.resolve(true)
   private progressSavedAt = 0
   private resumedEpisodeId: string | null = null
+  private episodeMoments: Record<string, EpisodeMoment[]> = {}
+  private podcastRate = 1
+  private rateSyncedFor: string | null = null
   private offSettings: () => void
 
   // Playback state
@@ -314,6 +329,8 @@ export class MusicStore {
     this.observedPodcastPath = this.podcastPath()
     this.observedLibraryMode = this.libraryMode()
     this.episodeProgress = readProgress(api.settings.get()[PROGRESS_SETTINGS_KEY])
+    this.episodeMoments = readMoments(api.settings.get()[MOMENTS_SETTINGS_KEY])
+    this.podcastRate = readPodcastRate(api.settings.get()[RATE_SETTINGS_KEY])
     this.offSettings = api.settings.subscribe(() => this.onSettingsChanged())
     this.index = createIndexObserver(api, { fields: [] })
     this.metadata = new MediaMetadata(api)
@@ -473,7 +490,9 @@ export class MusicStore {
       resumeTrack:
         this.currentTrack ?? (lastHistory ? this.trackById.get(lastHistory.songId) ?? null : null),
       coverVersion: this.coverVersion,
-      episodeProgress: this.episodeProgress
+      episodeProgress: this.episodeProgress,
+      episodeMoments: this.episodeMoments,
+      podcastRate: this.podcastRate
     }
   }
 
@@ -846,7 +865,7 @@ export class MusicStore {
   }
 
   /** Drop a page target that no longer exists, falling back to the home view. */
-  private validatePageView(pv: PageView): PageView {
+  validatePageView(pv: PageView): PageView {
     if (pv.mode === 'playlist') {
       const playlist = this.playlists.find((pl) => pl.id === pv.id)
       if (!playlist) return { mode: 'home' }
@@ -1034,6 +1053,7 @@ export class MusicStore {
     this.playbackSampledAt = performance.now()
     this.playbackSampleAge = state.sampleAgeMs ?? 0
     this.trackEpisodeProgress(previousTrack, wasPlaying, previousPosition, previousDuration, state)
+    this.syncRate(state)
     if (state.playEvent && state.playEvent.id !== this.lastPlayEventId) {
       this.lastPlayEventId = state.playEvent.id
       const { id: _id, ...entry } = state.playEvent
@@ -1059,6 +1079,57 @@ export class MusicStore {
     if ((wasPlaying && !state.playing) || (state.playing && Date.now() - this.progressSavedAt > 30000)) {
       this.recordProgress(current.id, state.position, state.duration || current.duration || 0)
     }
+  }
+
+  /** Episodes play at the chosen podcast speed and songs at 1×, applied once per track change. */
+  private syncRate(state: MusicPlaybackSnapshot): void {
+    const current = this.currentTrack
+    if (!current || !state.sessionId || this.rateSyncedFor === current.id) return
+    this.rateSyncedFor = current.id
+    const desired = isEpisode(current, this.observedPodcastPath) ? this.podcastRate : 1
+    if (Math.abs(state.rate - desired) > 0.001) void this.playback({ type: 'rate', value: desired })
+  }
+
+  setPodcastRate(rate: number): void {
+    const next = readPodcastRate(rate)
+    this.podcastRate = next
+    void this.api.settings.set(RATE_SETTINGS_KEY, next)
+    if (this.currentTrack && isEpisode(this.currentTrack, this.observedPodcastPath)) void this.playback({ type: 'rate', value: next })
+    this.emitPlayback()
+  }
+
+  private writeMoments(id: string, moments: EpisodeMoment[]): void {
+    const next = { ...this.episodeMoments }
+    if (moments.length) next[id] = [...moments].sort((a, b) => a.at - b.at).slice(0, MOMENT_LIMIT)
+    else delete next[id]
+    this.episodeMoments = next
+    void this.api.settings.set(MOMENTS_SETTINGS_KEY, next)
+    this.emitPlayback()
+  }
+
+  /** Replace an episode's key moments (the episode editor's save). */
+  setMoments(id: string, moments: EpisodeMoment[]): void {
+    const unique = new Map<number, EpisodeMoment>()
+    for (const moment of moments) if (Number.isFinite(moment.at) && moment.at >= 0) unique.set(Math.round(moment.at * 10) / 10, { at: Math.round(moment.at * 10) / 10, label: moment.label.slice(0, MOMENT_LABEL_LIMIT) })
+    this.writeMoments(id, [...unique.values()])
+  }
+
+  /** Mark a key moment; a second mark within two seconds of an existing one is ignored. */
+  addMoment(id: string, at: number, label = ''): void {
+    if (!Number.isFinite(at) || at < 0) return
+    const moments = this.episodeMoments[id] ?? []
+    if (moments.length >= MOMENT_LIMIT || moments.some(moment => Math.abs(moment.at - at) < 2)) return
+    this.writeMoments(id, [...moments, { at: Math.round(at * 10) / 10, label: label.slice(0, MOMENT_LABEL_LIMIT) }])
+  }
+
+  renameMoment(id: string, at: number, label: string): void {
+    const moments = this.episodeMoments[id] ?? []
+    if (!moments.some(moment => moment.at === at)) return
+    this.writeMoments(id, moments.map(moment => moment.at === at ? { ...moment, label: label.trim().slice(0, MOMENT_LABEL_LIMIT) } : moment))
+  }
+
+  removeMoment(id: string, at: number): void {
+    this.writeMoments(id, (this.episodeMoments[id] ?? []).filter(moment => moment.at !== at))
   }
 
   private recordProgress(id: string, position: number, duration: number): void {
@@ -1332,22 +1403,35 @@ export class MusicStore {
    * scrolls to and flashes that row.
    */
   revealSong(id: string): void {
-    if (!this.trackById.has(id)) return
+    const view = this.resolveSongView(id)
+    if (!view) return
+    if (view.mode === 'playlist') this.focusedPlaylistId = view.id
+    this.openView(view)
+  }
+
+  /** The view `revealSong` shows for a song, without navigating; null when the song is gone. */
+  resolveSongView(id: string): PageView | null {
+    const track = this.trackById.get(id)
+    if (!track) return null
     const playlist = this.playlists.find((pl) => pl.songIds.includes(id))
-    if (playlist) {
-      this.focusedPlaylistId = playlist.id
-      this.openView({ mode: 'playlist', id: playlist.id, reveal: id })
-      return
-    }
-    const track = this.trackById.get(id)!
+    if (playlist) return { mode: 'playlist', id: playlist.id, reveal: id }
     for (const name of trackArtists(track)) {
       const artist = resolveArtist(this.artists, name)
-      if (artist) {
-        this.openView({ mode: 'artist', id: artist.id, reveal: id })
-        return
-      }
+      if (artist) return { mode: 'artist', id: artist.id, reveal: id }
     }
-    this.openView({ mode: 'song', id })
+    return { mode: 'song', id }
+  }
+
+  /** The music view a pinned target opens on, without navigating; null when the target is gone. */
+  resolvePageView(target: PageTarget): PageView | null {
+    if (target.kind === 'home') return { mode: 'home' }
+    if (target.kind === 'playlist') return this.playlists.some((pl) => pl.id === target.id) ? { mode: 'playlist', id: target.id } : null
+    if (target.kind === 'song') return this.resolveSongView(target.id)
+    if (target.kind === 'artist') {
+      const artist = this.ensureArtist(target.id)
+      return artist ? { mode: 'artist', id: artist.id } : null
+    }
+    return null
   }
 
   /**
@@ -1356,19 +1440,25 @@ export class MusicStore {
    * entity covers yet, registers one on the fly so the link always has a target).
    */
   showArtist(nameOrId: string): void {
+    const artist = this.ensureArtist(nameOrId)
+    if (artist) this.openView({ mode: 'artist', id: artist.id })
+  }
+
+  /** The artist entity for an id or name, registering a credited name no entity covers yet. */
+  ensureArtist(nameOrId: string): Artist | null {
     const key = nameOrId.trim()
-    if (!key) return
+    if (!key) return null
     let artist = resolveArtist(this.artists, key)
     if (!artist) {
       const norm = normalizeArtistName(key)
       const credited = libraryCredits(this.tracks).keys.some((keys) => keys.includes(norm))
-      if (!credited) return
+      if (!credited) return null
       artist = { id: newArtistId(), name: key }
       this.artists = [...this.artists, artist]
       this.emit()
       void this.artistStore().append(artist as unknown as DataRecord)
     }
-    this.openView({ mode: 'artist', id: artist.id })
+    return artist
   }
 
   private navigatePodcast(view: PodcastView, openTab: boolean): void {

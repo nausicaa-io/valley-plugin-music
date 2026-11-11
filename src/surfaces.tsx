@@ -1,15 +1,17 @@
-import { METADATA_PANEL_SEGMENT_V1, provideBookmarkSurface, WORKSPACE_DETAILS_V1, type MetadataPanelSegmentContext, type PluginInspectionSubject, type PluginProperty, type ValleyPluginApi, type PluginCommand } from '@valley/plugin-sdk'
+import { METADATA_PANEL_SEGMENT_V1, provideBookmarkSurface, WORKSPACE_DETAILS_V1, type MetadataPanelSegmentContext, type PluginInspectionSubject, type PluginProperty, type ValleyPluginApi, type PluginCommand, type UiVisual } from '@valley/plugin-sdk'
 import { formatTime, resolveCoverPath } from './data'
+import { isEpisode, resumePosition } from './podcasts'
 import { normalizeArtistName, trackArtists, tracksForArtist } from './artists'
 import type { Track } from './types'
 import { musicCount } from './localization'
 import { Music } from './icons'
 import { React, api as runtimeApi } from './runtime'
-import type { MusicSnapshot, MusicStore, PageView } from './store'
+import { narrowPageView, type MusicSnapshot, type MusicStore, type PageView } from './store'
 import { useMusic, useMusicCover } from './hooks'
 import { RefreshCw, Settings } from './icons'
 import { uiText } from './localization'
 import type { InteropValueSchema } from '@valley/plugin-sdk'
+import { navStateTitle, pinnedNavigator, subscribePinnedTabs } from './pageNavigator'
 
 const bookmarkStateSchemas: Record<'main_workspace' | 'left_sidebar' | 'right_sidebar' | 'footer', InteropValueSchema> = {
   "main_workspace": {
@@ -272,7 +274,68 @@ function trackSummary(snapshot: MusicSnapshot, tracks: Track[], breakdown = true
   ]
 }
 
+const readOnly = (id: string, labelKey: string, label: string, value: string | number): PluginProperty => ({ id, label, labelKey, value, readOnly: true })
+
+/** Whether the inspected page is the podcast library rather than music. */
+function isPodcastSubject(snapshot: MusicSnapshot, subject?: PluginInspectionSubject): boolean {
+  return subject?.surface !== 'right_sidebar' && !subject?.item && snapshot.libraryMode === 'podcast'
+}
+
+/** The loaded episode, grouped under "Now playing" (`episode:` ids). */
+function episodeProperties(snapshot: MusicSnapshot, episode: MusicSnapshot['tracks'][number]): PluginProperty[] {
+  const details = episode.details ?? {}
+  const progress = snapshot.episodeProgress[episode.id]
+  const duration = progress?.duration || episode.duration || 0
+  const position = snapshot.currentTrack?.id === episode.id ? snapshot.currentTime : progress?.position ?? 0
+  const field = (id: string, labelKey: string, label: string, value: string | number) => readOnly(`episode:${id}`, labelKey, label, value)
+  return [
+    field('title', 'music.edit.episodeName', 'Episode title', episode.title),
+    field('host', 'music.edit.host', 'Host', episode.artist),
+    ...(details.guests ? [field('guests', 'music.edit.guests', 'Guests', details.guests)] : []),
+    ...(details.season ? [field('season', 'music.edit.season', 'Season', details.season)] : []),
+    ...(details.episode ? [field('number', 'music.edit.episodeNumber', 'Episode number', details.episode)] : []),
+    ...(details.published ? [field('published', 'music.edit.published', 'Published', details.published)] : []),
+    field('duration', 'music.info.totalTime', 'Total time', duration ? formatTime(duration) : ''),
+    ...(duration > 0 && position > 0 ? [field('left', 'music.properties.timeLeft', 'Time left', formatTime(Math.max(0, duration - position)))] : []),
+    field('speed', 'music.podcast.speed', 'Playback speed', `${snapshot.podcastRate}×`),
+    field('moments', 'music.podcast.moments', 'Key moments', (snapshot.episodeMoments[episode.id] ?? []).length),
+    field('file', 'music.surface.file', 'File', episode.file)
+  ]
+}
+
+function podcastProperties(snapshot: MusicSnapshot): PluginProperty[] {
+  const view = snapshot.podcastView
+  const show = view.mode === 'show' ? snapshot.shows.find(item => item.id === view.id) : undefined
+  const episodes = show ? show.episodes : snapshot.episodes
+  const durations = episodes.map(episode => snapshot.episodeProgress[episode.id]?.duration || episode.duration || (snapshot.currentTrack?.id === episode.id ? snapshot.duration : 0))
+  const total = durations.reduce((sum, value) => sum + value, 0)
+  const unknown = durations.filter(value => !value).length
+  const started = episodes.filter(episode => (snapshot.episodeProgress[episode.id]?.position ?? 0) >= 5).length
+  const current = snapshot.currentTrack && episodes.some(episode => episode.id === snapshot.currentTrack!.id) ? snapshot.currentTrack : null
+  const summary = show
+    ? [
+        readOnly('name', 'music.edit.show', 'Show', show.name),
+        readOnly('hosts', 'music.edit.host', 'Host', [...new Set(show.episodes.map(episode => episode.artist).filter(Boolean))].join(', ')),
+        readOnly('episodes', 'music.podcast.episodes', 'Episodes', show.episodes.length),
+        readOnly('cover', 'music.surface.cover', 'Cover', show.coverPath ?? ''),
+        readOnly('folder', 'music.properties.folder', 'Folder', show.id)
+      ]
+    : [
+        readOnly('folder', 'music.settings.podcastFolder', 'Podcast folder', snapshot.podcastPath),
+        readOnly('shows', 'music.podcast.shows', 'Shows', snapshot.shows.length),
+        readOnly('episodes', 'music.podcast.episodes', 'Episodes', snapshot.episodes.length)
+      ]
+  return [
+    ...summary,
+    ...(total > 0 ? [readOnly('duration', 'music.info.totalTime', 'Total time', formatTime(total))] : []),
+    ...(unknown && total > 0 ? [readOnly('unknownDuration', 'music.info.unknownDuration', 'Tracks without duration', unknown)] : []),
+    readOnly('started', 'music.properties.started', 'Started', started),
+    ...(current ? episodeProperties(snapshot, current) : [])
+  ]
+}
+
 function properties(snapshot: MusicSnapshot, subject?: PluginInspectionSubject): PluginProperty[] {
+  if (isPodcastSubject(snapshot, subject)) return podcastProperties(snapshot)
   if (subject?.surface === 'right_sidebar') return [
     { id: 'track', label: 'Current track', labelKey: 'music.properties.track', value: snapshot.currentTrack?.title ?? '', readOnly: true },
     { id: 'artist', label: 'Artist', labelKey: 'music.properties.artist', value: snapshot.currentTrack?.artist ?? '', readOnly: true },
@@ -317,6 +380,7 @@ function properties(snapshot: MusicSnapshot, subject?: PluginInspectionSubject):
 
 async function updateProperties(store: MusicStore, subject: PluginInspectionSubject, values: Record<string, unknown>): Promise<void> {
   const snapshot = store.getSnapshot(), view = selectedView(snapshot, subject)
+  if (isPodcastSubject(snapshot, subject)) throw new Error('Podcast properties are read-only; edit an episode instead')
   requireEntity(snapshot, view)
   if (view.mode === 'home') throw new Error('Select a track, playlist, or artist first')
   const allowed = view.mode === 'song' ? ['favorite'] : view.mode === 'playlist' ? ['name', 'cover'] : ['name', 'image', 'bio']
@@ -338,6 +402,7 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
     try { fields = properties(snap, subject) } catch { return <p role="status">{api.ui.t('bookmarks.openFailed')}</p> }
     const displayValue = (field: PluginProperty): string => {
       if (typeof field.value === 'boolean') return api.ui.t(field.value ? 'common.yes' : 'common.no')
+      if (field.id === 'cover' && isPodcastSubject(snap, subject)) return String(field.value || '—')
       if (field.id === 'cover' || field.id === 'image') {
         const path = field.id === 'cover' && view.mode === 'playlist' ? snap.playlistCovers[view.id] : resolveCoverPath(store.getIndexEntries(), String(field.value ?? ''))
         return path || String(field.value || '—')
@@ -349,8 +414,13 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
       <dd className="props-info-value">{displayValue(field)}</dd>
     </div>)}</dl>
     const artists = fields.filter(field => field.id.startsWith('artist:'))
+    const episode = fields.filter(field => field.id.startsWith('episode:'))
     return <div className="right-panel-body props-info music-info">
-      {rows(fields.filter(field => !field.id.startsWith('artist:')))}
+      {rows(fields.filter(field => !field.id.startsWith('artist:') && !field.id.startsWith('episode:')))}
+      {episode.length > 0 && <section aria-label={uiText('music.properties.nowPlaying')}>
+        <h3 className="music-info-heading">{uiText('music.properties.nowPlaying')}</h3>
+        {rows(episode)}
+      </section>}
       {artists.length > 0 && <section aria-label={uiText('music.info.artistBreakdown')}>
         <h3 className="music-info-heading">{uiText('music.info.artistBreakdown')}</h3>
         {rows(artists)}
@@ -364,28 +434,74 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
       const off = store.subscribe(() => { if (!store.getSnapshot().loading) { clearTimeout(timeout); off(); resolve() } })
     })
   }
+  const actions = () => [
+    { id: 'refresh', label: uiText('music.refreshLibrary'), icon: <RefreshCw />, onSelect: () => store.refresh() },
+    { id: 'settings', label: uiText('auto.c7f73bb54d92'), icon: <Settings />, onSelect: () => api.workspace.openOwnSettings() }
+  ]
+  // The tab shows its library's icon, animated (`<icon>-playing`) while anything plays.
+  const tabVisual = (library: 'music' | 'podcast'): UiVisual => {
+    const snapshot = store.getSnapshot()
+    const icon = library === 'podcast' ? 'podcast' : 'headphones'
+    return { kind: 'icon', name: snapshot.isPlaying && snapshot.currentTrack ? `${icon}-playing` : icon }
+  }
+  // A tab pinned with ⌘-click reports and restores its own view; it never reads or writes the main page.
+  const pinnedSnapshot = (nav: NonNullable<ReturnType<typeof pinnedNavigator>>) => {
+    const snapshot = store.getSnapshot(), state = nav.getState()
+    const podcast = nav.library === 'podcast'
+    const view: PageView = podcast ? { mode: 'home' } : state.pageView
+    const link = { v: 1 as const, view: { ...view }, searchQuery: state.pageSearch }
+    let entity: ReturnType<typeof requireEntity> = null
+    if (!snapshot.loading) {
+      try { entity = requireEntity(snapshot, view) } catch { /* Keep recovery navigation available for missing items. */ }
+    }
+    return {
+      title: snapshot.loading ? 'Music' : navStateTitle(snapshot, podcast ? 'podcast' : 'music', state), view: link,
+      visual: tabVisual(podcast ? 'podcast' : 'music'),
+      ...(entity ? { item: { id: entity.id, title: 'title' in entity ? entity.title : entity.name, state: link } } : {}),
+      navigation: podcast
+        ? { canGoBack: state.podcastCanGoBack, canGoForward: state.podcastCanGoForward, goBack: () => nav.goPodcastHistory(-1), goForward: () => nav.goPodcastHistory(1) }
+        : { canGoBack: state.canGoBack, canGoForward: state.canGoForward, goBack: () => nav.goPageHistory(-1), goForward: () => nav.goPageHistory(1) },
+      actions: actions()
+    }
+  }
   const surfaces = (['main_workspace', 'left_sidebar', 'right_sidebar', 'footer'] as const).map((surface) => provideBookmarkSurface(api, {
-    id: `music.${surface}`, surface, subscribe: store.subscribe,
-    getSnapshot: () => {
+    id: `music.${surface}`, surface,
+    subscribe: surface === 'main_workspace'
+      ? (listener: () => void) => { const offStore = store.subscribe(listener), offPinned = subscribePinnedTabs(store, listener); return () => { offStore(); offPinned() } }
+      : store.subscribe,
+    getSnapshot: (instanceId?: string) => {
+      const pinned = surface === 'main_workspace' ? pinnedNavigator(store, instanceId) : null
+      if (pinned) return pinnedSnapshot(pinned)
       const snapshot = store.getSnapshot(), link = store.buildLinkState()
       const panel = surface === 'left_sidebar' ? store.captureLeftWorkspaceView() : surface === 'right_sidebar' ? store.captureRightWorkspaceView() : undefined
       const view = surface === 'main_workspace' ? link : { ...(panel && typeof panel === 'object' ? panel : {}), ...(surface === 'left_sidebar' ? { link } : {}) }
       let entity: ReturnType<typeof requireEntity> = null
-      if (!snapshot.loading && surface !== 'right_sidebar' && surface !== 'footer') {
+      const podcastShow = snapshot.libraryMode === 'podcast' && snapshot.podcastView.mode === 'show' ? snapshot.shows.find(show => show.id === (snapshot.podcastView as { id: string }).id) : undefined
+      if (!snapshot.loading && surface !== 'right_sidebar' && surface !== 'footer' && snapshot.libraryMode !== 'podcast') {
         try { entity = requireEntity(snapshot, snapshot.pageView) } catch { /* Keep recovery navigation available for missing items. */ }
       }
       return {
-        title: 'Music', view,
+        ...(surface === 'main_workspace' && podcastShow ? { item: { id: podcastShow.id, title: podcastShow.name, state: view } } : {}),
+        title: snapshot.libraryMode === 'podcast' ? 'Podcasts' : 'Music', view,
+        ...(surface === 'main_workspace' ? { visual: tabVisual(snapshot.libraryMode) } : {}),
         ...(entity ? { item: { id: entity.id, title: 'title' in entity ? entity.title : entity.name, state: view } } : {}),
         ...(surface === 'main_workspace' ? { navigation: { canGoBack: snapshot.canGoBack, canGoForward: snapshot.canGoForward, goBack: () => store.goPageBack(), goForward: () => store.goPageForward() } } : {}),
-        actions: [
-          { id: 'refresh', label: uiText('music.refreshLibrary'), icon: <RefreshCw />, onSelect: () => store.refresh() },
-          { id: 'settings', label: uiText('auto.c7f73bb54d92'), icon: <Settings />, onSelect: () => api.workspace.openOwnSettings() }
-        ]
+        actions: actions()
       }
     },
-    restore: async (state, _instanceId, options) => {
+    restore: async (state, instanceId, options) => {
       await waitReady()
+      const pinned = surface === 'main_workspace' ? pinnedNavigator(store, instanceId) : null
+      if (pinned) {
+        // A podcast tab's destination lives in its instance id; the bookmark schema carries music views only.
+        if (pinned.library === 'podcast') return
+        const value = record(state)
+        const view = narrowPageView(value.view)
+        if (value.v !== 1 || !view || typeof value.searchQuery !== 'string' || value.searchQuery.length > 500) throw new Error('This Music bookmark is invalid')
+        requireEntity(store.getSnapshot(), view)
+        pinned.restore(view, value.searchQuery)
+        return
+      }
       const link = surface === 'left_sidebar' ? state.link : surface === 'main_workspace' ? state : null
       if (link && (!options?.background || surface === 'main_workspace')) {
         const value = record(link)
@@ -401,7 +517,7 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
   let libraryDuration = ''
   const offDetails = api.interop.extensions.provide(WORKSPACE_DETAILS_V1, {
     id: 'music.details', label: 'Music', labelKey: 'plugin.music.name', pluginViews: true,
-    items: ['songs', 'playlists', 'artists', 'favorites', 'queue', 'duration'].map(id => ({ id, label: uiText(`music.footer.${id}`), labelKey: `music.footer.${id}`, kind: 'text' as const })),
+    items: ['songs', 'playlists', 'artists', 'favorites', 'queue', 'duration', 'nowPlaying', 'position', 'library', 'shows', 'episodes', 'inProgress', 'speed'].map(id => ({ id, label: uiText(`music.footer.${id}`), labelKey: `music.footer.${id}`, kind: 'text' as const })),
     defaultItems: ['songs', 'playlists'], subscribe: store.subscribe,
     getSnapshot: () => {
       const snapshot = store.getSnapshot()
@@ -415,12 +531,19 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
         artists: { text: musicCount(snapshot.artists.length, 'artist') },
         favorites: { text: `${uiText('music.footer.favorites')}: ${snapshot.favorites.size}` },
         queue: { text: `${uiText('music.footer.queue')}: ${snapshot.upNext.length}` },
-        duration: { text: libraryDuration }
+        duration: { text: libraryDuration },
+        nowPlaying: { text: snapshot.currentTrack ? [snapshot.currentTrack.title, snapshot.currentTrack.artist].filter(Boolean).join(' · ') : '' },
+        position: { text: snapshot.currentTrack ? `${formatTime(snapshot.currentTime)} / ${formatTime(snapshot.duration || snapshot.currentTrack.duration || 0)}` : '' },
+        library: { text: uiText(snapshot.libraryMode === 'podcast' ? 'music.podcast.tabTitle' : 'plugin.music.name') },
+        shows: { text: snapshot.podcastPath ? String(snapshot.shows.length) : '' },
+        episodes: { text: snapshot.podcastPath ? uiText(`music.count.episode.${snapshot.episodes.length === 1 ? 'one' : 'other'}`, { count: snapshot.episodes.length }) : '' },
+        inProgress: { text: snapshot.podcastPath ? String(snapshot.episodes.filter(episode => resumePosition(snapshot.episodeProgress[episode.id]) > 0).length) : '' },
+        speed: { text: snapshot.currentTrack && isEpisode(snapshot.currentTrack, snapshot.podcastPath) ? `${snapshot.podcastRate}×` : '' }
       } }
     }
   })
   const offProperties = api.interop.extensions.provide(METADATA_PANEL_SEGMENT_V1, {
-    id: 'music.properties', label: 'Music', labelKey: 'plugin.music.name', icon: 'music', pluginSurfaces: ['main_workspace'], editCommand: 'properties-update',
+    id: 'music.properties', label: 'Music', labelKey: 'plugin.music.name', icon: 'headphones', pluginSurfaces: ['main_workspace'], editCommand: 'properties-update',
     inspect: ({ subject }) => properties(store.getSnapshot(), subject), render: (context) => <Properties {...context} />
   })
   const edit: PluginCommand<{ subject: PluginInspectionSubject; values: Record<string, unknown> }, PluginProperty[], 'write'> & { outputSchema: Record<string, unknown> } = {

@@ -198,3 +198,15 @@ export const RotateCcw = (p: IconProps): ReactElement => (
 export const RotateCw = (p: IconProps): ReactElement => (
   <Svg {...p}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></Svg>
 )
+
+export const Bookmark = (p: IconProps): ReactElement => (
+  <Svg {...p}><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></Svg>
+)
+
+export const BookmarkPlus = (p: IconProps): ReactElement => (
+  <Svg {...p}><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /><path d="M12 7v6" /><path d="M9 10h6" /></Svg>
+)
+
+export const FileText = (p: IconProps): ReactElement => (
+  <Svg {...p}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></Svg>
+)

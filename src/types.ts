@@ -15,7 +15,7 @@ export interface Track {
    */
   artists?: string[]
   album?: string
-  details?: { feat?: string; songwriter?: string; author?: string; composer?: string; genre?: string; year?: string; lyrics?: string; cover?: string; edited?: boolean }
+  details?: { feat?: string; songwriter?: string; author?: string; composer?: string; genre?: string; year?: string; lyrics?: string; cover?: string; description?: string; episode?: string; season?: string; published?: string; guests?: string; edited?: boolean }
   /** Realm-relative path to the media file. */
   file: string
   /** Length in seconds (used before media metadata loads). */

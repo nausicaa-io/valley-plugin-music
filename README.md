@@ -1,4 +1,4 @@
-# Music
+# Music & Podcasts
 
 Music library and player with workspace-aware browser, panel, and player views that never roll back live playlists, queues, or playback.
 
@@ -26,11 +26,11 @@ Enable **Music** in Footer Rail settings for a cover-and-title button that opens
 
 Music’s details panel presents plain key/value rows, cover paths, total duration, and per-artist song counts and minutes. Collaborations count their full duration for each credited artist, with aliases deduplicated per song; unknown durations are listed separately. The leading `/` breadcrumb returns to Home.
 
-Home’s header includes the active song while playing or paused. Recently played cards keep their order for the session, refreshing on library refresh or plugin reload while play history continues updating.
+The Music home has an Artists row of round artist pictures sorted by song count; the picture plays the artist, the rest opens the artist page. While something plays, the tab icon is the headphones icon animated; idle it is the plain headphones icon (podcast icon in podcast mode). The playing artist's picture shows a level-bar equalizer at the bottom, and covers and rows keep the three-bar wave. Home’s header includes the active song while playing or paused. Recently played cards keep their order for the session, refreshing on library refresh or plugin reload while play history continues updating.
 
 ## Podcasts
 
-The podcast button in the left panel header switches the library between Music and Podcasts. Set **Podcast folder** in Settings → Podcasts to a realm-relative folder; each direct subfolder is a show and its audio or video files are episodes (files directly in the folder form one show named after it). Episodes share the tracks dataset, playback, queue and history with songs but stay out of the music views. A show takes its name from the album tag its episodes share, else from the humanized folder name, and its cover from an image in the show folder (`cover`, `folder`, `artwork` first) or the first episode's embedded art. Episodes resume where they were left; the right sidebar offers 15-second back and 30-second forward instead of shuffle and repeat. Listening positions are kept in the plugin settings (`podcastProgress`, at most 300 episodes).
+The podcast button in the left panel header switches the library between Music and Podcasts. Set **Podcast folder** in Settings → Podcasts to a realm-relative folder; each direct subfolder is a show and its audio or video files are episodes (files directly in the folder form one show named after it). Episodes share the tracks dataset, playback, queue and history with songs but stay out of the music views. A show takes its name from the album tag its episodes share, else from the humanized folder name, and its cover from an image in the show folder (`cover`, `folder`, `artwork` first) or the first episode's embedded art. Episodes resume where they were left. While an episode is loaded the right sidebar becomes a podcast player: Listen and Watch modes, playback speed (0.75× to 2×, applied to episodes only), 15-second back and 30-second forward, and a button that marks a key moment, with no queue, history, previous or next. Below it, Key moments (jump, rename in place, remove; also shown as dots on the progress bar), Show notes and More from the show. Right-click an episode and choose **Edit episode** for its title, show, host, season, episode number, published date, guests, description and key moments; the cover comes first and shows the artwork currently used. Listening positions, key moments and the speed are kept in the plugin settings (`podcastProgress`, at most 300 episodes; `podcastMoments`; `podcastRate`).
 
 ## Workflow integration
 

@@ -2,11 +2,13 @@ import { React } from './runtime'
 import type { FC } from 'react'
 import { uiText } from './localization'
 import { Home, Search, X } from './icons'
+import { isNewTabClick, onMiddleClick } from './pageNavigator'
 
 export interface PageCrumb {
   label: string
   title: string
-  onClick: () => void
+  /** Receives the click so ⌘/middle click can open the crumb in a new tab. */
+  onClick: (event: React.MouseEvent) => void
 }
 
 /**
@@ -18,7 +20,7 @@ export interface PageCrumb {
 export const PageHeader: FC<{
   crumbs: PageCrumb[]
   homeLabel: string
-  onHome: () => void
+  onHome: (event: React.MouseEvent) => void
   query: string
   onQuery: (value: string) => void
   placeholder: string
@@ -52,7 +54,7 @@ export const PageHeader: FC<{
 
   return (
     <nav className={`music-breadcrumbs${searching ? ' searching' : ''}`} aria-label={uiText('music.header.location')} onContextMenu={searching ? undefined : onContextMenu}>
-      <button className="music-header-btn music-header-home" title={homeLabel} aria-label={homeLabel} onClick={() => { setOpen(false); onHome() }}>
+      <button className="music-header-btn music-header-home" title={homeLabel} aria-label={homeLabel} onClick={(e) => { if (!isNewTabClick(e)) setOpen(false); onHome(e) }} onAuxClick={onMiddleClick(onHome)}>
         <Home />
       </button>
       {searching ? (
@@ -74,10 +76,10 @@ export const PageHeader: FC<{
         </div>
       ) : (
         <div className="music-breadcrumb-items">
-          <button className="music-breadcrumb-home" title={homeLabel} aria-label={homeLabel} onClick={onHome}>/</button>
+          <button className="music-breadcrumb-home" title={homeLabel} aria-label={homeLabel} onClick={onHome} onAuxClick={onMiddleClick(onHome)}>/</button>
           {crumbs.map((crumb, index) => <React.Fragment key={`${index}:${crumb.title}`}>
             {index > 0 && <span className="music-breadcrumb-separator" aria-hidden="true">/</span>}
-            <button className={index === crumbs.length - 1 ? undefined : 'music-breadcrumb-parent'} title={crumb.title} aria-current={index === crumbs.length - 1 ? 'page' : undefined} onClick={crumb.onClick}>{crumb.label}</button>
+            <button className={index === crumbs.length - 1 ? undefined : 'music-breadcrumb-parent'} title={crumb.title} aria-current={index === crumbs.length - 1 ? 'page' : undefined} onClick={crumb.onClick} onAuxClick={onMiddleClick(crumb.onClick)}>{crumb.label}</button>
           </React.Fragment>)}
         </div>
       )}

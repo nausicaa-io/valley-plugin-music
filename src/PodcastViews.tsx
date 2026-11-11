@@ -11,6 +11,7 @@ import type { Track } from './types'
 import { uiText } from './localization'
 import { Section } from './Panel'
 import { PageHeader, type PageCrumb } from './PageHeader'
+import { navigateOrOpenTab, onMiddleClick, usePageNavState, usePageNavigator } from './pageNavigator'
 import { AlertTriangle, Clock, FolderOpen, ListMusic, Pause, Play, Podcast, Search, Settings, X } from './icons'
 
 export function episodeCount(count: number): string {
@@ -88,7 +89,7 @@ const EpisodeRow: FC<{
   show?: PodcastShow
   subtitle?: string
   onPlay: () => void
-  onOpen?: () => void
+  onOpen?: (event: React.MouseEvent) => void
   onMenu: (e: React.MouseEvent, track: Track) => void
 }> = ({ track, show, subtitle, onPlay, onOpen, onMenu }) => {
   const { store, snap } = useMusic(false)
@@ -102,6 +103,7 @@ const EpisodeRow: FC<{
       className={`music-row podcast-episode-row ${active ? 'active' : ''} ${onOpen ? 'nav' : ''}`}
       data-track-id={track.id}
       onClick={onOpen}
+      onAuxClick={onOpen ? onMiddleClick(onOpen) : undefined}
       onDoubleClick={onOpen ? undefined : onPlay}
       onContextMenu={(e) => onMenu(e, track)}
       role="button"
@@ -135,12 +137,12 @@ const EpisodeRow: FC<{
   )
 }
 
-const ShowRow: FC<{ show: PodcastShow; onOpen: () => void }> = ({ show, onOpen }) => {
+const ShowRow: FC<{ show: PodcastShow; onOpen: (event: React.MouseEvent) => void }> = ({ show, onOpen }) => {
   const { store, snap } = useMusic(false)
   const active = !!snap.currentTrack && show.episodes.some(episode => episode.id === snap.currentTrack!.id)
   const actionLabel = active && snap.isPlaying ? uiText('auto.781961bc81c2') : uiText('music.podcast.playShow')
   return (
-    <div className={`music-row nav ${active ? 'active' : ''}`} onClick={onOpen} role="button" tabIndex={0}>
+    <div className={`music-row nav ${active ? 'active' : ''}`} onClick={onOpen} onAuxClick={onMiddleClick(onOpen)} role="button" tabIndex={0}>
       <button
         className="music-row-play"
         title={actionLabel}
@@ -192,6 +194,7 @@ export const PodcastPanelBody: FC = () => {
   const [showsOpen, setShowsOpen] = React.useState(true)
   const [continueOpen, setContinueOpen] = React.useState(true)
   if (!store) return null
+  const openShow = (id: string) => (event: React.MouseEvent): void => navigateOrOpenTab(event, store, { kind: 'show', id }, () => store.showPodcastShow(id))
   const query = snap.leftPanelSearch
   const q = query.trim().toLowerCase()
   const resume = continueListening(snap)
@@ -229,7 +232,7 @@ export const PodcastPanelBody: FC = () => {
             {showResults.length > 0 && (
               <div className="music-results">
                 <div className="music-results-label">{uiText('music.podcast.shows')}</div>
-                {showResults.map(show => <ShowRow key={show.id} show={show} onOpen={() => store.showPodcastShow(show.id)} />)}
+                {showResults.map(show => <ShowRow key={show.id} show={show} onOpen={openShow(show.id)} />)}
               </div>
             )}
             {episodeResults.length > 0 && (
@@ -238,7 +241,7 @@ export const PodcastPanelBody: FC = () => {
                 {episodeResults.slice(0, 100).map((episode, i) => {
                   const show = showIndex.get(episode.id)
                   return <EpisodeRow key={episode.id} track={episode} show={show} onMenu={openSongMenu}
-                    onOpen={show ? () => store.showPodcastShow(show.id) : undefined}
+                    onOpen={show ? openShow(show.id) : undefined}
                     onPlay={() => store.playEpisodes(episodeResults, i)} />
                 })}
               </div>
@@ -252,13 +255,13 @@ export const PodcastPanelBody: FC = () => {
               {resume.map((episode, i) => {
                 const show = showIndex.get(episode.id)
                 return <EpisodeRow key={episode.id} track={episode} show={show} onMenu={openSongMenu}
-                  onOpen={show ? () => store.showPodcastShow(show.id) : undefined}
+                  onOpen={show ? openShow(show.id) : undefined}
                   onPlay={() => store.playEpisodes(resume, i)} />
               })}
             </Section>
           )}
           <Section id="shows" title={uiText('music.podcast.shows')} icon={<Podcast />} count={snap.shows.length} open={showsOpen} onOpenChange={setShowsOpen}>
-            {snap.shows.map(show => <ShowRow key={show.id} show={show} onOpen={() => store.showPodcastShow(show.id)} />)}
+            {snap.shows.map(show => <ShowRow key={show.id} show={show} onOpen={openShow(show.id)} />)}
           </Section>
         </>
       )}
@@ -266,12 +269,12 @@ export const PodcastPanelBody: FC = () => {
   )
 }
 
-const ShowCard: FC<{ show: PodcastShow; onOpen: () => void }> = ({ show, onOpen }) => {
+const ShowCard: FC<{ show: PodcastShow; onOpen: (event: React.MouseEvent) => void }> = ({ show, onOpen }) => {
   const { store, snap } = useMusic(false)
   const active = !!snap.currentTrack && show.episodes.some(episode => episode.id === snap.currentTrack!.id)
   const label = active && snap.isPlaying ? uiText('auto.781961bc81c2') : uiText('music.podcast.playShow')
   return (
-    <div className={`music-pl-card ${active ? 'active' : ''}`} role="button" tabIndex={0} onClick={onOpen}>
+    <div className={`music-pl-card ${active ? 'active' : ''}`} role="button" tabIndex={0} onClick={onOpen} onAuxClick={onMiddleClick(onOpen)}>
       <div className="music-pl-card-art">
         <ShowArt show={show} className="" emptyClassName="music-pl-card-art-empty" />
         {active && <EqBars playing={snap.isPlaying} className="music-card-eq" />}
@@ -368,36 +371,39 @@ const ShowDetail: FC<{ show: PodcastShow; onMenu: (e: React.MouseEvent, track: T
 /** Main workspace page while the library is in podcast mode. */
 export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const { store, snap } = useMusic(false)
+  const nav = usePageNavigator(store)
+  const navState = usePageNavState(nav)
   const { openSongMenu, songEditor } = useSongMenu()
   const showIndex = useShowIndex(snap.shows)
   const scrollRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
-    if (!store) return
+    if (!nav) return
     navigation.setController({
-      canGoBack: snap.podcastCanGoBack,
-      canGoForward: snap.podcastCanGoForward,
-      goBack: () => store.goPodcastHistory(-1),
-      goForward: () => store.goPodcastHistory(1)
+      canGoBack: navState.podcastCanGoBack,
+      canGoForward: navState.podcastCanGoForward,
+      goBack: () => nav.goPodcastHistory(-1),
+      goForward: () => nav.goPodcastHistory(1)
     })
     return () => navigation.setController(null)
-  }, [navigation, snap.podcastCanGoBack, snap.podcastCanGoForward, store])
+  }, [navigation, navState.podcastCanGoBack, navState.podcastCanGoForward, nav])
 
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
-  }, [snap.podcastView])
+  }, [navState.podcastView])
 
-  if (!store) return null
-  const query = snap.pageSearch
+  if (!store || !nav) return null
+  const openShow = (id: string) => (event: React.MouseEvent): void => navigateOrOpenTab(event, store, { kind: 'show', id }, () => nav.showPodcastShow(id))
+  const query = navState.pageSearch
   const q = query.trim().toLowerCase()
-  const view = snap.podcastView
+  const view = navState.podcastView
   const show = view.mode === 'show' ? snap.shows.find(item => item.id === view.id) ?? null : null
   const current = snap.currentTrack && showIndex.has(snap.currentTrack.id) ? snap.currentTrack : null
   const crumbs: PageCrumb[] = [
-    ...(show ? [{ label: show.name, title: show.name, onClick: () => store.showPodcastShow(show.id) }] : []),
-    ...(current && (!show || showIndex.get(current.id) === show) ? [{ label: current.title, title: current.title, onClick: () => { const owner = showIndex.get(current.id); if (owner) store.showPodcastShow(owner.id) } }] : [])
+    ...(show ? [{ label: show.name, title: show.name, onClick: openShow(show.id) }] : []),
+    ...(current && (!show || showIndex.get(current.id) === show) ? [{ label: current.title, title: current.title, onClick: (event: React.MouseEvent) => { const owner = showIndex.get(current.id); if (owner) openShow(owner.id)(event) } }] : [])
   ]
-  const goHome = (): void => { store.setPageSearch(''); store.showPodcastHome() }
+  const goHome = (event: React.MouseEvent): void => navigateOrOpenTab(event, store, { kind: 'podcasts' }, () => { nav.setPageSearch(''); nav.showPodcastHome() })
   const results = q ? snap.episodes.filter(episode => episode.title.toLowerCase().includes(q) || (showIndex.get(episode.id)?.name ?? '').toLowerCase().includes(q)) : null
   const resume = continueListening(snap)
   const latest = [...snap.episodes].sort((a, b) => (b.addedAt ?? '').localeCompare(a.addedAt ?? '')).slice(0, 30)
@@ -446,7 +452,7 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
             <span className="count">{snap.shows.length}</span>
           </div>
           <div className="music-pl-grid">
-            {snap.shows.map(item => <ShowCard key={item.id} show={item} onOpen={() => store.showPodcastShow(item.id)} />)}
+            {snap.shows.map(item => <ShowCard key={item.id} show={item} onOpen={openShow(item.id)} />)}
           </div>
         </div>
         <div className="music-page-section">
@@ -474,7 +480,7 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
           homeLabel={uiText('music.podcast.home')}
           onHome={goHome}
           query={query}
-          onQuery={(value) => store.setPageSearch(value)}
+          onQuery={(value) => nav.setPageSearch(value)}
           placeholder={uiText('music.podcast.searchPage')}
         />
       </div>

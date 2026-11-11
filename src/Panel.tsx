@@ -23,6 +23,7 @@ import {
   Podcast
 } from './icons'
 import { PodcastPanelBody } from './PodcastViews'
+import { navigateOrOpenTab, onMiddleClick } from './pageNavigator'
 
 export const Cover: FC<{ trackId?: string; size?: number }> = ({ trackId, size = 32 }) => {
   const { store } = useMusic(false)
@@ -43,7 +44,7 @@ export const Cover: FC<{ trackId?: string; size?: number }> = ({ trackId, size =
 export const SongRow: FC<{
   track: Track
   onPlay: () => void
-  onOpen?: () => void
+  onOpen?: (event: React.MouseEvent) => void
   onMenu?: (e: React.MouseEvent, track: Track) => void
 }> = ({ track, onPlay, onOpen, onMenu }) => {
   const { store, snap } = useMusic(false)
@@ -56,6 +57,7 @@ export const SongRow: FC<{
       className={`music-row ${active ? 'active' : ''} ${onOpen ? 'nav' : ''}`}
       data-track-id={track.id}
       onClick={onOpen}
+      onAuxClick={onOpen ? onMiddleClick(onOpen) : undefined}
       onDoubleClick={onOpen ? undefined : onPlay}
       onContextMenu={onMenu ? (e) => onMenu(e, track) : undefined}
       role="button"
@@ -113,7 +115,7 @@ const PlaylistRow: FC<{
   count: number
   active: boolean
   coverPath: string | null
-  onOpen: () => void
+  onOpen: (event: React.MouseEvent) => void
   onPlay: () => void
   onMenu: (e: React.MouseEvent) => void
 }> = ({ name, count, active, coverPath, onOpen, onPlay, onMenu }) => {
@@ -124,6 +126,7 @@ const PlaylistRow: FC<{
     <div
       className={`music-row nav ${active ? 'active' : ''}`}
       onClick={onOpen}
+      onAuxClick={onMiddleClick(onOpen)}
       onContextMenu={onMenu}
       role="button"
       tabIndex={0}
@@ -176,21 +179,23 @@ const ArtistRow: FC<{
   count: number
   imageUrl: string | null
   trackId?: string
-  onOpen: () => void
+  active?: boolean
+  onOpen: (event: React.MouseEvent) => void
   onPlay: () => void
-}> = ({ artist, count, imageUrl: customImage, trackId, onOpen, onPlay }) => {
-  const { store } = useMusic(false)
+}> = ({ artist, count, imageUrl: customImage, trackId, active = false, onOpen, onPlay }) => {
+  const { store, snap } = useMusic(false)
   const { url, ref } = useMusicCover(store, customImage ? undefined : trackId)
   const imageUrl = customImage ?? url
   return (
-    <div ref={ref} className="music-row nav" onClick={onOpen} role="button" tabIndex={0}>
+    <div ref={ref} className="music-row nav" onClick={onOpen} onAuxClick={onMiddleClick(onOpen)} role="button" tabIndex={0}>
       <button
         className="music-row-play artist"
         title={uiText('auto.124eed498a01')}
         aria-label={uiText('auto.124eed498a01')}
         onClick={(e) => {
           e.stopPropagation()
-          onPlay()
+          if (active) store?.togglePlay()
+          else onPlay()
         }}
       >
         {imageUrl ? (
@@ -206,8 +211,15 @@ const ArtistRow: FC<{
             <User />
           </span>
         )}
+        {active && (
+          <span className={`music-row-wave artist ${snap.isPlaying ? '' : 'paused'}`}>
+            <span className="music-row-wave-bar" />
+            <span className="music-row-wave-bar" />
+            <span className="music-row-wave-bar" />
+          </span>
+        )}
         <span className="music-row-playicon">
-          <Play />
+          {active && snap.isPlaying ? <Pause /> : <Play />}
         </span>
       </button>
       <div className="music-row-meta">
@@ -306,7 +318,8 @@ export const Panel: FC = () => {
         count={list.length}
         imageUrl={imageUrl}
         trackId={list[0]?.id}
-        onOpen={() => store.showArtist(a.id)}
+        active={!!snap.currentTrack && list.some(track => track.id === snap.currentTrack!.id)}
+        onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'artist', id: a.id }, () => store.showArtist(a.id))}
         onPlay={() => list.length && store.playQueue(list, 0, null)}
       />
     )
@@ -321,7 +334,7 @@ export const Panel: FC = () => {
         count={list.length}
         active={currentPlaylistId === pl.id}
         coverPath={playlistCovers[pl.id] ?? null}
-        onOpen={() => store.showPlaylist(pl.id)}
+        onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'playlist', id: pl.id }, () => store.showPlaylist(pl.id))}
         onPlay={() => list.length && store.playQueue(list, 0, pl.id)}
         onMenu={(e) => openPlaylistMenu(e, pl.id)}
       />
@@ -431,7 +444,7 @@ export const Panel: FC = () => {
                         <SongRow
                           key={track.id}
                           track={track}
-                          onOpen={() => store.revealSong(track.id)}
+                          onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'song', id: track.id }, () => store.revealSong(track.id))}
                           onPlay={() => store.playQueue(songResults, i, null)}
                           onMenu={openSongMenu}
                         />
@@ -454,7 +467,7 @@ export const Panel: FC = () => {
                     <SongRow
                       key={track.id}
                       track={track}
-                      onOpen={() => store.revealSong(track.id)}
+                      onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'song', id: track.id }, () => store.revealSong(track.id))}
                       onPlay={() => store.playQueue(tracks, i, null)}
                       onMenu={openSongMenu}
                     />
@@ -476,7 +489,7 @@ export const Panel: FC = () => {
                       <SongRow
                         key={track.id}
                         track={track}
-                        onOpen={() => store.revealSong(track.id)}
+                        onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'song', id: track.id }, () => store.revealSong(track.id))}
                         onPlay={() => store.playQueue(favoriteTracks, i, null)}
                         onMenu={openSongMenu}
                       />

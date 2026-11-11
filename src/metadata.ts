@@ -63,7 +63,7 @@ export function musicMetadataProvider(
     id: 'music.metadata',
     labelKey: 'plugin.music.name',
     label: 'Music',
-    icon: 'music',
+    icon: 'headphones',
     facts: () => musicFacts(readSnapshot())
   }
 }

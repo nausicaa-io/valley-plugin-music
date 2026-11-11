@@ -110,3 +110,39 @@ export function readProgress(value: unknown): Record<string, EpisodeProgress> {
   }
   return result
 }
+
+/** A listener-marked point in an episode: where it is and an optional short label. */
+export interface EpisodeMoment {
+  at: number
+  label: string
+}
+
+export const MOMENT_LIMIT = 100
+export const MOMENT_LABEL_LIMIT = 120
+export const PODCAST_RATES = [0.75, 1, 1.25, 1.5, 1.75, 2] as const
+
+export function readMoments(value: unknown): Record<string, EpisodeMoment[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const result: Record<string, EpisodeMoment[]> = {}
+  for (const [id, list] of Object.entries(value as Record<string, unknown>)) {
+    if (!Array.isArray(list)) continue
+    const moments = list
+      .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object')
+      .filter(entry => typeof entry.at === 'number' && Number.isFinite(entry.at) && entry.at >= 0)
+      .map(entry => ({ at: entry.at as number, label: typeof entry.label === 'string' ? entry.label.slice(0, MOMENT_LABEL_LIMIT) : '' }))
+      .sort((a, b) => a.at - b.at)
+      .slice(0, MOMENT_LIMIT)
+    if (moments.length) result[id] = moments
+  }
+  return result
+}
+
+export function readPodcastRate(value: unknown): number {
+  return typeof value === 'number' && (PODCAST_RATES as readonly number[]).includes(value) ? value : 1
+}
+
+/** The next speed in the cycle, wrapping back to the slowest. */
+export function nextPodcastRate(rate: number): number {
+  const index = (PODCAST_RATES as readonly number[]).indexOf(rate)
+  return PODCAST_RATES[(index + 1) % PODCAST_RATES.length]
+}

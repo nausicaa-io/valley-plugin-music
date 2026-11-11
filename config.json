@@ -385,6 +385,28 @@
         "description": "Owner-managed listening positions per episode."
       },
       {
+        "key": "podcastMoments",
+        "label": "Podcast key moments",
+        "type": "custom",
+        "settingsVisible": false,
+        "schema": {
+          "type": "object"
+        },
+        "description": "Owner-managed key moments marked per episode."
+      },
+      {
+        "key": "podcastRate",
+        "label": "Podcast playback speed",
+        "type": "custom",
+        "settingsVisible": false,
+        "schema": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 3
+        },
+        "default": 1
+      },
+      {
         "key": "breadcrumbMode",
         "label": "Breadcrumb display",
         "type": "custom",

@@ -3,6 +3,7 @@ import { useMusic } from './hooks'
 import type { Track } from './types'
 import { Copy, Pencil, ValleyIcon, FolderOpen, ListMusic, ListPlus, PanelLeftOpen, Pause, Play, Plus, Shuffle, Trash } from './icons'
 import { SongEditor } from './SongEditor'
+import { isEpisode } from './podcasts'
 import { uiText } from './localization'
 
 export function useSongMenu(onRemove?: (track: Track) => void): {
@@ -45,11 +46,13 @@ export function useSongMenu(onRemove?: (track: Track) => void): {
         ]
       },
       { type: 'separator' },
-      { label: uiText('music.edit.title'), icon: <Pencil />, onSelect: () => setEditing(track) },
+      { label: uiText(isEpisode(track, snap.podcastPath) ? 'music.edit.episodeTitle' : 'music.edit.title'), icon: <Pencil />, onSelect: () => setEditing(track) },
       {
         label: uiText('auto.7a00342a5213'),
         icon: <ValleyIcon />,
-        onSelect: () => api.workspace.openFile(track.file)
+        onSelect: (context?: { newTab?: boolean }) => (context?.newTab
+          ? api.workspace.openFile(track.file, undefined, { newTab: true })
+          : api.workspace.openFile(track.file))
       },
       { label: api.files.revealLabel(), icon: <FolderOpen />, onSelect: () => api.files.revealInFinder(track.file) },
       { label: uiText('music.menu.showInFiles'), icon: <PanelLeftOpen />, onSelect: () => api.workspace.revealInFiles(track.file) },

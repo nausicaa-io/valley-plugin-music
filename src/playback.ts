@@ -24,7 +24,7 @@ export interface MusicPlaybackSnapshot {
 export type MusicPlaybackAction =
   | { type: 'start'; ids: string[]; index: number; playlistId?: string | null; shuffle?: boolean; position?: number }
   | { type: 'resume' | 'toggle' | 'pause' | 'next' | 'previous' | 'clear' | 'stop' | 'eject' | 'repeat' | 'shuffle' | 'flush' }
-  | { type: 'seek' | 'volume'; value: number }
+  | { type: 'seek' | 'volume' | 'rate'; value: number }
   | { type: 'add'; ids: string[]; where: 'next' | 'end' }
   | { type: 'remove' | 'playQueued'; index: number }
   | { type: 'reorder'; from: number; to: number }
@@ -50,6 +50,7 @@ export function parsePlaybackAction(value: unknown): MusicPlaybackAction {
     && (action.shuffle === undefined || typeof action.shuffle === 'boolean')
     && (action.position === undefined || typeof action.position === 'number' && Number.isFinite(action.position) && action.position >= 0)) return action as MusicPlaybackAction
   if ((action.type === 'seek' || action.type === 'volume') && finite() && (action.type !== 'volume' || Number(action.value) <= 1)) return action as MusicPlaybackAction
+  if (action.type === 'rate' && finite() && Number(action.value) >= 0.5 && Number(action.value) <= 3) return action as MusicPlaybackAction
   if (action.type === 'add' && ids() && (action.where === 'next' || action.where === 'end')) return action as MusicPlaybackAction
   if ((action.type === 'remove' || action.type === 'playQueued') && index('index')) return action as MusicPlaybackAction
   if (action.type === 'reorder' && index('from') && index('to')) return action as MusicPlaybackAction

@@ -300,6 +300,15 @@ describe('persistent Music queue', () => {
     await f.backend.dispose()
   })
 
+  it('sets the playback rate on the loaded source and rejects out-of-range rates', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern'], index: 0 })
+    await f.backend.dispatch({ type: 'rate', value: 1.5 })
+    expect(f.player.setRate).toHaveBeenCalledWith(1.5)
+    for (const value of [0.25, 4, Infinity]) expect(() => parsePlaybackAction({ type: 'rate', value })).toThrow('Invalid')
+    await f.backend.dispose()
+  })
+
   it('rejects malformed action payloads', () => {
     for (const action of [{ type: 'seek', value: Infinity }, { type: 'volume', value: 2 }, { type: 'start', ids: ['fern'], index: -1 }, { type: 'reorder', from: 0.5, to: 1 }, { type: 'add', ids: [5], where: 'next' }]) expect(() => parsePlaybackAction(action)).toThrow('Invalid')
   })

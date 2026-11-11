@@ -320,6 +320,7 @@ export class MusicPlayback {
           break
         case 'seek': await this.receipt(player.seek(action.value), player); break
         case 'volume': await this.receipt(player.setVolume(action.value), player); break
+        case 'rate': if (this.media) await this.receipt(player.setRate(action.value), player); break
         case 'add': this.queue.splice(action.where === 'next' ? base : this.queue.length, 0, ...requested); break
         case 'remove': if (action.index >= 0) this.queue.splice(base + action.index, 1); break
         case 'reorder': {

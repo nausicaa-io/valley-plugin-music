@@ -7,10 +7,12 @@ import { ArtistLinks } from './ArtistLinks'
 import { usePlaylistMenu, useSongMenu } from './SongMenu'
 import { baseName, formatTime, resolveCoverPath, searchTracks } from './data'
 import { Cover, SongRow } from './Panel'
-import type { Playlist, Track } from './types'
+import type { Artist, Playlist, Track } from './types'
+import { tracksForArtist } from './artists'
 import { PodcastPage } from './PodcastViews'
 import { PageHeader } from './PageHeader'
 import { musicCount, uiText } from './localization'
+import { PageNavigatorProvider, navStateTitle, navigateOrOpenTab, onMiddleClick, pinnedNavigator, usePageNavState, usePageNavigator, type PageNavigator } from './pageNavigator'
 import {
   ChevronLeft,
   Clock,
@@ -171,6 +173,8 @@ const EqBadge: FC<{ playing: boolean }> = ({ playing }) => (
   </span>
 )
 
+const ARTIST_BARS = [38, 66, 100, 74, 100, 66, 38]
+
 const PlaylistArt: FC<{ coverPath: string | null; className: string; emptyClassName: string }> = ({
   coverPath,
   className,
@@ -190,7 +194,7 @@ const PlaylistCard: FC<{
   coverPath: string | null
   active: boolean
   playing: boolean
-  onOpen: () => void
+  onOpen: (event: React.MouseEvent) => void
   onPlay: () => void
   onToggle: () => void
   onMenu: (e: React.MouseEvent, playlistId: string) => void
@@ -200,6 +204,7 @@ const PlaylistCard: FC<{
     role="button"
     tabIndex={0}
     onClick={onOpen}
+    onAuxClick={onMiddleClick(onOpen)}
     onContextMenu={(e) => onMenu(e, pl.id)}
   >
     <div className="music-pl-card-art">
@@ -268,6 +273,51 @@ const TrackCard: FC<{
       </span>
       <span className="music-track-card-title">{track.title}</span>
       <span className="music-track-card-sub">{sub ?? <ArtistLinks track={track} />}</span>
+    </div>
+  )
+}
+
+/** One artist on the Music home shelf: round avatar, name and song count; the avatar plays, the rest opens. */
+const ArtistCard: FC<{ artist: Artist; tracks: Track[]; onOpen: (event: React.MouseEvent) => void }> = ({ artist, tracks, onOpen }) => {
+  const { store, snap } = useMusic(false)
+  const imagePath = resolveCoverPath(store?.getIndexEntries() ?? [], artist.image)
+  const { url, ref } = useMusicCover(store, imagePath ? undefined : tracks[0]?.id)
+  const src = imagePath ? assetUrlForRelPath(imagePath) : url
+  const active = !!snap.currentTrack && tracks.some(track => track.id === snap.currentTrack!.id)
+  const label = active && snap.isPlaying ? uiText('auto.781961bc81c2') : uiText('auto.124eed498a01')
+  return (
+    <div ref={ref} className={`music-artist-card ${active ? 'active' : ''}`} role="button" tabIndex={0} onClick={onOpen} onAuxClick={onMiddleClick(onOpen)}>
+      <span className="music-artist-card-art">
+        <User />
+        {src && <img src={src} alt="" loading="lazy" />}
+        {active ? (
+          <button
+            className={`music-artist-card-eq ${snap.isPlaying ? '' : 'paused'}`}
+            title={label}
+            aria-label={label}
+            onClick={(e) => {
+              e.stopPropagation()
+              store?.togglePlay()
+            }}
+          >
+            {ARTIST_BARS.map((height, index) => <span key={index} style={{ '--bar-height': `${height}%`, '--bar-index': index } as React.CSSProperties} />)}
+          </button>
+        ) : (
+          <button
+            className="music-pl-card-play"
+            title={label}
+            aria-label={label}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (store && tracks.length) store.playQueue(tracks, 0, null)
+            }}
+          >
+            <Play />
+          </button>
+        )}
+      </span>
+      <span className="music-track-card-title">{artist.name}</span>
+      <span className="music-track-card-sub">{musicCount(tracks.length, 'song')}</span>
     </div>
   )
 }
@@ -798,21 +848,55 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
   )
 }
 
-/** The full library page (`music.page`, main workspace) in the selected library mode. */
+/**
+ * The full library page (`music.page`, main workspace) in the selected library mode.
+ * A tab opened with ⌘-click carries its destination as `instanceId` and keeps its
+ * own page state; the main tab (no instance id) follows the store's global page.
+ */
 export const Page: FC<MainWorkspaceViewProps> = (props) => {
-  const { snap } = useMusic(false)
+  const { store, snap } = useMusic(false)
+  const pinned = React.useMemo(() => (store ? pinnedNavigator(store, props.instanceId) : null), [store, props.instanceId])
+  const podcast = snap.libraryMode === 'podcast'
+  React.useEffect(() => {
+    if (pinned) return
+    api.workspace.setMainTabTitle(podcast ? uiText('music.podcast.tabTitle') : null, props.instanceId)
+  }, [pinned, podcast, props.instanceId])
+  if (pinned) return <PinnedPage {...props} navigator={pinned} />
   return snap.libraryMode === 'podcast' ? <PodcastPage {...props} /> : <MusicPage {...props} />
+}
+
+const PinnedPage: FC<MainWorkspaceViewProps & { navigator: PageNavigator }> = ({ navigator, ...props }) => {
+  const { snap } = useMusic(false)
+  const state = usePageNavState(navigator)
+  const library = navigator.library ?? 'music'
+  const title = snap.loading ? null : navStateTitle(snap, library, state)
+  React.useEffect(() => {
+    if (title && navigator.instanceId) api.workspace.setMainTabTitle(title, navigator.instanceId)
+  }, [navigator, title])
+  // Its destination resolves against the library; showing it before that would flash "not found".
+  if (snap.loading) return null
+  return (
+    <PageNavigatorProvider navigator={navigator}>
+      {library === 'podcast' ? <PodcastPage {...props} /> : <MusicPage {...props} />}
+    </PageNavigatorProvider>
+  )
 }
 
 const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const { store, snap } = useMusic(false)
+  const nav = usePageNavigator(store)
+  const navState = usePageNavState(nav)
   const { openSongMenu, songEditor } = useSongMenu()
   const { openPlaylistMenu } = usePlaylistMenu()
   const [creating, setCreating] = React.useState(false)
   const [newName, setNewName] = React.useState('')
   const newRef = React.useRef<HTMLInputElement>(null)
   const scrollRef = React.useRef<HTMLDivElement>(null)
-  const { pageView, pageViewNonce } = snap
+  const { pageView, pageViewNonce } = navState
+  const homeArtists = React.useMemo(() => snap.artists
+    .map(artist => ({ artist, tracks: tracksForArtist(snap.tracks, artist) }))
+    .filter(entry => entry.tracks.length > 0)
+    .sort((a, b) => b.tracks.length - a.tracks.length || a.artist.name.localeCompare(b.artist.name)), [snap.artists, snap.tracks])
   const breadcrumbMode = React.useSyncExternalStore(
     React.useCallback(listener => api.settings.subscribe(listener), []),
     () => api.settings.get().breadcrumbMode === 'file' ? 'file' : 'playlist'
@@ -820,15 +904,15 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const [pathError, setPathError] = React.useState(false)
 
   React.useEffect(() => {
-    if (!store) return
+    if (!nav) return
     navigation.setController({
-      canGoBack: snap.canGoBack,
-      canGoForward: snap.canGoForward,
-      goBack: () => store.goPageBack(),
-      goForward: () => store.goPageForward()
+      canGoBack: navState.canGoBack,
+      canGoForward: navState.canGoForward,
+      goBack: () => nav.goPageHistory(-1),
+      goForward: () => nav.goPageHistory(1)
     })
     return () => navigation.setController(null)
-  }, [navigation, snap.canGoBack, snap.canGoForward, store])
+  }, [navigation, navState.canGoBack, navState.canGoForward, nav])
 
   React.useEffect(() => {
     if (creating) newRef.current?.focus()
@@ -862,11 +946,11 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
     setNewName('')
     if (!name) return
     const id = await store?.createPlaylist(name)
-    if (id) store?.showPlaylist(id)
+    if (id) nav?.showPlaylist(id)
   }
 
-  const query = snap.pageSearch
-  const setQuery = (value: string): void => store?.setPageSearch(value)
+  const query = navState.pageSearch
+  const setQuery = (value: string): void => nav?.setPageSearch(value)
   const q = query.trim().toLowerCase()
   const searchResults = React.useMemo(() => q ? searchTracks(snap.tracks, q, true) : null, [q, snap.tracks])
 
@@ -876,16 +960,16 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const playlistId = pageView.mode === 'playlist' ? pageView.id : null
   const playlist = snap.playlists.find(item => item.id === playlistId)
   const artist = pageView.mode === 'artist' ? snap.artists.find(item => item.id === pageView.id) : null
-  if (!store) return null
+  if (!store || !nav) return null
 
   const filePath = song?.file ?? store.musicPath()
   const fileParts = filePath.split('/').filter(Boolean)
   const crumbs = pageView.mode === 'home' && !song ? [] : breadcrumbMode === 'file'
-    ? fileParts.map((label, index) => ({ label, title: fileParts.slice(0, index + 1).join('/'), onClick: () => api.workspace.revealInFiles(fileParts.slice(0, index + 1).join('/')) }))
+    ? fileParts.map((label, index) => ({ label, title: fileParts.slice(0, index + 1).join('/'), onClick: (e: React.MouseEvent) => { if (e.button !== 1) api.workspace.revealInFiles(fileParts.slice(0, index + 1).join('/')) } }))
     : [
-        ...(playlist ? [{ label: playlist.name, title: playlist.name, onClick: () => store.showPlaylist(playlist.id) }] : artist ? [{ label: artist.name, title: artist.name, onClick: () => store.showArtist(artist.id) }] : []),
-        ...(song ? [{ label: song.title, title: song.title, onClick: () => store.revealSong(song.id) }] : []),
-        ...(!playlist && !artist && !song ? [{ label: uiText('plugin.music.name'), title: uiText('plugin.music.name'), onClick: () => store.showHome() }] : [])
+        ...(playlist ? [{ label: playlist.name, title: playlist.name, onClick: (e: React.MouseEvent) => navigateOrOpenTab(e, store, { kind: 'playlist', id: playlist.id }, () => nav.showPlaylist(playlist.id)) }] : artist ? [{ label: artist.name, title: artist.name, onClick: (e: React.MouseEvent) => navigateOrOpenTab(e, store, { kind: 'artist', id: artist.id }, () => nav.showArtist(artist.id)) }] : []),
+        ...(song ? [{ label: song.title, title: song.title, onClick: (e: React.MouseEvent) => navigateOrOpenTab(e, store, { kind: 'song', id: song.id }, () => nav.revealSong(song.id)) }] : []),
+        ...(!playlist && !artist && !song ? [{ label: uiText('plugin.music.name'), title: uiText('plugin.music.name'), onClick: (e: React.MouseEvent) => navigateOrOpenTab(e, store, { kind: 'home' }, () => nav.showHome()) }] : [])
       ]
   const showPathMenu = (event: React.MouseEvent): void => {
     event.preventDefault()
@@ -910,7 +994,7 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
         <PageHeader
           crumbs={crumbs}
           homeLabel={uiText('auto.315fed0ac88a')}
-          onHome={() => { setQuery(''); store.showHome() }}
+          onHome={(e) => navigateOrOpenTab(e, store, { kind: 'home' }, () => { setQuery(''); nav.showHome() })}
           query={query}
           onQuery={setQuery}
           placeholder={uiText('auto.8d563eb9d8b9')}
@@ -944,9 +1028,9 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
           </div>
         </div>
       ) : pageView.mode === 'playlist' ? (
-        <PlaylistDetail playlistId={pageView.id} onBack={() => store.showHome()} />
+        <PlaylistDetail playlistId={pageView.id} onBack={() => nav.showHome()} />
       ) : pageView.mode === 'artist' ? (
-        <ArtistDetail artistId={pageView.id} onBack={() => store.showHome()} />
+        <ArtistDetail artistId={pageView.id} onBack={() => nav.showHome()} />
       ) : (
         <div className="music-page-body">
           <div className="music-page-section">
@@ -964,7 +1048,7 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
                   coverPath={snap.playlistCovers[pl.id] ?? null}
                   active={snap.currentPlaylistId === pl.id}
                   playing={snap.currentPlaylistId === pl.id && snap.isPlaying}
-                  onOpen={() => store.showPlaylist(pl.id)}
+                  onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'playlist', id: pl.id }, () => nav.showPlaylist(pl.id))}
                   onPlay={() => {
                     const list = snap.playlistTracks[pl.id] ?? []
                     if (list.length) store.playQueue(list, 0, pl.id)
@@ -1003,6 +1087,26 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
               )}
             </div>
           </div>
+
+          {homeArtists.length > 0 && (
+            <div className="music-page-section">
+              <div className="music-page-section-head">
+                <User />
+                <h2>{uiText('music.page.artists')}</h2>
+                <span className="count">{homeArtists.length}</span>
+              </div>
+              <div className="music-shelf music-artist-shelf hidescrollbar">
+                {homeArtists.map(({ artist: item, tracks: credited }) => (
+                  <ArtistCard
+                    key={item.id}
+                    artist={item}
+                    tracks={credited}
+                    onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'artist', id: item.id }, () => nav.showArtist(item.id))}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {snap.recentlyPlayed.length > 0 && (
             <div className="music-page-section">
