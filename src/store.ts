@@ -119,12 +119,13 @@ export interface MusicLinkState extends Record<string, unknown> {
   searchQuery: string
 }
 
-export type MusicPanelSection = 'songs' | 'favorites' | 'playlists'
+export type MusicPanelSection = 'songs' | 'favorites' | 'playlists' | 'artists'
 
 const DEFAULT_LEFT_SECTIONS: Record<MusicPanelSection, boolean> = {
   songs: false,
   favorites: false,
-  playlists: true
+  playlists: true,
+  artists: true
 }
 
 /** Library projections retain their identity during playback, queue, and view changes. */
@@ -880,6 +881,8 @@ export class MusicStore {
     if (this.disposed || this.libraryError || this.synced || this.index.getSnapshot().status !== 'ready') return
     void this.syncLibrary().catch(error => {
       if (this.disposed) return
+      // A library that loaded stays on screen; Rescan reports its own failure.
+      if (this.tracks.length) { console.warn('[music] library scan failed', error); return }
       this.libraryError = error instanceof Error ? error.message : String(error)
       this.emit()
     })
@@ -987,9 +990,9 @@ export class MusicStore {
     return this.trackById.get(trackId)?.file ?? null
   }
 
-  subscribeCover(trackId: string, listener: () => void): () => void {
+  subscribeCover(trackId: string, listener: () => void, priority = false): () => void {
     const file = this.coverFile(trackId)
-    return file ? this.metadata.acquire(file, listener) : () => {}
+    return file ? this.metadata.acquire(file, listener, priority) : () => {}
   }
 
   private updatePlaybackCover(): void {
@@ -1231,7 +1234,8 @@ export class MusicStore {
     this.leftPanelSections = {
       songs: typeof sections.songs === 'boolean' ? sections.songs : DEFAULT_LEFT_SECTIONS.songs,
       favorites: typeof sections.favorites === 'boolean' ? sections.favorites : DEFAULT_LEFT_SECTIONS.favorites,
-      playlists: typeof sections.playlists === 'boolean' ? sections.playlists : DEFAULT_LEFT_SECTIONS.playlists
+      playlists: typeof sections.playlists === 'boolean' ? sections.playlists : DEFAULT_LEFT_SECTIONS.playlists,
+      artists: typeof sections.artists === 'boolean' ? sections.artists : DEFAULT_LEFT_SECTIONS.artists
     }
     this.emitView()
     this.emitViewState()

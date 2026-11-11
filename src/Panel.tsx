@@ -68,7 +68,6 @@ export const SongRow: FC<{
         onClick={(e) => {
           e.stopPropagation()
           onAction()
-          onOpen?.()
         }}
       >
         <Cover trackId={track.id} />
@@ -136,7 +135,6 @@ const PlaylistRow: FC<{
         onClick={(e) => {
           e.stopPropagation()
           onAction()
-          onOpen()
         }}
       >
         {coverPath ? (
@@ -171,7 +169,7 @@ const PlaylistRow: FC<{
   )
 }
 
-/** An artist search result: round avatar plays everything credited to them,
+/** An artist row: round avatar plays everything credited to them,
  *  the rest of the row opens the artist page. */
 const ArtistRow: FC<{
   artist: Artist
@@ -193,7 +191,6 @@ const ArtistRow: FC<{
         onClick={(e) => {
           e.stopPropagation()
           onPlay()
-          onOpen()
         }}
       >
         {imageUrl ? (
@@ -267,6 +264,12 @@ export const Panel: FC = () => {
   const [newPlName, setNewPlName] = React.useState('')
   const newPlRef = React.useRef<HTMLInputElement>(null)
   const query = snap.leftPanelSearch
+  const libraryArtists = React.useMemo(
+    () => artists
+      .filter((artist) => tracksForArtist(tracks, artist).length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [artists, tracks]
+  )
 
   React.useEffect(() => {
     if (addingPlaylist) newPlRef.current?.focus()
@@ -513,6 +516,19 @@ export const Panel: FC = () => {
                     playlists.map(renderPlaylist)
                   )}
                 </Section>
+
+                {libraryArtists.length > 0 && (
+                  <Section
+                    id="artists"
+                    title={uiText('auto.1528d87e634e')}
+                    icon={<User />}
+                    count={libraryArtists.length}
+                    open={snap.leftPanelSections.artists}
+                    onOpenChange={(open) => store.setLeftPanelSection('artists', open)}
+                  >
+                    {libraryArtists.map(renderArtist)}
+                  </Section>
+                )}
               </>
             )}
           </>

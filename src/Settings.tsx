@@ -1,13 +1,11 @@
 import { React, api } from './runtime'
-import type { FC } from 'react'
-import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
+import type { FC, ReactNode } from 'react'
+import { fileExtension } from '@valley/plugin-sdk/fileTypes'
 import type { PluginIndexEntry } from '@valley/plugin-sdk'
-import { mediaFilesInFolder } from './data'
+import { MEDIA_EXTENSIONS, mediaFilesInFolder } from './data'
 import { normalizeMusicPath } from './store'
 import { useMusic, useMusicIndex } from './hooks'
 import { uiText } from './localization'
-
-const MEDIA_EXTENSIONS = new Set<string>([...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS])
 
 function parentFolders(path: string): string[] {
   const parts = path.split('/')
@@ -54,18 +52,28 @@ function folderStatus(entries: readonly PluginIndexEntry[], draft: string): { in
   return { invalid, empty: Boolean(normalized) && count === 0, warning: invalid || (!folderKnown && entries.length > 0), count, status }
 }
 
-/** A realm folder row; problems show beside it, the media count wherever the caller puts it. */
+function folderDescription(text: string, folder: { count: number; status: string }, rescanMessage: string): ReactNode {
+  return <>
+    {text}
+    {folder.count > 0 && <> <span className="music-settings-positive">{folder.status}</span></>}
+    {rescanMessage && ` ${rescanMessage}`}
+  </>
+}
+
+/** A realm folder and its Rescan on one line; problems show beside it, the media count in the description. */
 const FolderRow: FC<{
   value: string
   draft: string
   setDraft: (value: string) => void
   title: string
-  description: string
+  description: ReactNode
   saveError: string
   save: (path: string) => Promise<boolean>
   entries: readonly PluginIndexEntry[]
   disabled: boolean
-}> = ({ value, draft, setDraft, title, description, saveError, save, entries, disabled }) => {
+  rescanDisabled: boolean
+  onRescan: () => void
+}> = ({ value, draft, setDraft, title, description, saveError, save, entries, disabled, rescanDisabled, onRescan }) => {
   const [message, setMessage] = React.useState('')
   const { invalid, empty, warning, status } = folderStatus(entries, draft)
 
@@ -80,7 +88,7 @@ const FolderRow: FC<{
     }
   }
 
-  const { Row, RealmFolderField } = api.ui.settings
+  const { Row, RealmFolderField, Button } = api.ui.settings
   return (
     <Row
       title={title}
@@ -89,21 +97,26 @@ const FolderRow: FC<{
         <span className={`settings-toggle-desc ${warning ? 'music-settings-warning' : ''}`}>{status}</span>
       : undefined}
     >
-      <RealmFolderField
-        value={draft}
-        onChange={(v) => {
-          setDraft(v)
-          setMessage('')
-        }}
-        onCommit={(v) => {
-          setDraft(v)
-          void commit(v)
-        }}
-        requireValidCommit
-        ariaLabel={title}
-        className={`settings-path-input music-settings-input${invalid ? ' invalid' : ''}`}
-        help={message || undefined}
-      />
+      <div className="settings-row-control music-folder-control">
+        <RealmFolderField
+          value={draft}
+          onChange={(v) => {
+            setDraft(v)
+            setMessage('')
+          }}
+          onCommit={(v) => {
+            setDraft(v)
+            void commit(v)
+          }}
+          requireValidCommit
+          ariaLabel={title}
+          className={`settings-path-input music-settings-input${invalid ? ' invalid' : ''}`}
+          help={message || undefined}
+        />
+        <Button disabled={rescanDisabled} onClick={onRescan} aria-label={uiText('auto.42f9f14387b1')} title={uiText('music.settings.rescanDesc')}>
+          {uiText('auto.84661f6a90cc')}
+        </Button>
+      </div>
     </Row>
   )
 }
@@ -138,7 +151,8 @@ export const Settings: FC = () => {
     } finally { setSaving(false) }
   }
 
-  const { Section, Row, Button } = api.ui.settings
+  const { Section } = api.ui.settings
+  const rescanDisabled = !store || saving || (!snap.musicPath && !snap.podcastPath)
 
   return (
     <>
@@ -148,20 +162,14 @@ export const Settings: FC = () => {
           draft={musicDraft}
           setDraft={setMusicDraft}
           title={uiText('auto.a71420a4b1e3')}
-          description={uiText('auto.a09fad4110cb')}
+          description={folderDescription(uiText('auto.a09fad4110cb'), music, rescanMessage)}
           saveError={uiText('auto.824057036236')}
           save={async (path) => Boolean(store && await store.setMusicPath(path))}
           entries={entries}
           disabled={!store}
+          rescanDisabled={rescanDisabled}
+          onRescan={() => void rescan()}
         />
-        <Row
-          title={uiText('auto.42f9f14387b1')}
-          description={[uiText('music.settings.rescanDesc'), music.count > 0 ? music.status : '', rescanMessage].filter(Boolean).join(' ')}
-        >
-          <Button disabled={!store || saving || (!snap.musicPath && !snap.podcastPath)} onClick={() => void rescan()}>
-            {uiText('auto.84661f6a90cc')}
-          </Button>
-        </Row>
       </Section>
       <Section className="music-settings" title={uiText('music.podcasts')}>
         <FolderRow
@@ -169,11 +177,13 @@ export const Settings: FC = () => {
           draft={podcastDraft}
           setDraft={setPodcastDraft}
           title={uiText('music.settings.podcastFolder')}
-          description={[uiText('music.settings.podcastFolderDesc'), podcasts.count > 0 ? podcasts.status : ''].filter(Boolean).join(' ')}
+          description={folderDescription(uiText('music.settings.podcastFolderDesc'), podcasts, rescanMessage)}
           saveError={uiText('music.settings.podcastSaveError')}
           save={async (path) => Boolean(store && await store.setPodcastPath(path))}
           entries={entries}
           disabled={!store}
+          rescanDisabled={rescanDisabled}
+          onRescan={() => void rescan()}
         />
       </Section>
     </>

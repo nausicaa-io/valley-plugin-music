@@ -1,7 +1,7 @@
 import { React } from './runtime'
 import type { FC } from 'react'
 import { uiText } from './localization'
-import { Search, X } from './icons'
+import { Home, Search, X } from './icons'
 
 export interface PageCrumb {
   label: string
@@ -10,9 +10,9 @@ export interface PageCrumb {
 }
 
 /**
- * The page's single header row: host back/forward on the left, the centered
- * breadcrumb (its leading `/` is Home) and a search button beside the host menu.
- * Search expands in place of the breadcrumb and folds back once it is empty and
+ * The page's single header row: host back/forward and a Home button on the left,
+ * the centered breadcrumb (its leading `/` is Home too) and a search button beside
+ * the host menu. Search spans the row in place of the breadcrumb and folds back once it is empty and
  * loses focus, so browsing never pays for a second toolbar row.
  */
 export const PageHeader: FC<{
@@ -52,6 +52,9 @@ export const PageHeader: FC<{
 
   return (
     <nav className={`music-breadcrumbs${searching ? ' searching' : ''}`} aria-label={uiText('music.header.location')} onContextMenu={searching ? undefined : onContextMenu}>
+      <button className="music-header-btn music-header-home" title={homeLabel} aria-label={homeLabel} onClick={() => { setOpen(false); onHome() }}>
+        <Home />
+      </button>
       {searching ? (
         <div className="music-header-search search-field">
           <Search className="search-field-icon" />

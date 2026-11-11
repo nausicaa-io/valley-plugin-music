@@ -1,15 +1,16 @@
-import { VIDEO_EXTENSIONS, assetUrlForRelPath, fileExtension } from '@valley/plugin-sdk/fileTypes'
+import { assetUrlForRelPath } from '@valley/plugin-sdk/fileTypes'
 import { visibleTimer } from './visibleTimer'
 import { api, React } from './runtime'
 import type { FC } from 'react'
 import { useMusic, useMusicCover } from './hooks'
 import { useSongMenu } from './SongMenu'
 import { ArtistLinks } from './ArtistLinks'
-import { formatTime } from './data'
+import { formatTime, isVideoFile } from './data'
 import type { Track } from './types'
 import { uiText } from './localization'
 import { playbackPosition } from './playback'
 import { isEpisode, showFolder } from './podcasts'
+import type { MusicSnapshot } from './store'
 import {
   ChevronDown,
   ChevronRight,
@@ -77,8 +78,67 @@ function useScrubber(seek: (value: number) => Promise<unknown>): {
   return { value, change, grab, release }
 }
 
+const CLOCK_INTERVAL_MS = 250
+
+/** Where playback is right now, extrapolated from the last sample. */
+function livePosition(snap: MusicSnapshot, total: number): number {
+  return playbackPosition({ position: snap.currentTime, duration: total, rate: snap.playbackRate, playing: snap.isPlaying, buffering: snap.buffering, sampleAgeMs: snap.playbackSampleAge }, snap.playbackSampledAt)
+}
+
+/** The only part of the player that follows the clock, so the queue and history below it do not re-render with every tick. */
+const PlayerScrub: FC<{ fallbackDuration: number }> = ({ fallbackDuration }) => {
+  const { store, snap } = useMusic()
+  const { isPlaying, buffering } = snap
+  const total = snap.duration || fallbackDuration
+  const rootRef = React.useRef<HTMLDivElement>(null)
+  const [, updateClock] = React.useState(0)
+  React.useEffect(() => {
+    if (!isPlaying || buffering) return
+    return visibleTimer(rootRef.current?.ownerDocument ?? document, () => updateClock(value => value + 1), CLOCK_INTERVAL_MS)
+  }, [isPlaying, buffering])
+  const scrubber = useScrubber(value => store?.seek(value) ?? Promise.resolve())
+  const shownTime = scrubber.value ?? livePosition(snap, total)
+  const played = total > 0 ? (Math.min(shownTime, total) / total) * 100 : 0
+  return (
+    <div ref={rootRef} className="player-scrub">
+      <input
+        type="range"
+        min={0}
+        max={total || 1}
+        step={0.5}
+        value={Math.min(shownTime, total || 0)}
+        onPointerDown={scrubber.grab}
+        onPointerUp={scrubber.release}
+        onPointerCancel={scrubber.release}
+        onLostPointerCapture={scrubber.release}
+        onBlur={scrubber.release}
+        onChange={(e) => scrubber.change(Number(e.target.value))}
+        style={{ '--played': `${played}%` } as React.CSSProperties}
+      />
+      <div className="player-times">
+        <span>{formatTime(shownTime)}</span>
+        <span>{formatTime(total)}</span>
+      </div>
+    </div>
+  )
+}
+
+const PlayerPlayButton: FC = () => {
+  const { store, snap } = useMusic()
+  return (
+    <button
+      className={`player-playbtn ${snap.buffering ? 'loading' : ''}`}
+      title={uiText('auto.ebb1e1e89181')}
+      aria-label={uiText('auto.ebb1e1e89181')}
+      onClick={() => store?.togglePlay()}
+    >
+      {snap.buffering ? <span className="player-spinner" /> : snap.isPlaying ? <Pause /> : <Play />}
+    </button>
+  )
+}
+
 const CoverThumb: FC<{ trackId: string }> = ({ trackId }) => {
-  const { store } = useMusic()
+  const { store } = useMusic(false)
   const { url, ref } = useMusicCover(store, trackId)
   return (
     <span ref={ref} className={`player-queue-cover ${url ? '' : 'player-queue-cover-empty'}`} style={{ display: 'grid' }}>
@@ -137,15 +197,11 @@ const PlayerQueueRow: FC<{
 )
 
 export const Player: FC = () => {
-  const { store, snap } = useMusic()
+  const { store, snap } = useMusic(false)
   const { openSongMenu, songEditor } = useSongMenu()
   const {
     currentTrack,
     resumeTrack,
-    isPlaying,
-    currentTime: sampledPosition,
-    duration,
-    buffering,
     favorites,
     playError,
     upNext,
@@ -159,27 +215,22 @@ export const Player: FC = () => {
   } = snap
 
   const track = currentTrack ?? resumeTrack
-  const total = duration || track?.duration || 0
-  const [, updateClock] = React.useState(0)
-  React.useEffect(() => {
-    if (!isPlaying || buffering) return
-    return visibleTimer(listsRef.current?.ownerDocument ?? document, () => updateClock(value => value + 1), 100)
-  }, [isPlaying, buffering])
-  const currentTime = playbackPosition({ position: sampledPosition, duration: total, rate: snap.playbackRate, playing: isPlaying, buffering, sampleAgeMs: snap.playbackSampleAge }, snap.playbackSampledAt)
-  const scrubber = useScrubber(value => store?.seek(value) ?? Promise.resolve())
-  const shownTime = scrubber.value ?? currentTime
-  const played = total > 0 ? (Math.min(shownTime, total) / total) * 100 : 0
+  const fallbackDuration = track?.duration || 0
+  const position = (): number => {
+    const live = store?.getSnapshot()
+    return live ? livePosition(live, live.duration || fallbackDuration) : 0
+  }
   const [dragIndex, setDragIndex] = React.useState<number | null>(null)
   const [overIndex, setOverIndex] = React.useState<number | null>(null)
   const [videoMode, setVideoMode] = React.useState(false)
-  const hasVideo = (VIDEO_EXTENSIONS as readonly string[]).includes(fileExtension(track?.file ?? ''))
+  const hasVideo = isVideoFile(track?.file ?? '')
   const listsRef = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
     if (listsRef.current) listsRef.current.scrollTop = rightPanelScrollTop
   }, [rightViewNonce, rightPanelScrollTop])
   const episode = track ? isEpisode(track, snap.podcastPath) : false
   const show = episode && track ? snap.shows.find(item => item.id === showFolder(track.file, snap.podcastPath)) : undefined
-  const { url: embeddedCover, ref: coverRef } = useMusicCover(store, track?.id)
+  const { url: embeddedCover, ref: coverRef } = useMusicCover(store, track?.id, { eager: true })
   const coverUrl = embeddedCover ?? (show?.coverPath ? assetUrlForRelPath(show.coverPath) : null)
   const videoSurface = React.useMemo(() => snap.sessionId
     ? <api.ui.MediaSurface sessionId={snap.sessionId} fit="contain" controls={false} style={{ width: '100%', height: '100%', borderRadius: 2, background: 'transparent' }} />
@@ -232,26 +283,7 @@ export const Player: FC = () => {
               </button>
             </div>
 
-            <div className="player-scrub">
-              <input
-                type="range"
-                min={0}
-                max={total || 1}
-                step={0.5}
-                value={Math.min(shownTime, total || 0)}
-                onPointerDown={scrubber.grab}
-                onPointerUp={scrubber.release}
-                onPointerCancel={scrubber.release}
-                onLostPointerCapture={scrubber.release}
-                onBlur={scrubber.release}
-                onChange={(e) => scrubber.change(Number(e.target.value))}
-                style={{ '--played': `${played}%` } as React.CSSProperties}
-              />
-              <div className="player-times">
-                <span>{formatTime(shownTime)}</span>
-                <span>{formatTime(total)}</span>
-              </div>
-            </div>
+            <PlayerScrub fallbackDuration={fallbackDuration} />
           </>
         ) : (
           <div className="player-titles">
@@ -264,7 +296,7 @@ export const Player: FC = () => {
 
         <div className="player-controls">
           {episode ? (
-            <button className="player-skip-btn" title={uiText('music.podcast.back15')} aria-label={uiText('music.podcast.back15')} onClick={() => store.seek(Math.max(0, currentTime - 15))}>
+            <button className="player-skip-btn" title={uiText('music.podcast.back15')} aria-label={uiText('music.podcast.back15')} onClick={() => store.seek(Math.max(0, position() - 15))}>
               <RotateCcw /><span>15</span>
             </button>
           ) : (
@@ -280,19 +312,12 @@ export const Player: FC = () => {
           <button title={uiText('auto.50f94286ba30')} aria-label={uiText('auto.50f94286ba30')} onClick={() => store.prev()}>
             <SkipBack />
           </button>
-          <button
-            className={`player-playbtn ${buffering ? 'loading' : ''}`}
-            title={uiText('auto.ebb1e1e89181')}
-            aria-label={uiText('auto.ebb1e1e89181')}
-            onClick={() => store.togglePlay()}
-          >
-            {buffering ? <span className="player-spinner" /> : isPlaying ? <Pause /> : <Play />}
-          </button>
+          <PlayerPlayButton />
           <button title={uiText('auto.bc981983e7f5')} aria-label={uiText('auto.bc981983e7f5')} onClick={() => store.next()}>
             <SkipForward />
           </button>
           {episode ? (
-            <button className="player-skip-btn" title={uiText('music.podcast.forward30')} aria-label={uiText('music.podcast.forward30')} onClick={() => store.seek(total > 0 ? Math.min(total, currentTime + 30) : currentTime + 30)}>
+            <button className="player-skip-btn" title={uiText('music.podcast.forward30')} aria-label={uiText('music.podcast.forward30')} onClick={() => { const live = store.getSnapshot(), end = live.duration || fallbackDuration, next = position() + 30; store.seek(end > 0 ? Math.min(end, next) : next) }}>
               <RotateCw /><span>30</span>
             </button>
           ) : (

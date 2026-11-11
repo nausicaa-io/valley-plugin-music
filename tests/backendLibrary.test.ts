@@ -280,6 +280,36 @@ describe('backend Music library owner', () => {
     } finally { await f.dispose() }
   })
 
+  it('adds a file whose tags cannot be read under its file name and still adds the rest', async () => {
+    const f = fixture({ datasets: { 'music.tracks': [] }, indexEntries: ['Music/slow_talk--host.mkv', 'Music/new.mp3'].map(asset) })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    f.metadata.mockImplementation(async (path: string) => {
+      if (path.endsWith('.mkv')) throw new Error('Plugin UI request timed out')
+      return { title: 'Embedded title', artist: 'Embedded artist', album: 'Embedded album' }
+    })
+    try {
+      const initial = await f.invoke('library.list', { kind: 'tracks' })
+      expect(await f.invoke('library.rescan', { expectedRevision: initial.revision })).toMatchObject({ added: 2 })
+      expect(f.datasets.get('music.tracks')).toEqual(expect.arrayContaining([
+        expect.objectContaining({ file: 'Music/slow_talk--host.mkv', title: 'Slow Talk' }),
+        expect.objectContaining({ file: 'Music/new.mp3', title: 'Embedded title' })
+      ]))
+      expect(warn).toHaveBeenCalledOnce()
+    } finally { warn.mockRestore(); await f.dispose() }
+  })
+
+  it('reads a tag-less track once and leaves rows that did not change alone', async () => {
+    const song = { ...track('Fern'), title: 'Fern', artist: '', addedAt: '2026-01-01T00:00:00.000Z' }
+    const f = fixture({ datasets: { 'music.tracks': [song] }, indexEntries: [asset('Music/Fern.mp3')] })
+    f.metadata.mockImplementation(async () => ({ title: null, artist: null, album: null }) as unknown as Awaited<ReturnType<typeof f.metadata>>)
+    try {
+      const first = await f.invoke('library.list', { kind: 'tracks' })
+      expect(await f.invoke('library.rescan', { expectedRevision: first.revision })).toMatchObject({ updated: 0, revision: first.revision })
+      expect(await f.invoke('library.rescan', { expectedRevision: first.revision })).toMatchObject({ updated: 0, revision: first.revision })
+      expect(f.metadata).toHaveBeenCalledOnce()
+    } finally { await f.dispose() }
+  })
+
   it('uses the admitted owner and cancels before committing metadata gathered asynchronously', async () => {
     const f = fixture(), other = fixture({ datasets: { 'music.tracks': [track('other')] }, indexEntries: [asset('Music/other.mp3'), asset('Music/new.mp3')] })
     const controller = new AbortController()

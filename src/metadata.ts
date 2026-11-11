@@ -10,7 +10,7 @@
  * Pure over the snapshot so it is unit-testable without an audio engine.
  */
 import type { PluginMetadataFact, PluginMetadataProvider } from '@valley/plugin-sdk'
-import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS } from '@valley/plugin-sdk/fileTypes'
+import { MUSIC_AUDIO_EXTENSIONS, MUSIC_VIDEO_EXTENSIONS } from './data'
 import type { MusicSnapshot } from './store'
 import { musicCount } from './localization'
 
@@ -49,7 +49,7 @@ export function musicFacts(snapshot: MusicSnapshot): PluginMetadataFact[] {
       id: 'music.formats',
       labelKey: 'plugin.music.meta.formats',
       label: 'Media formats',
-      value: [...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS].join(' ')
+      value: [...MUSIC_AUDIO_EXTENSIONS, ...MUSIC_VIDEO_EXTENSIONS].join(' ')
     }
   ]
 }

@@ -2,6 +2,7 @@ import type { DatasetPage, DatasetReadResult, DatasetRecord, DatasetRevisionGuar
 import { normalizeRelPath } from '@valley/plugin-sdk/paths'
 import { computeLibrarySync, mediaFilesInFolder, newTrackId, rawTitleFromFileName, trackDetailsFromFileName } from './data'
 import { mergeArtistMetadata, patchArtistMetadata, sameArtist, upsertArtists } from './artists'
+import { MetadataCancelled } from './mediaMetadata'
 import { isEpisode } from './podcasts'
 import type { Artist, Playlist, Track } from './types'
 
@@ -214,16 +215,18 @@ export class MusicLibrary {
     } finally { signal?.removeEventListener('abort', abort); await observation.dispose() }
   }
 
-  /** The podcast folder of the previous scan, or null before the first one; the scan only needs it to notice a folder change. */
-  private async scannedPodcastPath(): Promise<string | null> {
+  /** What the previous scan left: its podcast folder (null before the first one) and the tag-less files already read. */
+  private async scanState(): Promise<{ podcastPath: string | null; probed: Set<string> }> {
     const text = await this.api.data.files.readText(SCAN_STATE).catch(() => null)
-    if (!text) return null
-    try { const { podcastPath } = JSON.parse(text) as { podcastPath?: unknown }; return typeof podcastPath === 'string' ? podcastPath : null } catch { return null }
+    try {
+      const { podcastPath, probed } = JSON.parse(text ?? '{}') as { podcastPath?: unknown; probed?: unknown }
+      return { podcastPath: typeof podcastPath === 'string' ? podcastPath : null, probed: new Set(Array.isArray(probed) ? probed.filter(file => typeof file === 'string') : []) }
+    } catch { return { podcastPath: null, probed: new Set() } }
   }
 
-  private async rememberPodcastPath(podcastPath: string): Promise<void> {
+  private async rememberScan(podcastPath: string, probed: ReadonlySet<string>): Promise<void> {
     const current = await this.api.data.files.readTextBaseline(SCAN_STATE).catch(() => null)
-    await this.api.data.files.writeTextGuarded(SCAN_STATE, JSON.stringify({ podcastPath }), current?.baseline ?? null).catch(() => undefined)
+    await this.api.data.files.writeTextGuarded(SCAN_STATE, JSON.stringify({ podcastPath, probed: [...probed] }), current?.baseline ?? null).catch(() => undefined)
   }
 
   async rescan(expectedRevision: number, signal?: AbortSignal, indexed?: readonly PluginIndexEntry[], assertCurrent: () => void = () => {}) {
@@ -232,7 +235,8 @@ export class MusicLibrary {
     const observed = await this.rows(tracks)
     check(expectedRevision, observed.revision)
     const current = observed.rows as unknown as Track[]
-    const scanned = await this.scannedPodcastPath()
+    const { podcastPath: scanned, probed } = await this.scanState()
+    const knownProbed = probed.size
     const previousPodcast = scanned !== null && scanned !== podcastPath ? scanned : ''
     if (!musicPath && !podcastPath && !previousPodcast) return { revision: observed.revision, added: 0, healed: 0, updated: 0, missing: [] as string[] }
     const entries = indexed ?? await this.index(signal)
@@ -240,14 +244,26 @@ export class MusicLibrary {
     const sync = computeLibrarySync(current, folderFiles, entries)
     const next = new Map(current.map(track => [track.id, track])), changed: Track[] = [], removed: string[] = []
     const healed = new Map(sync.toHeal.map(value => [value.track.id, value.newPath]))
-    const details = async (file: string) => { signal?.throwIfAborted(); const value = await this.metadata(file); signal?.throwIfAborted(); const fallback = trackDetailsFromFileName(file); return { title: value?.title?.trim() || fallback.title, artist: value?.artist?.trim() || fallback.artist, ...(value?.album?.trim() ? { album: value.album.trim() } : {}) } }
+    const details = async (file: string) => {
+      signal?.throwIfAborted()
+      // One slow or unreadable file costs only its tags: it joins the library under its file name.
+      const value = await this.metadata(file).then(result => { probed.add(file); return result }, (error: unknown) => {
+        if (error instanceof MetadataCancelled) throw error
+        console.warn('[music] tags unavailable, using the file name', file, error)
+        return null
+      })
+      signal?.throwIfAborted()
+      const fallback = trackDetailsFromFileName(file)
+      return { title: value?.title?.trim() || fallback.title, artist: value?.artist?.trim() || fallback.artist, ...(value?.album?.trim() ? { album: value.album.trim() } : {}) }
+    }
     for (const track of current) {
       signal?.throwIfAborted()
       const file = healed.get(track.id) ?? track.file
       if (inFolder(track.file, previousPodcast) && !inFolder(track.file, podcastPath) && !inFolder(track.file, musicPath)) { removed.push(track.id); next.delete(track.id); continue }
-      const autoNamed = !track.details?.edited && Boolean(track.addedAt) && track.title === rawTitleFromFileName(track.file)
+      const autoNamed = !track.details?.edited && Boolean(track.addedAt) && track.title === rawTitleFromFileName(track.file) && !probed.has(file)
       if (!autoNamed && file === track.file) continue
       const value = { ...track, ...(autoNamed ? await details(file) : {}), file }
+      if (same(value, track)) continue
       changed.push(value); next.set(value.id, value)
     }
     for (const file of sync.toAdd) { const value = { id: newTrackId(), ...await details(file), file, addedAt: new Date().toISOString() }; changed.push(value); next.set(value.id, value) }
@@ -263,7 +279,7 @@ export class MusicLibrary {
     signal?.throwIfAborted(); assertCurrent()
     if (normalizeRelPath(this.api.settings.get().musicPath) !== musicPath || normalizeRelPath(this.api.settings.get().podcastPath) !== podcastPath) throw refusal('REVISION_CONFLICT', 'Music folder changed during scan; retry the rescan')
     const result = operations.length ? await this.api.data.transaction(operations, { expected }) : null
-    if (scanned !== podcastPath) await this.rememberPodcastPath(podcastPath)
+    if (scanned !== podcastPath || probed.size !== knownProbed) await this.rememberScan(podcastPath, probed)
     return { revision: result?.revision ?? observed.revision, added: sync.toAdd.length, healed: sync.toHeal.length, updated: changed.length - sync.toAdd.length, missing: [...sync.missing] }
   }
 }

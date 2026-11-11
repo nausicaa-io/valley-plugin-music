@@ -43,7 +43,7 @@ const EMPTY: MusicSnapshot = {
   canGoForward: false,
   pageSearch: '',
   leftPanelSearch: '',
-  leftPanelSections: { songs: false, favorites: false, playlists: true },
+  leftPanelSections: { songs: false, favorites: false, playlists: true, artists: true },
   rightQueueOpen: true,
   rightHistoryOpen: false,
   rightPanelScrollTop: 0,
@@ -72,22 +72,24 @@ export function useMusic(observeClock = true): { store: MusicStore | null; snap:
   return { store, snap }
 }
 
-export function useMusicCover(store: MusicStore | null, trackId?: string): { url: string | null; ref: (element: HTMLElement | null) => void } {
+/** Lazy by default, for long lists. `eager` is for the now-playing artwork, which is always wanted and never waits on the observer. */
+export function useMusicCover(store: MusicStore | null, trackId?: string, { eager = false }: { eager?: boolean } = {}): { url: string | null; ref: (element: HTMLElement | null) => void } {
   const [element, ref] = React.useState<HTMLElement | null>(null)
-  const [visible, setVisible] = React.useState(typeof IntersectionObserver === 'undefined')
+  const [visible, setVisible] = React.useState(eager || typeof IntersectionObserver === 'undefined')
   const file = trackId ? store?.coverFile(trackId) : null
   React.useEffect(() => {
-    if (!element) return
+    if (!element || eager) return
     const Observer = element.ownerDocument.defaultView?.IntersectionObserver
     if (!Observer) { setVisible(true); return }
     let active = true
     setVisible(false)
-    const observer = new Observer(([entry]) => { if (active && entry) setVisible(entry.isIntersecting) }, { rootMargin: '96px' })
+    // One delivery can carry several changes, oldest first; only the newest says where the element is now.
+    const observer = new Observer(entries => { const entry = entries.at(-1); if (active && entry) setVisible(entry.isIntersecting) }, { rootMargin: '96px' })
     observer.observe(element)
     return () => { active = false; observer.disconnect() }
-  }, [element])
+  }, [element, eager])
   const subscribe = React.useCallback((listener: () => void) => visible && store && trackId
-    ? store.subscribeCover(trackId, listener) : () => {}, [file, store, trackId, visible])
+    ? store.subscribeCover(trackId, listener, eager) : () => {}, [eager, file, store, trackId, visible])
   const snapshot = React.useCallback(() => visible && store && trackId ? store.getCoverUrl(trackId) : null, [file, store, trackId, visible])
   const url = React.useSyncExternalStore(subscribe, snapshot, snapshot)
   return { url, ref }

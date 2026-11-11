@@ -150,7 +150,6 @@ const ShowRow: FC<{ show: PodcastShow; onOpen: () => void }> = ({ show, onOpen }
           if (!store) return
           if (active) store.togglePlay()
           else playShow(store, snap, show)
-          onOpen()
         }}
       >
         <span className="music-cover" style={{ display: 'grid', width: 32, height: 32, overflow: 'hidden' }}>

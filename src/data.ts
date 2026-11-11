@@ -99,7 +99,11 @@ export function searchTracks(tracks: readonly Track[], q: string, withFile: bool
 
 // ---- Library ↔ folder sync -------------------------------------------------
 
-const MEDIA_EXTENSIONS = new Set<string>([...AUDIO_EXTENSIONS, ...VIDEO_EXTENSIONS])
+/** Everything the host's player decodes, including the formats the vendored SDK list does not name yet. */
+export const MUSIC_AUDIO_EXTENSIONS: readonly string[] = [...AUDIO_EXTENSIONS, '.m4b', '.mka', '.weba', '.3ga']
+export const MUSIC_VIDEO_EXTENSIONS: readonly string[] = [...VIDEO_EXTENSIONS, '.3gp', '.3g2', '.f4v']
+export const isVideoFile = (path: string): boolean => MUSIC_VIDEO_EXTENSIONS.includes(fileExtension(path))
+export const MEDIA_EXTENSIONS: ReadonlySet<string> = new Set([...MUSIC_AUDIO_EXTENSIONS, ...MUSIC_VIDEO_EXTENSIONS])
 
 /** Last path segment, e.g. `a/b/song.mp4` → `song.mp4`. */
 export function baseName(path: string): string {

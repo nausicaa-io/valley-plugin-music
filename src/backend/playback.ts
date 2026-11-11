@@ -1,7 +1,7 @@
 import type { DatasetRecord, PluginBackendApi } from '@valley/plugin-sdk'
-import { VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
 import { sameMediaIdentity } from '@valley/plugin-sdk/media'
 import { trackCredits } from '../artists'
+import { isVideoFile } from '../data'
 import { refusal } from '../library'
 import { nextIndex, type MusicPlaybackAction, type MusicPlaybackSnapshot } from '../playback'
 import type { RepeatMode, Track } from '../types'
@@ -183,7 +183,7 @@ export class MusicPlayback {
     const credits = trackCredits(track)
     return {
       key: track.id, providerId: 'music', sourceId: 'music', path: track.file,
-      kind: (VIDEO_EXTENSIONS as readonly string[]).includes(fileExtension(track.file)) ? 'video' as const : 'audio' as const,
+      kind: isVideoFile(track.file) ? 'video' as const : 'audio' as const,
       title: track.title, artists: credits.artists, feat: credits.feat,
       artwork: track.details?.cover || undefined,
       restorationData: { trackId: track.id, playlistId: this.playlistId }

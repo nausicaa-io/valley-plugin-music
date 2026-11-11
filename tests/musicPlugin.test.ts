@@ -765,6 +765,34 @@ describe('MusicStore', () => {
     } finally { store.dispose() }
   })
 
+  it('trusts the newest visibility change in a delivery and loads the now-playing cover without an observer', async () => {
+    const songs = [track('a', 'Music/a.mp3'), track('b', 'Music/b.mp3')]
+    const { store, mock } = makeStore({ tracks: songs, indexEntries: songs.map((song) => asset(song.file)) })
+    initRuntime(mock.api)
+    let visibility!: (entries: IntersectionObserverEntry[]) => void
+    const observed = vi.fn()
+    vi.stubGlobal('IntersectionObserver', class {
+      constructor(callback: typeof visibility) { visibility = callback }
+      observe = observed
+      disconnect = vi.fn()
+    })
+    const read = vi.spyOn(mock.api.drivers.media, 'readMetadata')
+    function Probe({ id, eager }: { id: string; eager?: boolean }) {
+      const { ref } = useMusicCover(store, id, { eager })
+      return React.createElement('span', { ref })
+    }
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().loading).toBe(false))
+      render(React.createElement(Probe, { id: 'b', eager: true }))
+      await vi.waitFor(() => expect(read).toHaveBeenCalledWith('Music/b.mp3'))
+      expect(observed).not.toHaveBeenCalled()
+      render(React.createElement(Probe, { id: 'a' }))
+      expect(observed).toHaveBeenCalledOnce()
+      act(() => visibility([{ isIntersecting: false }, { isIntersecting: true }] as IntersectionObserverEntry[]))
+      await vi.waitFor(() => expect(read).toHaveBeenCalledWith('Music/a.mp3'))
+    } finally { vi.unstubAllGlobals(); store.dispose() }
+  })
+
   it('observes visible cover demand, reuses it on reentry, and ignores late observer delivery', async () => {
     const songs = [track('a', 'Music/a.mp3')]
     const { store, mock } = makeStore({ tracks: songs, indexEntries: songs.map((song) => asset(song.file)) })
@@ -1172,11 +1200,11 @@ describe('MusicStore', () => {
     expect(SettingsView).toBeDefined()
 
     render(React.createElement(SettingsView!))
-    await screen.findByText('Manually rescan the music and podcast folders for new or removed files. 1 media file found in this folder.')
+    expect(await screen.findByText('1 media file found in this folder.')).toHaveClass('music-settings-positive')
 
     const folderField = screen.getByLabelText('Music folder')
     fireEvent.change(folderField, { target: { value: 'Audio' } })
-    await screen.findByText('Manually rescan the music and podcast folders for new or removed files. 2 media files found in this folder.')
+    expect(await screen.findByText('2 media files found in this folder.')).toHaveClass('music-settings-positive')
     // RealmFolderField has no Save button — it commits on Enter/blur.
     fireEvent.blur(folderField)
 
@@ -2240,7 +2268,7 @@ describe('MusicStore page navigation', () => {
     expect(restored.pageSearch).toBe('canopy')
     expect(restored.canGoBack).toBe(true)
     expect(restored.leftPanelSearch).toBe('forest')
-    expect(restored.leftPanelSections).toEqual({ songs: true, favorites: false, playlists: false })
+    expect(restored.leftPanelSections).toEqual({ songs: true, favorites: false, playlists: false, artists: true })
     expect(restored.rightQueueOpen).toBe(false)
     expect(restored.rightHistoryOpen).toBe(true)
     expect(restored.rightPanelScrollTop).toBe(184)
@@ -2360,7 +2388,7 @@ describe('Music panel navigation and file actions', () => {
     }
   })
 
-  it('opens or focuses the singleton Music page from the header and every playable row target', async () => {
+  it('opens the Music page from the header and row bodies, while covers only play', async () => {
     const { mock, dispose } = await renderPanel()
     try {
       fireEvent.click(screen.getByRole('button', { name: 'Open page' }))
@@ -2370,14 +2398,19 @@ describe('Music panel navigation and file actions', () => {
       const songRow = (await screen.findByText('Canopy Song')).closest('.music-row')
       expect(songRow).not.toBeNull()
       fireEvent.click(songRow!)
+      expect(mock.api.workspace.openMainTab).toHaveBeenCalledTimes(2)
       fireEvent.click(within(songRow as HTMLElement).getByRole('button', { name: 'Play' }))
-      expect(mock.api.workspace.openMainTab).toHaveBeenCalledTimes(3)
+      expect(mock.api.workspace.openMainTab).toHaveBeenCalledTimes(2)
 
       fireEvent.change(screen.getByPlaceholderText('Search songs & playlists'), { target: { value: '' } })
       const playlistRow = screen.getByText('Forest Mix').closest('.music-row')
       expect(playlistRow).not.toBeNull()
       fireEvent.click(within(playlistRow as HTMLElement).getByRole('button', { name: 'Play playlist' }))
-      expect(mock.api.workspace.openMainTab).toHaveBeenCalledTimes(4)
+      expect(mock.api.workspace.openMainTab).toHaveBeenCalledTimes(2)
+      const artistSection = document.querySelector('[data-music-section="artists"]') as HTMLElement
+      expect(artistSection.nextElementSibling).toBeNull()
+      expect(artistSection.previousElementSibling?.getAttribute('data-music-section')).toBe('playlists')
+      expect(artistSection.querySelector('.music-row-play.artist')).not.toBeNull()
     } finally {
       dispose()
     }
@@ -2762,7 +2795,8 @@ describe('Music song editing and presentation', () => {
     try {
       const css = document.getElementById('notes-music-styles')!.textContent!
       expect(css).toContain('.music-breadcrumb-items { position:absolute; left:50%; transform:translateX(-50%);')
-      expect(css).toContain('max-width:max(0px, calc(100% - 170px))')
+      expect(css).toContain('max-width:max(0px, calc(100% - 2 * (var(--plugin-navigation-offset, 60px) + var(--space-button, 8px) + var(--shell-control-toolbar))))')
+      expect(css).toMatch(/\.music-header-search:is\(:hover, :focus-within\) \{[^}]*border:none;[^}]*background:transparent;/)
       expect(css).toMatch(/\.music-breadcrumbs \{[^}]*container-type:inline-size; \}/)
       expect(css).toContain('.music-breadcrumbs button.music-breadcrumb-parent { min-width:2.5em; }')
       expect(css).toContain('.music-breadcrumbs button[aria-current] { color:var(--title-color); flex:0 2 auto; min-width:2.5em; }')

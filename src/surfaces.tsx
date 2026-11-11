@@ -449,7 +449,7 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
 
 export function NowPlaying() {
   const { store, snap } = useMusic(false)
-  const { url, ref } = useMusicCover(store, snap.currentTrack?.id)
+  const { url, ref } = useMusicCover(store, snap.currentTrack?.id, { eager: true })
   if (!snap.currentTrack) return null
   return <button ref={ref} className="music-now-playing" title={uiText('music.footer.openPlayer')} aria-label={uiText('music.footer.openPlayer')} onClick={() => runtimeApi.workspace.revealOwnPanel('right_sidebar')}>
     {url ? <img src={url} alt="" /> : <Music />}
