@@ -407,6 +407,16 @@
         "default": 1
       },
       {
+        "key": "playerCompact",
+        "label": "Compact player",
+        "type": "custom",
+        "settingsVisible": false,
+        "schema": {
+          "type": "boolean"
+        },
+        "default": false
+      },
+      {
         "key": "breadcrumbMode",
         "label": "Breadcrumb display",
         "type": "custom",

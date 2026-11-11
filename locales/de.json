@@ -351,5 +351,7 @@
   "music.footer.shows": "Sendungen",
   "music.footer.episodes": "Folgen",
   "music.footer.inProgress": "Angefangen",
-  "music.footer.speed": "Wiedergabegeschwindigkeit"
+  "music.footer.speed": "Wiedergabegeschwindigkeit",
+  "music.player.compact": "Kompakter Player",
+  "music.player.expand": "Cover anzeigen"
 }

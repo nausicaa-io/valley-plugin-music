@@ -52,7 +52,7 @@ const EMPTY: MusicSnapshot = {
   podcastView: { mode: 'home' },
   podcastCanGoBack: false,
   podcastCanGoForward: false,
-  episodeProgress: {}, episodeMoments: {}, podcastRate: 1
+  episodeProgress: {}, episodeMoments: {}, podcastRate: 1, playerCompact: false
 }
 
 const noopSubscribe = (): (() => void) => () => {}

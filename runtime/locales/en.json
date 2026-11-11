@@ -351,5 +351,7 @@
   "music.footer.shows": "Shows",
   "music.footer.episodes": "Episodes",
   "music.footer.inProgress": "In progress",
-  "music.footer.speed": "Playback speed"
+  "music.footer.speed": "Playback speed",
+  "music.player.compact": "Compact player",
+  "music.player.expand": "Show artwork"
 }

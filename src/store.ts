@@ -68,6 +68,7 @@ const PROGRESS_SETTINGS_KEY = 'podcastProgress'
 const PROGRESS_LIMIT = 300
 const MOMENTS_SETTINGS_KEY = 'podcastMoments'
 const RATE_SETTINGS_KEY = 'podcastRate'
+const COMPACT_SETTINGS_KEY = 'playerCompact'
 
 /** Which podcast view the content page shows while the library is in podcast mode. */
 export type PodcastView = { mode: 'home' } | { mode: 'show'; id: string }
@@ -206,6 +207,8 @@ export interface MusicSnapshot {
   episodeMoments: Record<string, EpisodeMoment[]>
   /** Playback speed applied to podcast episodes; songs always play at 1×. */
   podcastRate: number
+  /** Right-sidebar player shrunk to a cover-and-title row. */
+  playerCompact: boolean
 }
 
 interface PlayerPreferences {
@@ -272,6 +275,7 @@ export class MusicStore {
   private resumedEpisodeId: string | null = null
   private episodeMoments: Record<string, EpisodeMoment[]> = {}
   private podcastRate = 1
+  private playerCompact = false
   private rateSyncedFor: string | null = null
   private offSettings: () => void
 
@@ -331,6 +335,7 @@ export class MusicStore {
     this.episodeProgress = readProgress(api.settings.get()[PROGRESS_SETTINGS_KEY])
     this.episodeMoments = readMoments(api.settings.get()[MOMENTS_SETTINGS_KEY])
     this.podcastRate = readPodcastRate(api.settings.get()[RATE_SETTINGS_KEY])
+    this.playerCompact = api.settings.get()[COMPACT_SETTINGS_KEY] === true
     this.offSettings = api.settings.subscribe(() => this.onSettingsChanged())
     this.index = createIndexObserver(api, { fields: [] })
     this.metadata = new MediaMetadata(api)
@@ -492,7 +497,8 @@ export class MusicStore {
       coverVersion: this.coverVersion,
       episodeProgress: this.episodeProgress,
       episodeMoments: this.episodeMoments,
-      podcastRate: this.podcastRate
+      podcastRate: this.podcastRate,
+      playerCompact: this.playerCompact
     }
   }
 
@@ -1088,6 +1094,13 @@ export class MusicStore {
     this.rateSyncedFor = current.id
     const desired = isEpisode(current, this.observedPodcastPath) ? this.podcastRate : 1
     if (Math.abs(state.rate - desired) > 0.001) void this.playback({ type: 'rate', value: desired })
+  }
+
+  setPlayerCompact(compact: boolean): void {
+    if (this.playerCompact === compact) return
+    this.playerCompact = compact
+    void this.api.settings.set(COMPACT_SETTINGS_KEY, compact)
+    this.emitPlayback()
   }
 
   setPodcastRate(rate: number): void {

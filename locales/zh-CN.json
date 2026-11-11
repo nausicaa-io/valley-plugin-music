@@ -351,5 +351,7 @@
   "music.footer.shows": "节目",
   "music.footer.episodes": "单集",
   "music.footer.inProgress": "进行中",
-  "music.footer.speed": "播放速度"
+  "music.footer.speed": "播放速度",
+  "music.player.compact": "紧凑播放器",
+  "music.player.expand": "显示封面"
 }

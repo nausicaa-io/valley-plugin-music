@@ -351,5 +351,7 @@
   "music.footer.shows": "Programas",
   "music.footer.episodes": "Episodios",
   "music.footer.inProgress": "En curso",
-  "music.footer.speed": "Velocidad de reproducción"
+  "music.footer.speed": "Velocidad de reproducción",
+  "music.player.compact": "Reproductor compacto",
+  "music.player.expand": "Mostrar portada"
 }

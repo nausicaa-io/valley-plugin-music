@@ -351,5 +351,7 @@
   "music.footer.shows": "Émissions",
   "music.footer.episodes": "Épisodes",
   "music.footer.inProgress": "En cours",
-  "music.footer.speed": "Vitesse de lecture"
+  "music.footer.speed": "Vitesse de lecture",
+  "music.player.compact": "Lecteur compact",
+  "music.player.expand": "Afficher la pochette"
 }

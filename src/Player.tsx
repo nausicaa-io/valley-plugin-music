@@ -14,6 +14,8 @@ import { isEpisode, nextPodcastRate, resumePosition, showFolder, type PodcastSho
 import type { MusicSnapshot } from './store'
 import {
   Bookmark,
+  Expand,
+  Shrink,
   BookmarkPlus,
   ChevronDown,
   ChevronRight,
@@ -95,13 +97,17 @@ function livePosition(snap: MusicSnapshot, total: number): number {
   return playbackPosition({ position: snap.currentTime, duration: total, rate: snap.playbackRate, playing: snap.isPlaying, buffering: snap.buffering, sampleAgeMs: snap.playbackSampleAge }, snap.playbackSampledAt)
 }
 
+/** How close (in pixels along the track) the pointer must come for a key moment to pull the scrubber onto it. */
+const MOMENT_SNAP_PX = 10
+
 /** The only part of the player that follows the clock, so the queue and history below it do not re-render with every tick. */
-const PlayerScrub: FC<{ fallbackDuration: number; markers?: readonly number[] }> = ({ fallbackDuration, markers }) => {
+const PlayerScrub: FC<{ fallbackDuration: number; moments?: readonly { at: number; label: string }[] }> = ({ fallbackDuration, moments }) => {
   const { store, snap } = useMusic()
   const { isPlaying, buffering } = snap
   const total = snap.duration || fallbackDuration
   const rootRef = React.useRef<HTMLDivElement>(null)
   const [, updateClock] = React.useState(0)
+  const [near, setNear] = React.useState<number | null>(null)
   React.useEffect(() => {
     if (!isPlaying || buffering) return
     return visibleTimer(rootRef.current?.ownerDocument ?? document, () => updateClock(value => value + 1), CLOCK_INTERVAL_MS)
@@ -109,27 +115,48 @@ const PlayerScrub: FC<{ fallbackDuration: number; markers?: readonly number[] }>
   const scrubber = useScrubber(value => store?.seek(value) ?? Promise.resolve())
   const shownTime = scrubber.value ?? livePosition(snap, total)
   const played = total > 0 ? (Math.min(shownTime, total) / total) * 100 : 0
+  const visible = total > 0 ? (moments ?? []).filter(moment => moment.at <= total) : []
+  /** The key moment within snapping distance of a track position, if any. */
+  const magnet = (seconds: number): { at: number; label: string } | null => {
+    const width = (rootRef.current?.clientWidth ?? 0) - 10
+    if (!visible.length || width <= 0 || total <= 0) return null
+    const reach = (MOMENT_SNAP_PX / width) * total
+    let best: { at: number; label: string } | null = null
+    for (const moment of visible) if (Math.abs(moment.at - seconds) <= reach && (!best || Math.abs(moment.at - seconds) < Math.abs(best.at - seconds))) best = moment
+    return best
+  }
+  const positionAt = (clientX: number): number => {
+    const rect = rootRef.current?.getBoundingClientRect()
+    if (!rect || rect.width <= 10) return 0
+    return Math.min(1, Math.max(0, (clientX - rect.left - 5) / (rect.width - 10))) * total
+  }
+  const hovered = visible.find(moment => moment.at === near)
   return (
-    <div ref={rootRef} className="player-scrub">
-      {markers && total > 0 && markers.length > 0 && (
+    <div ref={rootRef} className="player-scrub" onPointerMove={(e) => setNear(magnet(positionAt(e.clientX))?.at ?? null)} onPointerLeave={() => setNear(null)}>
+      {visible.length > 0 && (
         <div className="player-scrub-markers" aria-hidden>
-          {markers.filter(at => at <= total).map(at => (
-            <span key={at} className="player-scrub-marker" style={{ left: `${(at / total) * 100}%` }} />
+          {visible.map(moment => (
+            <span key={moment.at} className={`player-scrub-marker ${near === moment.at ? 'near' : ''}`} style={{ left: `${(moment.at / total) * 100}%` }} />
           ))}
+          {hovered && (
+            <span className="player-scrub-tip" style={{ left: `${(hovered.at / total) * 100}%` }}>
+              {[formatTime(hovered.at), hovered.label].filter(Boolean).join(' · ')}
+            </span>
+          )}
         </div>
       )}
       <input
         type="range"
         min={0}
         max={total || 1}
-        step={0.5}
+        step="any"
         value={Math.min(shownTime, total || 0)}
         onPointerDown={scrubber.grab}
         onPointerUp={scrubber.release}
         onPointerCancel={scrubber.release}
         onLostPointerCapture={scrubber.release}
         onBlur={scrubber.release}
-        onChange={(e) => scrubber.change(Number(e.target.value))}
+        onChange={(e) => { const value = Number(e.target.value); scrubber.change(magnet(value)?.at ?? value) }}
         style={{ '--played': `${played}%` } as React.CSSProperties}
       />
       <div className="player-times">
@@ -137,6 +164,17 @@ const PlayerScrub: FC<{ fallbackDuration: number; markers?: readonly number[] }>
         <span>{formatTime(total)}</span>
       </div>
     </div>
+  )
+}
+
+/** Shrinks the player to a cover-and-title row, or brings the artwork back. */
+const CompactToggle: FC = () => {
+  const { store, snap } = useMusic(false)
+  const label = uiText(snap.playerCompact ? 'music.player.expand' : 'music.player.compact')
+  return (
+    <button className="player-compact-btn" title={label} aria-label={label} aria-pressed={snap.playerCompact} onClick={() => store?.setPlayerCompact(!snap.playerCompact)}>
+      {snap.playerCompact ? <Expand /> : <Shrink />}
+    </button>
   )
 }
 
@@ -250,8 +288,8 @@ const MusicPlayer: FC = () => {
   return (
     <div className="player-view">
       {songEditor}
-      <section className={`player-now ${track ? '' : 'empty'}`} onContextMenu={event => { if (track) openSongMenu(event, track) }}>
-        <div className="player-media">
+      <section className={`player-now ${track ? '' : 'empty'} ${snap.playerCompact ? 'compact' : ''}`} onContextMenu={event => { if (track) openSongMenu(event, track) }}>
+        {!snap.playerCompact && <div className="player-media">
           <div className="music-player-mode-row">
             {hasVideo && <div className="music-video-mode" role="group" aria-label={uiText('music.player.mode')}>
               <button aria-pressed={!videoMode} onClick={() => setVideoMode(false)}>{uiText('music.player.audio')}</button>
@@ -269,11 +307,12 @@ const MusicPlayer: FC = () => {
               )}
             </>}
           </div>
-        </div>
+        </div>}
 
         {track ? (
           <>
             <div className="player-head">
+              {snap.playerCompact && coverUrl && <img ref={coverRef} className="player-compact-cover" src={coverUrl} alt="" />}
               <div className="player-titles">
                 <h2 className="player-title">{track.title}</h2>
                 <p className="player-artist">
@@ -288,6 +327,7 @@ const MusicPlayer: FC = () => {
               >
                 <Heart />
               </button>
+              <CompactToggle />
             </div>
 
             <PlayerScrub fallbackDuration={fallbackDuration} />
@@ -539,8 +579,8 @@ const PodcastPlayer: FC<{ track: Track }> = ({ track }) => {
   return (
     <div className="player-view podcast-player">
       {songEditor}
-      <section className="player-now" onContextMenu={event => openSongMenu(event, track)}>
-        <div className="player-media">
+      <section className={`player-now ${snap.playerCompact ? 'compact' : ''}`} onContextMenu={event => openSongMenu(event, track)}>
+        {!snap.playerCompact && <div className="player-media">
           <div className="music-player-mode-row">
             {hasVideo && <div className="music-video-mode" role="group" aria-label={uiText('music.player.mode')}>
               <button aria-pressed={!videoMode} onClick={() => setVideoMode(false)}>{uiText('music.podcast.listen')}</button>
@@ -550,17 +590,19 @@ const PodcastPlayer: FC<{ track: Track }> = ({ track }) => {
           <div ref={coverRef} className="player-art" data-plugin-widget-layout="fill">
             {hasVideo && videoMode && videoSurface ? videoSurface : coverUrl ? <img src={coverUrl} alt="" /> : <span className="player-art-empty"><Podcast /></span>}
           </div>
-        </div>
+        </div>}
 
         <div className="player-head podcast-head">
+          {snap.playerCompact && coverUrl && <img ref={coverRef} className="player-compact-cover" src={coverUrl} alt="" />}
           <div className="player-titles">
             <span className="podcast-kicker music-artist-link" role="button" tabIndex={0} onClick={openShow} onAuxClick={onMiddleClick(() => show && openPageTargetInNewTab(store, { kind: 'show', id: show.id }))}>{show?.name ?? track.album ?? uiText('music.podcast.kicker')}</span>
             <h2 className="player-title">{track.title}</h2>
             {(track.artist || meta) && <p className="player-artist">{[track.artist, meta].filter(Boolean).join(' · ')}</p>}
           </div>
+          <CompactToggle />
         </div>
 
-        <PlayerScrub fallbackDuration={fallbackDuration} markers={moments.map(moment => moment.at)} />
+        <PlayerScrub fallbackDuration={fallbackDuration} moments={moments} />
 
         {snap.playError && <div className="player-error">{snap.playError}</div>}
 
