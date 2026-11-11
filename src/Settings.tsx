@@ -56,7 +56,7 @@ function folderDescription(text: string, folder: { count: number; status: string
   return <>
     {text}
     {folder.count > 0 && <> <span className="music-settings-positive">{folder.status}</span></>}
-    {rescanMessage && ` ${rescanMessage}`}
+    {rescanMessage && <> <span className={rescanMessage === uiText('auto.f54e1782f9c2') ? 'music-settings-positive' : 'music-settings-warning'}>{rescanMessage}</span></>}
   </>
 }
 

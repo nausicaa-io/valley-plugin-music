@@ -29,7 +29,8 @@ import {
   Trash,
   TrendingUp,
   User,
-  X
+  X,
+  Headphones
 } from './icons'
 
 /** Pick a cover from the realm's images, searched by file name. */
@@ -859,7 +860,7 @@ export const Page: FC<MainWorkspaceViewProps> = (props) => {
   const podcast = snap.libraryMode === 'podcast'
   React.useEffect(() => {
     if (pinned) return
-    api.workspace.setMainTabTitle(podcast ? uiText('music.podcast.tabTitle') : null, props.instanceId)
+    api.workspace.setMainTabTitle(uiText(podcast ? 'music.podcast.tabTitle' : 'plugin.music.name'), props.instanceId)
   }, [pinned, podcast, props.instanceId])
   if (pinned) return <PinnedPage {...props} navigator={pinned} />
   return snap.libraryMode === 'podcast' ? <PodcastPage {...props} /> : <MusicPage {...props} />
@@ -897,11 +898,6 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
     .map(artist => ({ artist, tracks: tracksForArtist(snap.tracks, artist) }))
     .filter(entry => entry.tracks.length > 0)
     .sort((a, b) => b.tracks.length - a.tracks.length || a.artist.name.localeCompare(b.artist.name)), [snap.artists, snap.tracks])
-  const breadcrumbMode = React.useSyncExternalStore(
-    React.useCallback(listener => api.settings.subscribe(listener), []),
-    () => api.settings.get().breadcrumbMode === 'file' ? 'file' : 'playlist'
-  )
-  const [pathError, setPathError] = React.useState(false)
 
   React.useEffect(() => {
     if (!nav) return
@@ -932,7 +928,7 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
     const raf = requestAnimationFrame(() => {
       const row = scrollRef.current?.querySelector<HTMLElement>(`[data-track-id="${CSS.escape(id)}"]`)
       if (!row) return
-      row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      row.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
       row.classList.remove('reveal-flash')
       void row.offsetWidth // restart the animation if it's still mid-flash
       row.classList.add('reveal-flash')
@@ -962,45 +958,25 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const artist = pageView.mode === 'artist' ? snap.artists.find(item => item.id === pageView.id) : null
   if (!store || !nav) return null
 
-  const filePath = song?.file ?? store.musicPath()
-  const fileParts = filePath.split('/').filter(Boolean)
-  const crumbs = pageView.mode === 'home' && !song ? [] : breadcrumbMode === 'file'
-    ? fileParts.map((label, index) => ({ label, title: fileParts.slice(0, index + 1).join('/'), onClick: (e: React.MouseEvent) => { if (e.button !== 1) api.workspace.revealInFiles(fileParts.slice(0, index + 1).join('/')) } }))
-    : [
-        ...(playlist ? [{ label: playlist.name, title: playlist.name, onClick: (e: React.MouseEvent) => navigateOrOpenTab(e, store, { kind: 'playlist', id: playlist.id }, () => nav.showPlaylist(playlist.id)) }] : artist ? [{ label: artist.name, title: artist.name, onClick: (e: React.MouseEvent) => navigateOrOpenTab(e, store, { kind: 'artist', id: artist.id }, () => nav.showArtist(artist.id)) }] : []),
-        ...(song ? [{ label: song.title, title: song.title, onClick: (e: React.MouseEvent) => navigateOrOpenTab(e, store, { kind: 'song', id: song.id }, () => nav.revealSong(song.id)) }] : []),
-        ...(!playlist && !artist && !song ? [{ label: uiText('plugin.music.name'), title: uiText('plugin.music.name'), onClick: (e: React.MouseEvent) => navigateOrOpenTab(e, store, { kind: 'home' }, () => nav.showHome()) }] : [])
-      ]
-  const showPathMenu = (event: React.MouseEvent): void => {
-    event.preventDefault()
-    event.stopPropagation()
-    void api.ui.openMenu((['playlist', 'file'] as const).map(mode => ({
-      label: uiText(mode === 'playlist' ? 'music.header.playlistPath' : 'music.header.filePath'),
-      type: 'checkbox' as const,
-      checked: breadcrumbMode === mode,
-      onSelect: async () => {
-        try {
-          const result = await api.settings.set('breadcrumbMode', mode)
-          setPathError(!result.ok)
-        } catch { setPathError(true) }
-      }
-    })), { x: event.clientX, y: event.clientY })
-  }
+  const pageSong = pageView.mode === 'song' ? snap.tracks.find(item => item.id === pageView.id) : undefined
+  const header = playlist ? { title: playlist.name, icon: <ListMusic /> }
+    : artist ? { title: artist.name, icon: <User /> }
+      : pageSong ? { title: pageSong.title, icon: <Music /> }
+        : { title: uiText('plugin.music.name'), icon: <Headphones /> }
 
   return (
     <div ref={scrollRef} className="music-page hidescrollbar">
       {songEditor}
       <div className="music-page-header">
         <PageHeader
-          crumbs={crumbs}
+          title={header.title}
+          icon={header.icon}
           homeLabel={uiText('auto.315fed0ac88a')}
           onHome={(e) => navigateOrOpenTab(e, store, { kind: 'home' }, () => { setQuery(''); nav.showHome() })}
           query={query}
           onQuery={setQuery}
           placeholder={uiText('auto.8d563eb9d8b9')}
-          onContextMenu={showPathMenu}
         />
-        {pathError && <div role="alert" className="music-path-error">{uiText('music.properties.saveError')}</div>}
       </div>
 
       {searchResults ? (

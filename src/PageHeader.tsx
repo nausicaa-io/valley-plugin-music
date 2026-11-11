@@ -1,31 +1,24 @@
 import { React } from './runtime'
-import type { FC } from 'react'
+import type { FC, ReactNode } from 'react'
 import { uiText } from './localization'
 import { Home, Search, X } from './icons'
 import { isNewTabClick, onMiddleClick } from './pageNavigator'
 
-export interface PageCrumb {
-  label: string
-  title: string
-  /** Receives the click so ⌘/middle click can open the crumb in a new tab. */
-  onClick: (event: React.MouseEvent) => void
-}
-
 /**
  * The page's single header row: host back/forward and a Home button on the left,
- * the centered breadcrumb (its leading `/` is Home too) and a search button beside
- * the host menu. Search spans the row in place of the breadcrumb and folds back once it is empty and
+ * the current page's icon and title in the centre, and a search button beside
+ * the host menu. Search spans the row in place of the title and folds back once it is empty and
  * loses focus, so browsing never pays for a second toolbar row.
  */
 export const PageHeader: FC<{
-  crumbs: PageCrumb[]
+  title: string
+  icon: ReactNode
   homeLabel: string
   onHome: (event: React.MouseEvent) => void
   query: string
   onQuery: (value: string) => void
   placeholder: string
-  onContextMenu?: (event: React.MouseEvent) => void
-}> = ({ crumbs, homeLabel, onHome, query, onQuery, placeholder, onContextMenu }) => {
+}> = ({ title, icon, homeLabel, onHome, query, onQuery, placeholder }) => {
   const [open, setOpen] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const searching = open || query.length > 0
@@ -53,7 +46,7 @@ export const PageHeader: FC<{
   }
 
   return (
-    <nav className={`music-breadcrumbs${searching ? ' searching' : ''}`} aria-label={uiText('music.header.location')} onContextMenu={searching ? undefined : onContextMenu}>
+    <nav className={`music-breadcrumbs${searching ? ' searching' : ''}`} aria-label={uiText('music.header.location')}>
       <button className="music-header-btn music-header-home" title={homeLabel} aria-label={homeLabel} onClick={(e) => { if (!isNewTabClick(e)) setOpen(false); onHome(e) }} onAuxClick={onMiddleClick(onHome)}>
         <Home />
       </button>
@@ -75,12 +68,9 @@ export const PageHeader: FC<{
           </button>
         </div>
       ) : (
-        <div className="music-breadcrumb-items">
-          <button className="music-breadcrumb-home" title={homeLabel} aria-label={homeLabel} onClick={onHome} onAuxClick={onMiddleClick(onHome)}>/</button>
-          {crumbs.map((crumb, index) => <React.Fragment key={`${index}:${crumb.title}`}>
-            {index > 0 && <span className="music-breadcrumb-separator" aria-hidden="true">/</span>}
-            <button className={index === crumbs.length - 1 ? undefined : 'music-breadcrumb-parent'} title={crumb.title} aria-current={index === crumbs.length - 1 ? 'page' : undefined} onClick={crumb.onClick} onAuxClick={onMiddleClick(crumb.onClick)}>{crumb.label}</button>
-          </React.Fragment>)}
+        <div className="music-page-title" title={title}>
+          <span className="music-page-title-icon" aria-hidden>{icon}</span>
+          <span className="music-page-title-text">{title}</span>
         </div>
       )}
       {!searching && (

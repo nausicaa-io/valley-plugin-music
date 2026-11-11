@@ -2840,29 +2840,27 @@ describe('Music song editing and presentation', () => {
     } finally { await dispose() }
   })
 
-  it('keeps every breadcrumb readable when the bar is narrow: the current one shrinks first, earlier ones keep a minimum and give way below 280 px', () => {
+  it('centres the page icon and title in the header, truncating it before the navigation controls', () => {
     const dispose = injectStyles()
     try {
       const css = document.getElementById('notes-music-styles')!.textContent!
-      expect(css).toContain('.music-breadcrumb-items { position:absolute; left:50%; transform:translateX(-50%);')
+      expect(css).toContain('.music-page-title { position:absolute; left:50%; transform:translateX(-50%);')
       expect(css).toContain('max-width:max(0px, calc(100% - 2 * (var(--plugin-navigation-offset, 60px) + var(--space-button, 8px) + var(--shell-control-toolbar))))')
       expect(css).toMatch(/\.music-header-search:is\(:hover, :focus-within\) \{[^}]*border:none;[^}]*background:transparent;/)
-      expect(css).toMatch(/\.music-breadcrumbs \{[^}]*container-type:inline-size; \}/)
-      expect(css).toContain('.music-breadcrumbs button.music-breadcrumb-parent { min-width:2.5em; }')
-      expect(css).toContain('.music-breadcrumbs button[aria-current] { color:var(--title-color); flex:0 2 auto; min-width:2.5em; }')
-      expect(css).toContain('@container (max-width: 280px) { .music-breadcrumb-parent, .music-breadcrumb-separator { display:none; } }')
-      expect(css).not.toMatch(/button\[aria-current\] \{[^}]*flex-shrink:0/)
+      expect(css).toContain('.music-page-title-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }')
+      expect(css).not.toContain('music-breadcrumb-separator')
     } finally { dispose() }
   })
 
-  it('keeps breadcrumbs and search in one header row that expands search in place', async () => {
+  it('keeps the page title and search in one header row that expands search in place', async () => {
     const { song, store, dispose } = await setup()
     try {
       store.showPlaylist('forest')
       store.revealSong(song.id)
       render(React.createElement(Page, { navigation: { setController: vi.fn() } }))
       const navigation = screen.getByRole('navigation', { name: 'Music location' })
-      expect(navigation.textContent).toBe('/Forest Mix/canopy')
+      expect(navigation.querySelector('.music-page-title-text')!.textContent).toBe('Forest Mix')
+      expect(navigation.textContent).not.toContain('/')
       expect(navigation.nextElementSibling).toBeNull()
       fireEvent.click(within(navigation).getByRole('button', { name: 'Search songs by title, artist or filename…' }))
       const input = within(navigation).getByRole('textbox')
@@ -2871,47 +2869,21 @@ describe('Music song editing and presentation', () => {
       expect(store.getSnapshot().pageSearch).toBe('can')
       fireEvent.keyDown(input, { key: 'Escape' })
       expect(store.getSnapshot().pageSearch).toBe('')
-      expect(navigation.textContent).toBe('/Forest Mix/canopy')
+      expect(navigation.querySelector('.music-page-title-text')!.textContent).toBe('Forest Mix')
     } finally { await dispose() }
   })
 
-  it('follows playlist playback and persists the alternate file path from the header menu', async () => {
-    const { song, mock, store, dispose } = await setup()
+  it('titles the header after the open page rather than a path', async () => {
+    const { song, store, dispose } = await setup()
     try {
-      const openMenu = vi.spyOn(mock.api.ui, 'openMenu').mockResolvedValue(null)
       store.showPlaylist('forest')
-      const view = render(React.createElement(Page, { navigation: { setController: vi.fn() } }))
-      const header = () => screen.getByRole('navigation', { name: 'Music location' })
-      expect(header().textContent).toBe('/Forest Mix')
-      await act(async () => { store.playTrack(song, { playlistId: 'forest' }); await store.flushPersistence() })
-      expect(header().textContent).toBe('/Forest Mix/canopy')
-      fireEvent.click(header().querySelector('.music-breadcrumb-home')!)
-      expect(header().textContent).toBe('/canopy')
-      await act(async () => { store.pause(); await store.flushPersistence() })
-      expect(header().textContent).toBe('/canopy')
-      act(() => store.showPlaylist('forest'))
-      expect(header().textContent).toBe('/Forest Mix/canopy')
-      // Only the last crumb is the current page; the ones before it keep a readable minimum (see the stylesheet contract below).
-      expect([...header().querySelectorAll('button:not(.music-breadcrumb-home):not(.music-header-btn)')].map(button => [button.textContent, button.className, button.getAttribute('aria-current')])).toEqual([['Forest Mix', 'music-breadcrumb-parent', null], ['canopy', '', 'page']])
-      fireEvent.contextMenu(header())
-      let items = openMenu.mock.calls.at(-1)![0]
-      expect(items.find(item => item.label === 'Playlist / song')?.checked).toBe(true)
-      await act(async () => { await items.find(item => item.label === 'Music file path')!.onSelect?.() })
-      expect(header().textContent).toBe('/Music/canopy.mp4')
-      fireEvent.click(header().querySelector('.music-breadcrumb-home')!)
-      expect(header().textContent).toBe('/Music/canopy.mp4')
-      act(() => store.showPlaylist('forest'))
-      expect(header().textContent).toBe('/Music/canopy.mp4')
-      fireEvent.click(screen.getByRole('button', { name: 'Music' }))
-      expect(mock.api.workspace.revealInFiles).toHaveBeenCalledWith('Music')
-      view.unmount()
       render(React.createElement(Page, { navigation: { setController: vi.fn() } }))
-      expect(header().textContent).toBe('/Music/canopy.mp4')
-      fireEvent.contextMenu(header())
-      items = openMenu.mock.calls.at(-1)![0]
-      expect(items.find(item => item.label === 'Music file path')?.checked).toBe(true)
-      await act(async () => { await items.find(item => item.label === 'Playlist / song')!.onSelect?.() })
-      expect(header().textContent).toBe('/Forest Mix/canopy')
+      const title = () => screen.getByRole('navigation', { name: 'Music location' }).querySelector('.music-page-title-text')!.textContent
+      expect(title()).toBe('Forest Mix')
+      await act(async () => { store.playTrack(song, { playlistId: 'forest' }); await store.flushPersistence() })
+      expect(title()).toBe('Forest Mix')
+      act(() => store.showHome())
+      expect(title()).toBe('Music')
     } finally { await dispose() }
   })
 
@@ -2933,9 +2905,9 @@ describe('Music song editing and presentation', () => {
       await act(async () => { await store.flushPersistence() })
       expect(store.getSnapshot().history.map(item => item.id)).toEqual(['fern', 'moss'])
       expect(titles()).toEqual(['moss', 'fern'])
-      expect(screen.getByRole('navigation', { name: 'Music location' }).textContent).toBe('/fern')
+      expect(screen.getByRole('navigation', { name: 'Music location' }).textContent).toBe('Music')
       await act(async () => { store.pause(); await store.flushPersistence() })
-      expect(screen.getByRole('navigation', { name: 'Music location' }).textContent).toBe('/fern')
+      expect(screen.getByRole('navigation', { name: 'Music location' }).textContent).toBe('Music')
       await act(async () => { await store.updateTrack('fern', { title: 'Fern revised', artist: 'Canopy', album: '', details: {} }) })
       expect(titles()).toEqual(['moss', 'Fern revised'])
       await act(async () => { await store.refresh() })
@@ -3144,9 +3116,7 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       expect(await screen.findByRole('heading', { name: 'Moss Ensemble' })).toBeInTheDocument()
       expect(mock.api.workspace.setMainTabTitle).toHaveBeenLastCalledWith('Moss Ensemble', instanceId)
 
-      fireEvent.click(screen.getByRole('button', { name: 'Moss Ensemble', current: 'page' }), { metaKey: true })
-      expect(openMainTab).toHaveBeenLastCalledWith({ instanceId: expect.stringMatching(/^artist:/), title: 'Moss Ensemble', newTab: true })
-      expect(screen.getByRole('heading', { name: 'Moss Ensemble' })).toBeInTheDocument()
+      expect(screen.getByRole('navigation', { name: 'Music location' }).querySelector('.music-page-title-text')!.textContent).toBe('Moss Ensemble')
 
       fireEvent.click(screen.getAllByRole('button', { name: 'Library home' })[0])
       expect(await screen.findByText('Forest Mix', { selector: '.music-pl-card-name' })).toBeInTheDocument()
@@ -3161,7 +3131,7 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       expect(pinnedNavigator(store, instanceId)!.getState()).toMatchObject({ pageView: { mode: 'artist', id: mossArtist.id }, canGoForward: true })
 
       expect(store.getSnapshot()).toMatchObject({ pageView: { mode: 'playlist', id: 'forest' }, pageSearch: '' })
-      expect(openMainTab).toHaveBeenCalledTimes(1)
+      expect(openMainTab).not.toHaveBeenCalled()
       await new Promise((resolve) => setTimeout(resolve, 350))
       expect(settingsSet).not.toHaveBeenCalledWith('navigationState', expect.anything())
     } finally { await dispose() }

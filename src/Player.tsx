@@ -14,8 +14,6 @@ import { isEpisode, nextPodcastRate, resumePosition, showFolder, type PodcastSho
 import type { MusicSnapshot } from './store'
 import {
   Bookmark,
-  Expand,
-  Shrink,
   BookmarkPlus,
   ChevronDown,
   ChevronRight,
@@ -167,15 +165,25 @@ const PlayerScrub: FC<{ fallbackDuration: number; moments?: readonly { at: numbe
   )
 }
 
-/** Shrinks the player to a cover-and-title row, or brings the artwork back. */
-const CompactToggle: FC = () => {
-  const { store, snap } = useMusic(false)
-  const label = uiText(snap.playerCompact ? 'music.player.expand' : 'music.player.compact')
-  return (
-    <button className="player-compact-btn" title={label} aria-label={label} aria-pressed={snap.playerCompact} onClick={() => store?.setPlayerCompact(!snap.playerCompact)}>
-      {snap.playerCompact ? <Expand /> : <Shrink />}
-    </button>
-  )
+/** Clicking the artwork shrinks the player to a cover-and-title row; clicking the small cover (or, without artwork, the title row) brings it back. */
+function compactHandlers(store: ReturnType<typeof useMusic>['store'], compact: boolean) {
+  const label = uiText(compact ? 'music.player.expand' : 'music.player.compact')
+  return {
+    title: label,
+    role: 'button' as const,
+    tabIndex: 0,
+    'aria-label': label,
+    onClick: () => store?.setPlayerCompact(!compact),
+    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); store?.setPlayerCompact(!compact) } }
+  }
+}
+
+/** Without artwork the compact head itself expands, except over its links. */
+function expandFromHead(store: ReturnType<typeof useMusic>['store']) {
+  return (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('a, button, [role="button"]')) return
+    store?.setPlayerCompact(false)
+  }
 }
 
 const PlayerPlayButton: FC = () => {
@@ -299,7 +307,7 @@ const MusicPlayer: FC = () => {
           <div ref={coverRef} className="player-art" data-plugin-widget-layout="fill">
             {hasVideo && videoMode && videoSurface ? videoSurface : <>
               {coverUrl ? (
-                <img src={coverUrl} alt="" />
+                <img className="player-art-cover" src={coverUrl} alt="" {...(track ? compactHandlers(store, false) : {})} />
               ) : (
                 <span className="player-art-empty">
                   <Music />
@@ -311,8 +319,8 @@ const MusicPlayer: FC = () => {
 
         {track ? (
           <>
-            <div className="player-head">
-              {snap.playerCompact && coverUrl && <img ref={coverRef} className="player-compact-cover" src={coverUrl} alt="" />}
+            <div className="player-head" onClick={snap.playerCompact && !coverUrl ? expandFromHead(store) : undefined}>
+              {snap.playerCompact && coverUrl && <img ref={coverRef} className="player-compact-cover" src={coverUrl} alt="" {...compactHandlers(store, true)} />}
               <div className="player-titles">
                 <h2 className="player-title">{track.title}</h2>
                 <p className="player-artist">
@@ -327,7 +335,6 @@ const MusicPlayer: FC = () => {
               >
                 <Heart />
               </button>
-              <CompactToggle />
             </div>
 
             <PlayerScrub fallbackDuration={fallbackDuration} />
@@ -588,18 +595,17 @@ const PodcastPlayer: FC<{ track: Track }> = ({ track }) => {
             </div>}
           </div>
           <div ref={coverRef} className="player-art" data-plugin-widget-layout="fill">
-            {hasVideo && videoMode && videoSurface ? videoSurface : coverUrl ? <img src={coverUrl} alt="" /> : <span className="player-art-empty"><Podcast /></span>}
+            {hasVideo && videoMode && videoSurface ? videoSurface : coverUrl ? <img className="player-art-cover" src={coverUrl} alt="" {...compactHandlers(store, false)} /> : <span className="player-art-empty"><Podcast /></span>}
           </div>
         </div>}
 
-        <div className="player-head podcast-head">
-          {snap.playerCompact && coverUrl && <img ref={coverRef} className="player-compact-cover" src={coverUrl} alt="" />}
+        <div className="player-head podcast-head" onClick={snap.playerCompact && !coverUrl ? expandFromHead(store) : undefined}>
+          {snap.playerCompact && coverUrl && <img ref={coverRef} className="player-compact-cover" src={coverUrl} alt="" {...compactHandlers(store, true)} />}
           <div className="player-titles">
             <span className="podcast-kicker music-artist-link" role="button" tabIndex={0} onClick={openShow} onAuxClick={onMiddleClick(() => show && openPageTargetInNewTab(store, { kind: 'show', id: show.id }))}>{show?.name ?? track.album ?? uiText('music.podcast.kicker')}</span>
             <h2 className="player-title">{track.title}</h2>
             {(track.artist || meta) && <p className="player-artist">{[track.artist, meta].filter(Boolean).join(' · ')}</p>}
           </div>
-          <CompactToggle />
         </div>
 
         <PlayerScrub fallbackDuration={fallbackDuration} moments={moments} />

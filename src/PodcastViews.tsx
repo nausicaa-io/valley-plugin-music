@@ -10,7 +10,7 @@ import type { MusicSnapshot } from './store'
 import type { Track } from './types'
 import { uiText } from './localization'
 import { Section } from './Panel'
-import { PageHeader, type PageCrumb } from './PageHeader'
+import { PageHeader } from './PageHeader'
 import { navigateOrOpenTab, onMiddleClick, usePageNavState, usePageNavigator } from './pageNavigator'
 import { AlertTriangle, Clock, FolderOpen, ListMusic, Pause, Play, Podcast, Search, Settings, X } from './icons'
 
@@ -399,10 +399,7 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const view = navState.podcastView
   const show = view.mode === 'show' ? snap.shows.find(item => item.id === view.id) ?? null : null
   const current = snap.currentTrack && showIndex.has(snap.currentTrack.id) ? snap.currentTrack : null
-  const crumbs: PageCrumb[] = [
-    ...(show ? [{ label: show.name, title: show.name, onClick: openShow(show.id) }] : []),
-    ...(current && (!show || showIndex.get(current.id) === show) ? [{ label: current.title, title: current.title, onClick: (event: React.MouseEvent) => { const owner = showIndex.get(current.id); if (owner) openShow(owner.id)(event) } }] : [])
-  ]
+  const header = show ? show.name : uiText('music.podcast.tabTitle')
   const goHome = (event: React.MouseEvent): void => navigateOrOpenTab(event, store, { kind: 'podcasts' }, () => { nav.setPageSearch(''); nav.showPodcastHome() })
   const results = q ? snap.episodes.filter(episode => episode.title.toLowerCase().includes(q) || (showIndex.get(episode.id)?.name ?? '').toLowerCase().includes(q)) : null
   const resume = continueListening(snap)
@@ -476,7 +473,8 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
       {songEditor}
       <div className="music-page-header">
         <PageHeader
-          crumbs={crumbs}
+          title={header}
+          icon={<Podcast />}
           homeLabel={uiText('music.podcast.home')}
           onHome={goHome}
           query={query}
