@@ -4,7 +4,8 @@ import type { MainWorkspaceViewProps } from '@valley/plugin-sdk'
 import { assetUrlForRelPath } from '@valley/plugin-sdk/fileTypes'
 import { useMusic, useMusicCover } from './hooks'
 import { useSongMenu } from './SongMenu'
-import { formatTime } from './data'
+import { coverCropStyle, formatTime } from './data'
+import { CoverActions, CoverPicker } from './Page'
 import { resumePosition, type EpisodeProgress, type PodcastShow } from './podcasts'
 import type { MusicSnapshot } from './store'
 import type { Track } from './types'
@@ -56,11 +57,12 @@ function playShow(store: NonNullable<ReturnType<typeof useMusic>['store']>, snap
 }
 
 const ShowArt: FC<{ show: PodcastShow; className: string; emptyClassName: string }> = ({ show, className, emptyClassName }) => {
-  const { store } = useMusic(false)
+  const { store, snap } = useMusic(false)
   const { url, ref } = useMusicCover(store, show.coverPath ? undefined : show.episodes[0]?.id)
   const src = show.coverPath ? assetUrlForRelPath(show.coverPath) : url
+  const style = show.coverPath ? coverCropStyle(snap.coverCrops[`show:${show.id}`], show.coverPath) : undefined
   return src
-    ? <img ref={ref} className={className} src={src} alt="" loading="lazy" />
+    ? <img ref={ref} className={className} src={src} alt="" loading="lazy" style={style} />
     : <span ref={ref} className={emptyClassName}><Podcast /></span>
 }
 
@@ -321,6 +323,7 @@ const EpisodeCard: FC<{ track: Track; show?: PodcastShow; onPlay: () => void; on
 
 const ShowDetail: FC<{ show: PodcastShow; onMenu: (e: React.MouseEvent, track: Track) => void }> = ({ show, onMenu }) => {
   const { store, snap } = useMusic(false)
+  const [picking, setPicking] = React.useState<false | 'pick' | 'edit'>(false)
   if (!store) return null
   const total = show.episodes.reduce((sum, episode) => sum + (episode.duration ?? 0), 0)
   const playingHere = !!snap.currentTrack && show.episodes.some(episode => episode.id === snap.currentTrack!.id)
@@ -329,6 +332,17 @@ const ShowDetail: FC<{ show: PodcastShow; onMenu: (e: React.MouseEvent, track: T
       <div className="music-pl-detail-head">
         <div className="music-pl-detail-art">
           <ShowArt show={show} className="" emptyClassName="music-pl-detail-art-empty" />
+          <CoverActions
+            hasImage={!!show.coverPath}
+            canEdit={!!show.coverPath}
+            addLabel={uiText('auto.c83a2da7b7b6')}
+            onEdit={() => setPicking('edit')}
+            onChange={() => setPicking('pick')}
+            onRemove={() => {
+              store.setCoverCrop(`show:${show.id}`, null)
+              store.setShowCover(show.id, null)
+            }}
+          />
         </div>
         <div className="music-pl-detail-info">
           <span className="music-pl-detail-kicker">{uiText('music.podcast.kicker')}</span>
@@ -364,6 +378,20 @@ const ShowDetail: FC<{ show: PodcastShow; onMenu: (e: React.MouseEvent, track: T
           ))}
         </div>
       </div>
+      {picking && (
+        <CoverPicker
+          current={show.coverPath}
+          crop={snap.coverCrops[`show:${show.id}`]}
+          shape="square"
+          editOnly={picking === 'edit' ? show.coverPath : null}
+          onPick={(fileName, crop) => {
+            setPicking(false)
+            store.setCoverCrop(`show:${show.id}`, crop)
+            if (fileName !== show.coverPath) store.setShowCover(show.id, fileName)
+          }}
+          onClose={() => setPicking(false)}
+        />
+      )}
     </div>
   )
 }

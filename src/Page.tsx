@@ -125,7 +125,7 @@ const CoverCropEditor: FC<{
 }
 
 /** Pick a cover from the realm's images, searched by file name, then frame it. */
-const CoverPicker: FC<{
+export const CoverPicker: FC<{
   current: string | null
   crop?: CoverCrop | null
   shape?: 'round' | 'square'
@@ -776,7 +776,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
  * One "Change" pill on a cover. With an image it opens a small menu — edit the
  * framing, pick another image, or remove it; without one it goes straight to the picker.
  */
-const CoverActions: FC<{
+export const CoverActions: FC<{
   hasImage: boolean
   canEdit: boolean
   addLabel: string

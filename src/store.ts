@@ -71,6 +71,15 @@ const MOMENTS_SETTINGS_KEY = 'podcastMoments'
 const RATE_SETTINGS_KEY = 'podcastRate'
 const COMPACT_SETTINGS_KEY = 'playerCompact'
 const CROPS_SETTINGS_KEY = 'coverCrops'
+const SHOW_COVERS_SETTINGS_KEY = 'showCovers'
+
+/** Settings-stored podcast cover choices by show id: an image path, or '' for "no cover". */
+function readShowCovers(value: unknown): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!value || typeof value !== 'object') return out
+  for (const [id, cover] of Object.entries(value as Record<string, unknown>)) if (id && typeof cover === 'string') out[id] = cover
+  return out
+}
 
 /** Which podcast view the content page shows while the library is in podcast mode. */
 export type PodcastView = { mode: 'home' } | { mode: 'shows' } | { mode: 'show'; id: string }
@@ -282,6 +291,7 @@ export class MusicStore {
   private podcastRate = 1
   private playerCompact = false
   private coverCrops: Record<string, CoverCrop> = {}
+  private showCovers: Record<string, string> = {}
   private rateSyncedFor: string | null = null
   private offSettings: () => void
 
@@ -343,6 +353,7 @@ export class MusicStore {
     this.podcastRate = readPodcastRate(api.settings.get()[RATE_SETTINGS_KEY])
     this.playerCompact = api.settings.get()[COMPACT_SETTINGS_KEY] === true
     this.coverCrops = readCoverCrops(api.settings.get()[CROPS_SETTINGS_KEY])
+    this.showCovers = readShowCovers(api.settings.get()[SHOW_COVERS_SETTINGS_KEY])
     this.offSettings = api.settings.subscribe(() => this.onSettingsChanged())
     this.index = createIndexObserver(api, { fields: [] })
     this.metadata = new MediaMetadata(api)
@@ -465,7 +476,10 @@ export class MusicStore {
       podcastPath: this.podcastPath(),
       tracks: music,
       episodes,
-      shows: this.showCache.shows,
+      shows: this.showCache.shows.map(show => {
+        const chosen = this.showCovers[show.id]
+        return chosen === undefined ? show : { ...show, coverPath: chosen ? resolveCoverPath(entries, chosen) ?? show.coverPath : null }
+      }),
       playlists: this.playlists,
       artists: this.artists,
       playlistTracks,
@@ -1109,6 +1123,19 @@ export class MusicStore {
     this.playerCompact = compact
     void this.api.settings.set(COMPACT_SETTINGS_KEY, compact)
     this.emitPlayback()
+  }
+
+  /**
+   * Pick a podcast show's cover (an image path), hide it (null), or go back to
+   * the image found in the show folder (undefined).
+   */
+  setShowCover(id: string, cover: string | null | undefined): void {
+    const next = { ...this.showCovers }
+    if (cover === undefined) delete next[id]
+    else next[id] = cover ?? ''
+    this.showCovers = next
+    void this.api.settings.set(SHOW_COVERS_SETTINGS_KEY, next)
+    this.emit()
   }
 
   /** Frame (or, with null, unframe) an artist picture or playlist cover. */
