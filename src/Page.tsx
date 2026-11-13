@@ -443,7 +443,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
 
   const [renaming, setRenaming] = React.useState(false)
   const [nameDraft, setNameDraft] = React.useState(pl?.name ?? '')
-  const [pickingCover, setPickingCover] = React.useState(false)
+  const [pickingCover, setPickingCover] = React.useState<false | 'pick' | 'edit'>(false)
   const [coverDrop, setCoverDrop] = React.useState<'idle' | 'over' | 'miss'>('idle')
   const [adding, setAdding] = React.useState(false)
   const [addQuery, setAddQuery] = React.useState('')
@@ -528,9 +528,18 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
           onDrop={dropCover}
         >
           <PlaylistArt coverPath={coverPath} className="" emptyClassName="music-pl-detail-art-empty" style={coverCropStyle(snap.coverCrops[`playlist:${playlistId}`], pl?.cover)} />
-          <button onClick={() => setPickingCover(true)}>
-            <ImageIcon /> {coverPath ? uiText('auto.4ffbef63b4b5') : uiText('auto.c83a2da7b7b6')}
-          </button>
+          <CoverActions
+            hasImage={!!pl?.cover}
+            canEdit={!!coverPath}
+            addLabel={uiText('auto.c83a2da7b7b6')}
+            onEdit={() => setPickingCover('edit')}
+            onChange={() => setPickingCover('pick')}
+            onRemove={() => {
+              if (!pl) return
+              store.setCoverCrop(`playlist:${pl.id}`, null)
+              void store.setPlaylistCover(pl.id, null)
+            }}
+          />
           {coverDrop !== 'idle' && (
             <span className="music-pl-detail-drop">
               {coverDrop === 'miss' ? uiText('auto.35273bfe3feb') : uiText('auto.b24f5861aebb')}
@@ -750,6 +759,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
           current={pl.cover ?? null}
           crop={snap.coverCrops[`playlist:${pl.id}`]}
           shape="square"
+          editOnly={pickingCover === 'edit' ? coverPath : null}
           onPick={(fileName, crop) => {
             setPickingCover(false)
             store.setCoverCrop(`playlist:${pl.id}`, crop)
@@ -757,6 +767,73 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
           }}
           onClose={() => setPickingCover(false)}
         />
+      )}
+    </div>
+  )
+}
+
+/**
+ * One "Change" pill on a cover. With an image it opens a small menu — edit the
+ * framing, pick another image, or remove it; without one it goes straight to the picker.
+ */
+const CoverActions: FC<{
+  hasImage: boolean
+  canEdit: boolean
+  addLabel: string
+  onEdit: () => void
+  onChange: () => void
+  onRemove: () => void
+  onOpenChange?: (open: boolean) => void
+}> = ({ hasImage, canEdit, addLabel, onEdit, onChange, onRemove, onOpenChange }) => {
+  const [open, setOpenState] = React.useState(false)
+  const ref = React.useRef<HTMLDivElement>(null)
+  const setOpen = React.useCallback((next: boolean) => {
+    setOpenState(next)
+    onOpenChange?.(next)
+  }, [onOpenChange])
+  React.useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent): void => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, setOpen])
+  const run = (action: () => void) => (): void => {
+    setOpen(false)
+    action()
+  }
+  return (
+    <div ref={ref} className={`music-cover-actions ${open ? 'open' : ''}`}>
+      <button
+        className="music-cover-actions-toggle"
+        aria-haspopup={hasImage ? 'menu' : undefined}
+        aria-expanded={hasImage ? open : undefined}
+        onClick={() => (hasImage ? setOpen(!open) : onChange())}
+      >
+        {hasImage ? <><Pencil /> {uiText('music.cover.change')}</> : <><ImageIcon /> {addLabel}</>}
+      </button>
+      {open && (
+        <div className="music-cover-actions-menu" role="menu">
+          {canEdit && (
+            <button role="menuitem" onClick={run(onEdit)}>
+              <Pencil /> {uiText('music.artist.editImage')}
+            </button>
+          )}
+          <button role="menuitem" onClick={run(onChange)}>
+            <ImageIcon /> {uiText('auto.62a7b486b7ec')}
+          </button>
+          <button role="menuitem" className="danger" onClick={run(onRemove)}>
+            <Trash /> {uiText('auto.5f94b03c2e6a')}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -819,27 +896,17 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
             </span>
           )}
           {editOpen && (
-            <div className="music-artist-art-actions">
-              {imagePath && (
-                <button onClick={() => setPickingImage('edit')}>
-                  <Pencil /> {uiText('music.artist.editImage')}
-                </button>
-              )}
-              <button onClick={() => setPickingImage('pick')}>
-                <ImageIcon /> {artist.image ? uiText('auto.62a7b486b7ec') : uiText('auto.5375634e24c9')}
-              </button>
-              {artist.image && (
-                <button
-                  className="danger"
-                  onClick={() => {
-                    store.setCoverCrop(`artist:${artist.id}`, null)
-                    void store.setArtistImage(artist.id, null)
-                  }}
-                >
-                  <Trash /> {uiText('auto.5f94b03c2e6a')}
-                </button>
-              )}
-            </div>
+            <CoverActions
+              hasImage={!!artist.image}
+              canEdit={!!imagePath}
+              addLabel={uiText('auto.5375634e24c9')}
+              onEdit={() => setPickingImage('edit')}
+              onChange={() => setPickingImage('pick')}
+              onRemove={() => {
+                store.setCoverCrop(`artist:${artist.id}`, null)
+                void store.setArtistImage(artist.id, null)
+              }}
+            />
           )}
         </div>
         <div className="music-pl-detail-info">

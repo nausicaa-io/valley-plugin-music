@@ -468,12 +468,18 @@ const CSS = `
 /* Artist detail — reuses the playlist-detail head, with a round portrait */
 .music-artist-art { border-radius:50%; }
 .music-artist-art .music-pl-detail-art-empty { font-size:48px; }
-.music-artist-art-actions { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
-  justify-content:center; gap:6px; background:rgba(0,0,0,.25); }
-.music-pl-detail-art.music-artist-art .music-artist-art-actions button { position:static; opacity:1; width:auto; min-width:118px;
-  padding:6px 12px; border-radius:999px; white-space:nowrap; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); }
-.music-pl-detail-art.music-artist-art .music-artist-art-actions button:hover { background:rgba(0,0,0,.8); }
-.music-pl-detail-art.music-artist-art .music-artist-art-actions button.danger:hover { background:rgba(185,28,28,.85); }
+.music-pl-detail-art .music-cover-actions { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .12s; }
+.music-pl-detail-art:hover .music-cover-actions, .music-pl-detail-art .music-cover-actions.open,
+.music-pl-detail-art.music-artist-art .music-cover-actions { opacity:1; }
+.music-pl-detail-art .music-cover-actions.open { background:rgba(0,0,0,.3); }
+.music-pl-detail-art .music-cover-actions button { position:static; inset:auto; opacity:1; display:inline-flex; align-items:center;
+  justify-content:flex-start; gap:6px; padding:6px 12px; border:none; border-radius:999px; white-space:nowrap; cursor:pointer;
+  color:#fff; font-size:0.71875rem; font-weight:600; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); }
+.music-pl-detail-art .music-cover-actions button:hover { background:rgba(0,0,0,.8); }
+.music-pl-detail-art .music-cover-actions.open .music-cover-actions-toggle { display:none; }
+.music-cover-actions-menu { display:flex; flex-direction:column; align-items:stretch; gap:5px; }
+.music-pl-detail-art .music-cover-actions-menu button.danger:hover { background:rgba(185,28,28,.85); }
 .music-artist-bio { margin:0; font-family:var(--body-font); font-size:0.78125rem; line-height:1.5; color:var(--text-secondary);
   max-width:640px; white-space:pre-wrap; }
 .music-artist-edit { display:flex; flex-direction:column; gap:10px; margin-top:8px; max-width:520px; }
