@@ -353,5 +353,13 @@
   "music.footer.inProgress": "En cours",
   "music.footer.speed": "Vitesse de lecture",
   "music.player.compact": "Lecteur compact",
-  "music.player.expand": "Afficher la pochette"
+  "music.player.expand": "Afficher la pochette",
+  "music.cover.adjust": "Ajuster la pochette",
+  "music.cover.zoom": "Zoom",
+  "music.cover.zoomIn": "Agrandir",
+  "music.cover.zoomOut": "Réduire",
+  "music.cover.hint": "Glisser pour déplacer · défiler pour zoomer · double-clic pour réinitialiser",
+  "music.cover.back": "Retour",
+  "music.cover.reset": "Réinitialiser",
+  "music.cover.save": "Enregistrer"
 }

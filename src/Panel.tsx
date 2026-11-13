@@ -4,7 +4,7 @@ import { assetUrlForRelPath } from '@valley/plugin-sdk/fileTypes'
 import { useMusic, useMusicCover } from './hooks'
 import { ArtistLinks } from './ArtistLinks'
 import { tracksForArtist } from './artists'
-import { resolveCoverPath, searchTracks } from './data'
+import { coverCropStyle, resolveCoverPath, searchTracks } from './data'
 import { usePlaylistMenu, useSongMenu } from './SongMenu'
 import type { Artist, Playlist, Track } from './types'
 import { musicCount, uiText } from './localization'
@@ -115,10 +115,11 @@ const PlaylistRow: FC<{
   count: number
   active: boolean
   coverPath: string | null
+  coverStyle?: React.CSSProperties
   onOpen: (event: React.MouseEvent) => void
   onPlay: () => void
   onMenu: (e: React.MouseEvent) => void
-}> = ({ name, count, active, coverPath, onOpen, onPlay, onMenu }) => {
+}> = ({ name, count, active, coverPath, coverStyle, onOpen, onPlay, onMenu }) => {
   const { store, snap } = useMusic(false)
   const actionLabel = active && snap.isPlaying ? uiText('auto.781961bc81c2') : uiText('auto.a158f4f6ab64')
   const onAction = active ? () => store?.togglePlay() : onPlay
@@ -143,7 +144,7 @@ const PlaylistRow: FC<{
         {coverPath ? (
           <img
             className="music-cover"
-            style={{ width: 32, height: 32 }}
+            style={{ width: 32, height: 32, ...coverStyle }}
             src={assetUrlForRelPath(coverPath)}
             alt=""
             loading="lazy"
@@ -178,11 +179,12 @@ const ArtistRow: FC<{
   artist: Artist
   count: number
   imageUrl: string | null
+  imageStyle?: React.CSSProperties
   trackId?: string
   active?: boolean
   onOpen: (event: React.MouseEvent) => void
   onPlay: () => void
-}> = ({ artist, count, imageUrl: customImage, trackId, active = false, onOpen, onPlay }) => {
+}> = ({ artist, count, imageUrl: customImage, imageStyle, trackId, active = false, onOpen, onPlay }) => {
   const { store, snap } = useMusic(false)
   const { url, ref } = useMusicCover(store, customImage ? undefined : trackId)
   const imageUrl = customImage ?? url
@@ -201,7 +203,7 @@ const ArtistRow: FC<{
         {imageUrl ? (
           <img
             className="music-cover artist"
-            style={{ width: 32, height: 32 }}
+            style={{ width: 32, height: 32, ...(customImage ? imageStyle : undefined) }}
             src={imageUrl}
             alt=""
             loading="lazy"
@@ -317,6 +319,7 @@ export const Panel: FC = () => {
         artist={a}
         count={list.length}
         imageUrl={imageUrl}
+        imageStyle={coverCropStyle(snap.coverCrops[`artist:${a.id}`], a.image, '50%')}
         trackId={list[0]?.id}
         active={!!snap.currentTrack && list.some(track => track.id === snap.currentTrack!.id)}
         onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'artist', id: a.id }, () => store.showArtist(a.id))}
@@ -334,6 +337,7 @@ export const Panel: FC = () => {
         count={list.length}
         active={currentPlaylistId === pl.id}
         coverPath={playlistCovers[pl.id] ?? null}
+        coverStyle={coverCropStyle(snap.coverCrops[`playlist:${pl.id}`], pl.cover, '4px')}
         onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'playlist', id: pl.id }, () => store.showPlaylist(pl.id))}
         onPlay={() => list.length && store.playQueue(list, 0, pl.id)}
         onMenu={(e) => openPlaylistMenu(e, pl.id)}

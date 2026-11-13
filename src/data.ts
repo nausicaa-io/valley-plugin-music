@@ -1,6 +1,7 @@
 import type { PluginIndexEntry } from '@valley/plugin-sdk'
 import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
-import type { HistoryEntry, Playlist, QueueEntry, Track } from './types'
+import type { CSSProperties } from 'react'
+import type { CoverCrop, HistoryEntry, Playlist, QueueEntry, Track } from './types'
 
 /**
  * Format a duration in seconds as `M:SS`, or `H:MM:SS` once it reaches an hour.
@@ -241,6 +242,46 @@ export function resolveCoverPath(entries: readonly PluginIndexEntry[], cover: st
   // index doesn't list) is trusted as-is; bare file names match by basename.
   if (cover.includes('/')) return cover
   return index.byBase.get(baseName(cover).toLowerCase()) ?? null
+}
+
+export const COVER_ZOOM_MAX = 4
+
+const clampNumber = (value: unknown, min: number, max: number, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback
+
+/** Settings-stored cover framings, keyed `artist:<id>` / `playlist:<id>`; malformed entries are dropped. */
+export function readCoverCrops(value: unknown): Record<string, CoverCrop> {
+  const out: Record<string, CoverCrop> = {}
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!raw || typeof raw !== 'object') continue
+    const r = raw as Record<string, unknown>
+    if (typeof r.image !== 'string' || !r.image) continue
+    out[key] = { image: r.image, x: clampNumber(r.x, 0, 100, 50), y: clampNumber(r.y, 0, 100, 50), zoom: clampNumber(r.zoom, 1, COVER_ZOOM_MAX, 1) }
+  }
+  return out
+}
+
+/**
+ * Inline style that frames an `object-fit: cover` image; nothing when the crop
+ * belongs to another image. The zoom scales the element around the focal point
+ * and a matching clip keeps it inside its own box, so it also works on images
+ * that round themselves (`radius`) rather than sitting in a clipping container.
+ */
+export function coverCropStyle(crop: CoverCrop | null | undefined, image?: string | null, radius = '0px'): CSSProperties | undefined {
+  if (!crop || (image != null && crop.image !== image)) return undefined
+  const { x, y, zoom } = crop
+  const origin = `${x}% ${y}%`
+  if (zoom <= 1) return { objectFit: 'cover', objectPosition: origin }
+  const keep = 1 - 1 / zoom
+  const inset = `${y * keep}% ${(100 - x) * keep}% ${(100 - y) * keep}% ${x * keep}%`
+  return {
+    objectFit: 'cover',
+    objectPosition: origin,
+    transformOrigin: origin,
+    transform: `scale(${zoom})`,
+    clipPath: `inset(${inset} round calc(${radius} / ${zoom}))`
+  }
 }
 
 const coverIndexes = new WeakMap<readonly PluginIndexEntry[], { paths: Set<string>; byBase: Map<string, string> }>()

@@ -5,9 +5,9 @@ import { IMAGE_EXTENSIONS, assetUrlForRelPath, fileExtension } from '@valley/plu
 import { useMusic, useMusicCover, useMusicIndex } from './hooks'
 import { ArtistLinks } from './ArtistLinks'
 import { usePlaylistMenu, useSongMenu } from './SongMenu'
-import { baseName, formatTime, resolveCoverPath, searchTracks } from './data'
+import { COVER_ZOOM_MAX, baseName, coverCropStyle, formatTime, resolveCoverPath, searchTracks } from './data'
 import { Cover, SongRow } from './Panel'
-import type { Artist, Playlist, Track } from './types'
+import type { Artist, CoverCrop, Playlist, Track } from './types'
 import { tracksForArtist } from './artists'
 import { PodcastPage } from './PodcastViews'
 import { PageHeader } from './PageHeader'
@@ -33,15 +33,109 @@ import {
   Headphones
 } from './icons'
 
-/** Pick a cover from the realm's images, searched by file name. */
+const CENTERED: Omit<CoverCrop, 'image'> = { x: 50, y: 50, zoom: 1 }
+
+/**
+ * Frame a chosen image: drag to move it, scroll or use the slider to zoom. The
+ * frame has the shape the cover is shown in, so what it shows is what is kept.
+ */
+const CoverCropEditor: FC<{
+  relPath: string
+  initial: CoverCrop | null
+  shape: 'round' | 'square'
+  onBack: () => void
+  onSave: (crop: CoverCrop) => void
+}> = ({ relPath, initial, shape, onBack, onSave }) => {
+  const [crop, setCrop] = React.useState<Omit<CoverCrop, 'image'>>(
+    initial && initial.image === relPath ? { x: initial.x, y: initial.y, zoom: initial.zoom } : CENTERED
+  )
+  const [natural, setNatural] = React.useState<{ w: number; h: number } | null>(null)
+  const frameRef = React.useRef<HTMLDivElement>(null)
+  const drag = React.useRef<{ id: number; px: number; py: number; x: number; y: number } | null>(null)
+  const setZoom = (zoom: number): void => setCrop((c) => ({ ...c, zoom: Math.min(COVER_ZOOM_MAX, Math.max(1, zoom)) }))
+
+  React.useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return
+    const onWheel = (e: WheelEvent): void => {
+      e.preventDefault()
+      setCrop((c) => ({ ...c, zoom: Math.min(COVER_ZOOM_MAX, Math.max(1, c.zoom * Math.exp(-e.deltaY * 0.002))) }))
+    }
+    frame.addEventListener('wheel', onWheel, { passive: false })
+    return () => frame.removeEventListener('wheel', onWheel)
+  }, [])
+
+  const onPointerMove = (e: React.PointerEvent): void => {
+    const start = drag.current
+    const frame = frameRef.current
+    if (!start || start.id !== e.pointerId || !frame || !natural) return
+    const size = frame.clientWidth
+    const k = size / Math.min(natural.w, natural.h)
+    const span = (overflow: number): number => size * (crop.zoom - 1) + crop.zoom * overflow
+    const sx = span(natural.w * k - size)
+    const sy = span(natural.h * k - size)
+    const x = sx > 0 ? start.x - ((e.clientX - start.px) * 100) / sx : 50
+    const y = sy > 0 ? start.y - ((e.clientY - start.py) * 100) / sy : 50
+    setCrop((c) => ({ ...c, x: Math.min(100, Math.max(0, x)), y: Math.min(100, Math.max(0, y)) }))
+  }
+
+  return (
+    <div className="music-cover-crop">
+      <div
+        ref={frameRef}
+        className={`music-cover-crop-frame ${shape}`}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          drag.current = { id: e.pointerId, px: e.clientX, py: e.clientY, x: crop.x, y: crop.y }
+        }}
+        onPointerMove={onPointerMove}
+        onPointerUp={() => { drag.current = null }}
+        onPointerCancel={() => { drag.current = null }}
+        onDoubleClick={() => setCrop(CENTERED)}
+      >
+        <img
+          src={assetUrlForRelPath(relPath)}
+          alt=""
+          draggable={false}
+          onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+          style={coverCropStyle({ image: relPath, ...crop })}
+        />
+      </div>
+      <div className="music-cover-crop-zoom">
+        <button onClick={() => setZoom(crop.zoom / 1.25)} aria-label={uiText('music.cover.zoomOut')}>−</button>
+        <input
+          type="range"
+          min={1}
+          max={COVER_ZOOM_MAX}
+          step={0.01}
+          value={crop.zoom}
+          aria-label={uiText('music.cover.zoom')}
+          onChange={(e) => setZoom(Number(e.target.value))}
+        />
+        <button onClick={() => setZoom(crop.zoom * 1.25)} aria-label={uiText('music.cover.zoomIn')}>+</button>
+      </div>
+      <div className="music-cover-crop-hint">{uiText('music.cover.hint')}</div>
+      <div className="music-cover-crop-actions">
+        <button onClick={onBack}>{uiText('music.cover.back')}</button>
+        <button onClick={() => setCrop(CENTERED)}>{uiText('music.cover.reset')}</button>
+        <button className="primary" onClick={() => onSave({ image: relPath, ...crop })}>{uiText('music.cover.save')}</button>
+      </div>
+    </div>
+  )
+}
+
+/** Pick a cover from the realm's images, searched by file name, then frame it. */
 const CoverPicker: FC<{
   current: string | null
-  onPick: (fileName: string | null) => void
+  crop?: CoverCrop | null
+  shape?: 'round' | 'square'
+  onPick: (fileName: string | null, crop: CoverCrop | null) => void
   onClose: () => void
-}> = ({ current, onPick, onClose }) => {
+}> = ({ current, crop = null, shape = 'square', onPick, onClose }) => {
   const entries = useMusicIndex()
   const [query, setQuery] = React.useState('')
   const [dragOver, setDragOver] = React.useState(false)
+  const [editing, setEditing] = React.useState<string | null>(null)
   const images = React.useMemo(() => {
     const all = entries.map((e) => e.relPath)
       .filter((p) => (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(p)))
@@ -67,7 +161,7 @@ const CoverPicker: FC<{
         const img = created.find((p) =>
           (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(p))
         )
-        if (img) onPick(img)
+        if (img) setEditing(img)
       })()
       return
     }
@@ -80,7 +174,7 @@ const CoverPicker: FC<{
           (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(p)) &&
           baseName(p).toLowerCase() === name
       )
-    if (match) onPick(match)
+    if (match) setEditing(match)
   }
 
   const onDragOverPicker = (e: React.DragEvent): void => {
@@ -102,11 +196,20 @@ const CoverPicker: FC<{
         onDrop={onDropImage}
       >
         <div className="music-cover-picker-head">
-          <span>{uiText('auto.c902ae5c35bb')}</span>
+          <span>{editing ? uiText('music.cover.adjust') : uiText('auto.c902ae5c35bb')}</span>
           <button onClick={onClose} aria-label={uiText('auto.bbfa773e5a63')}>
             <X />
           </button>
         </div>
+        {editing ? (
+          <CoverCropEditor
+            relPath={editing}
+            initial={crop}
+            shape={shape}
+            onBack={() => setEditing(null)}
+            onSave={(next) => onPick(editing, next)}
+          />
+        ) : (<>
         <div className="music-cover-search search-field">
           <Search className="search-field-icon" />
           <input
@@ -128,7 +231,7 @@ const CoverPicker: FC<{
               <button
                 className="music-cover-first music-cover-first--remove"
                 title={uiText('auto.7a5eef5219ad')}
-                onClick={() => onPick(null)}
+                onClick={() => onPick(null, null)}
               >
                 <span className="music-cover-first-inner">
                   <Trash />
@@ -152,7 +255,7 @@ const CoverPicker: FC<{
                 key={relPath}
                 className={current === relPath ? 'selected' : ''}
                 title={baseName(relPath)}
-                onClick={() => onPick(relPath)}
+                onClick={() => setEditing(relPath)}
               >
                 <img src={assetUrlForRelPath(relPath)} alt="" loading="lazy" />
                 <figcaption>{baseName(relPath)}</figcaption>
@@ -160,6 +263,7 @@ const CoverPicker: FC<{
             ))}
           </div>
         )}
+        </>)}
       </div>
     </div>
   )
@@ -176,12 +280,13 @@ const EqBadge: FC<{ playing: boolean }> = ({ playing }) => (
 
 const ARTIST_BARS = [38, 66, 100, 74, 100, 66, 38]
 
-const PlaylistArt: FC<{ coverPath: string | null; className: string; emptyClassName: string }> = ({
+const PlaylistArt: FC<{ coverPath: string | null; className: string; emptyClassName: string; style?: React.CSSProperties }> = ({
   coverPath,
   className,
-  emptyClassName
+  emptyClassName,
+  style
 }) => {
-  if (coverPath) return <img className={className} src={assetUrlForRelPath(coverPath)} alt="" loading="lazy" />
+  if (coverPath) return <img className={className} src={assetUrlForRelPath(coverPath)} alt="" loading="lazy" style={style} />
   return (
     <span className={emptyClassName}>
       <ListMusic />
@@ -193,13 +298,14 @@ const PlaylistCard: FC<{
   pl: Playlist
   count: number
   coverPath: string | null
+  coverStyle?: React.CSSProperties
   active: boolean
   playing: boolean
   onOpen: (event: React.MouseEvent) => void
   onPlay: () => void
   onToggle: () => void
   onMenu: (e: React.MouseEvent, playlistId: string) => void
-}> = ({ pl, count, coverPath, active, playing, onOpen, onPlay, onToggle, onMenu }) => (
+}> = ({ pl, count, coverPath, coverStyle, active, playing, onOpen, onPlay, onToggle, onMenu }) => (
   <div
     className={`music-pl-card ${active ? 'active' : ''}`}
     role="button"
@@ -210,7 +316,7 @@ const PlaylistCard: FC<{
   >
     <div className="music-pl-card-art">
       {coverPath ? (
-        <img src={assetUrlForRelPath(coverPath)} alt="" loading="lazy" />
+        <img src={assetUrlForRelPath(coverPath)} alt="" loading="lazy" style={coverStyle} />
       ) : (
         <span className="music-pl-card-art-empty">
           <ListMusic />
@@ -290,7 +396,7 @@ const ArtistCard: FC<{ artist: Artist; tracks: Track[]; onOpen: (event: React.Mo
     <div ref={ref} className={`music-artist-card ${active ? 'active' : ''}`} role="button" tabIndex={0} onClick={onOpen} onAuxClick={onMiddleClick(onOpen)}>
       <span className="music-artist-card-art">
         <User />
-        {src && <img src={src} alt="" loading="lazy" />}
+        {src && <img src={src} alt="" loading="lazy" style={imagePath ? coverCropStyle(snap.coverCrops[`artist:${artist.id}`], artist.image) : undefined} />}
         {active ? (
           <button
             className={`music-artist-card-eq ${snap.isPlaying ? '' : 'paused'}`}
@@ -419,7 +525,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
           onDragLeave={() => setCoverDrop((s) => (s === 'over' ? 'idle' : s))}
           onDrop={dropCover}
         >
-          <PlaylistArt coverPath={coverPath} className="" emptyClassName="music-pl-detail-art-empty" />
+          <PlaylistArt coverPath={coverPath} className="" emptyClassName="music-pl-detail-art-empty" style={coverCropStyle(snap.coverCrops[`playlist:${playlistId}`], pl?.cover)} />
           <button onClick={() => setPickingCover(true)}>
             <ImageIcon /> {coverPath ? uiText('auto.4ffbef63b4b5') : uiText('auto.c83a2da7b7b6')}
           </button>
@@ -640,9 +746,12 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
       {pickingCover && (
         <CoverPicker
           current={pl.cover ?? null}
-          onPick={(fileName) => {
+          crop={snap.coverCrops[`playlist:${pl.id}`]}
+          shape="square"
+          onPick={(fileName, crop) => {
             setPickingCover(false)
-            void store.setPlaylistCover(pl.id, fileName)
+            store.setCoverCrop(`playlist:${pl.id}`, crop)
+            if (fileName !== (pl.cover ?? null)) void store.setPlaylistCover(pl.id, fileName)
           }}
           onClose={() => setPickingCover(false)}
         />
@@ -708,7 +817,7 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
       <div className="music-pl-detail-head">
         <div ref={coverRef} className="music-pl-detail-art music-artist-art">
           {imageUrl ? (
-            <img src={imageUrl} alt="" />
+            <img src={imageUrl} alt="" style={imagePath ? coverCropStyle(snap.coverCrops[`artist:${artist.id}`], artist.image) : undefined} />
           ) : (
             <span className="music-pl-detail-art-empty">
               <User />
@@ -838,9 +947,12 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
       {pickingImage && (
         <CoverPicker
           current={artist.image ?? null}
-          onPick={(fileName) => {
+          crop={snap.coverCrops[`artist:${artist.id}`]}
+          shape="round"
+          onPick={(fileName, crop) => {
             setPickingImage(false)
-            void store.setArtistImage(artist.id, fileName)
+            store.setCoverCrop(`artist:${artist.id}`, crop)
+            if (fileName !== (artist.image ?? null)) void store.setArtistImage(artist.id, fileName)
           }}
           onClose={() => setPickingImage(false)}
         />
@@ -1022,6 +1134,7 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
                   pl={pl}
                   count={(snap.playlistTracks[pl.id] ?? []).length}
                   coverPath={snap.playlistCovers[pl.id] ?? null}
+                  coverStyle={coverCropStyle(snap.coverCrops[`playlist:${pl.id}`], pl.cover)}
                   active={snap.currentPlaylistId === pl.id}
                   playing={snap.currentPlaylistId === pl.id && snap.isPlaying}
                   onOpen={(e) => navigateOrOpenTab(e, store, { kind: 'playlist', id: pl.id }, () => nav.showPlaylist(pl.id))}

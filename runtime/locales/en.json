@@ -353,5 +353,13 @@
   "music.footer.inProgress": "In progress",
   "music.footer.speed": "Playback speed",
   "music.player.compact": "Compact player",
-  "music.player.expand": "Show artwork"
+  "music.player.expand": "Show artwork",
+  "music.cover.adjust": "Adjust cover",
+  "music.cover.zoom": "Zoom",
+  "music.cover.zoomIn": "Zoom in",
+  "music.cover.zoomOut": "Zoom out",
+  "music.cover.hint": "Drag to move · scroll to zoom · double-click to reset",
+  "music.cover.back": "Back",
+  "music.cover.reset": "Reset",
+  "music.cover.save": "Save"
 }

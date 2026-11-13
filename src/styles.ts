@@ -540,6 +540,26 @@ const CSS = `
 .music-cover-grid button:hover figcaption,
 .music-cover-grid button.selected figcaption { opacity:1; }
 .music-cover-picker-empty { padding:22px 20px; color:var(--text-tertiary); font-size:0.78125rem; }
+.music-cover-crop { display:flex; flex-direction:column; align-items:center; gap:12px; padding:4px 20px 20px; }
+.music-cover-crop-frame { position:relative; width:min(300px, 70vw); aspect-ratio:1; overflow:hidden; cursor:grab;
+  touch-action:none; user-select:none; background:var(--container-color-light);
+  box-shadow:0 0 0 2px var(--accent-color); }
+.music-cover-crop-frame:active { cursor:grabbing; }
+.music-cover-crop-frame.round { border-radius:50%; }
+.music-cover-crop-frame.square { border-radius:10px; }
+.music-cover-crop-frame img { position:absolute; inset:0; width:100%; height:100%; display:block; pointer-events:none; }
+.music-cover-crop-zoom { display:flex; align-items:center; gap:8px; width:min(300px, 70vw); }
+.music-cover-crop-zoom input { flex:1; accent-color:var(--accent-color); }
+.music-cover-crop-zoom button { border:none; background:none; color:var(--text-secondary, var(--text-color)); cursor:pointer;
+  width:24px; height:24px; border-radius:6px; font-size:16px; line-height:1; }
+.music-cover-crop-zoom button:hover { background:var(--hover-bg); color:var(--text-color); }
+.music-cover-crop-hint { font-size:0.6875rem; color:var(--text-tertiary); }
+.music-cover-crop-actions { display:flex; gap:8px; justify-content:flex-end; width:100%; }
+.music-cover-crop-actions button { border:1px solid var(--border-medium, rgba(128,128,128,.3)); background:var(--container-color-light);
+  color:var(--text-color); border-radius:6px; padding:6px 12px; font-size:0.78125rem; cursor:pointer; }
+.music-cover-crop-actions button:hover { background:var(--hover-bg); }
+.music-cover-crop-actions button.primary { background:var(--accent-color); border-color:var(--accent-color); color:#fff; }
+.music-cover-crop-actions button.primary:hover { filter:brightness(1.08); }
 
 .music-song-editor { font-family:var(--interface-font); }
 .music-song-editor fieldset { border:0; margin:0; padding:0; min-width:0; }

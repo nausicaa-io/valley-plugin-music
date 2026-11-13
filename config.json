@@ -417,6 +417,16 @@
         "default": false
       },
       {
+        "key": "coverCrops",
+        "label": "Cover framing",
+        "type": "custom",
+        "settingsVisible": false,
+        "schema": {
+          "type": "object"
+        },
+        "description": "Zoom and position of artist pictures and playlist covers."
+      },
+      {
         "key": "breadcrumbMode",
         "label": "Breadcrumb display",
         "type": "custom",

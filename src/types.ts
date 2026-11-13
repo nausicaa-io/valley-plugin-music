@@ -59,6 +59,18 @@ export interface Playlist {
   cover?: string
 }
 
+/**
+ * How a cover image is framed: the focal point as a percentage of the overflow
+ * (`object-position`) and a zoom factor around it. Kept for the `image` it was
+ * made for, so choosing another image starts unframed.
+ */
+export interface CoverCrop {
+  image: string
+  x: number
+  y: number
+  zoom: number
+}
+
 /** One committed play event. */
 export interface HistoryEntry {
   songId: string

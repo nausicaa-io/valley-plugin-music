@@ -13,6 +13,7 @@ import {
   dedupeHistory,
   mediaFilesInFolder,
   mostListened,
+  readCoverCrops,
   resolveCoverPath,
   resolvePlaylistTracks
 } from './data'
@@ -29,7 +30,7 @@ import {
   tracksForArtist,
   upsertArtists
 } from './artists'
-import type { Artist, HistoryEntry, Playlist, RepeatMode, Track } from './types'
+import type { Artist, CoverCrop, HistoryEntry, Playlist, RepeatMode, Track } from './types'
 import type { MusicPlaybackAction, MusicPlaybackSnapshot } from './playback'
 export { nextIndex } from './playback'
 import { api as runtimeApi } from './runtime'
@@ -69,6 +70,7 @@ const PROGRESS_LIMIT = 300
 const MOMENTS_SETTINGS_KEY = 'podcastMoments'
 const RATE_SETTINGS_KEY = 'podcastRate'
 const COMPACT_SETTINGS_KEY = 'playerCompact'
+const CROPS_SETTINGS_KEY = 'coverCrops'
 
 /** Which podcast view the content page shows while the library is in podcast mode. */
 export type PodcastView = { mode: 'home' } | { mode: 'show'; id: string }
@@ -209,6 +211,8 @@ export interface MusicSnapshot {
   podcastRate: number
   /** Right-sidebar player shrunk to a cover-and-title row. */
   playerCompact: boolean
+  /** Framing of artist pictures and playlist covers, keyed `artist:<id>` / `playlist:<id>`. */
+  coverCrops: Record<string, CoverCrop>
 }
 
 interface PlayerPreferences {
@@ -276,6 +280,7 @@ export class MusicStore {
   private episodeMoments: Record<string, EpisodeMoment[]> = {}
   private podcastRate = 1
   private playerCompact = false
+  private coverCrops: Record<string, CoverCrop> = {}
   private rateSyncedFor: string | null = null
   private offSettings: () => void
 
@@ -336,6 +341,7 @@ export class MusicStore {
     this.episodeMoments = readMoments(api.settings.get()[MOMENTS_SETTINGS_KEY])
     this.podcastRate = readPodcastRate(api.settings.get()[RATE_SETTINGS_KEY])
     this.playerCompact = api.settings.get()[COMPACT_SETTINGS_KEY] === true
+    this.coverCrops = readCoverCrops(api.settings.get()[CROPS_SETTINGS_KEY])
     this.offSettings = api.settings.subscribe(() => this.onSettingsChanged())
     this.index = createIndexObserver(api, { fields: [] })
     this.metadata = new MediaMetadata(api)
@@ -498,7 +504,8 @@ export class MusicStore {
       episodeProgress: this.episodeProgress,
       episodeMoments: this.episodeMoments,
       podcastRate: this.podcastRate,
-      playerCompact: this.playerCompact
+      playerCompact: this.playerCompact,
+      coverCrops: this.coverCrops
     }
   }
 
@@ -1100,6 +1107,16 @@ export class MusicStore {
     if (this.playerCompact === compact) return
     this.playerCompact = compact
     void this.api.settings.set(COMPACT_SETTINGS_KEY, compact)
+    this.emitPlayback()
+  }
+
+  /** Frame (or, with null, unframe) an artist picture or playlist cover. */
+  setCoverCrop(key: string, crop: CoverCrop | null): void {
+    const next = { ...this.coverCrops }
+    if (crop && (crop.zoom > 1 || crop.x !== 50 || crop.y !== 50)) next[key] = readCoverCrops({ [key]: crop })[key]
+    else delete next[key]
+    this.coverCrops = next
+    void this.api.settings.set(CROPS_SETTINGS_KEY, next)
     this.emitPlayback()
   }
 

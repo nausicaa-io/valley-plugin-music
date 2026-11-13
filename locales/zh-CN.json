@@ -353,5 +353,13 @@
   "music.footer.inProgress": "进行中",
   "music.footer.speed": "播放速度",
   "music.player.compact": "紧凑播放器",
-  "music.player.expand": "显示封面"
+  "music.player.expand": "显示封面",
+  "music.cover.adjust": "调整封面",
+  "music.cover.zoom": "缩放",
+  "music.cover.zoomIn": "放大",
+  "music.cover.zoomOut": "缩小",
+  "music.cover.hint": "拖动以移动 · 滚动以缩放 · 双击以重置",
+  "music.cover.back": "返回",
+  "music.cover.reset": "重置",
+  "music.cover.save": "保存"
 }
