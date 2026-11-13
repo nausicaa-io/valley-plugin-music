@@ -763,9 +763,6 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
 /** One artist opened full-width (Spotify-style): image, bio, every credited song. */
 const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, onBack }) => {
   const { store, snap } = useMusic(false)
-  // The host's styled dropdown — never a raw `<select>`, whose popup Chromium
-  // hands to the OS unthemed and which ignores the native/custom menu setting.
-  const { SelectField } = api.ui.settings
   const { openSongMenu, songEditor } = useSongMenu()
   const summary = store?.artistSummary(artistId) ?? null
   const imagePath = resolveCoverPath(store?.getIndexEntries() ?? [], summary?.artist.image)
@@ -776,7 +773,6 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
   const [editOpen, setEditOpen] = React.useState(false)
   const [bioDraft, setBioDraft] = React.useState(summary?.artist.bio ?? '')
   const [pickingImage, setPickingImage] = React.useState(false)
-  const [mergeId, setMergeId] = React.useState('')
 
   React.useEffect(() => {
     setNameDraft(summary?.artist.name ?? '')
@@ -800,9 +796,6 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
   const imageUrl = imagePath ? assetUrlForRelPath(imagePath) : fallbackCover
   const totalSeconds = tracks.reduce((sum, t) => sum + (t.duration ?? 0), 0)
   const playingHere = !!snap.currentTrack && tracks.some((t) => t.id === snap.currentTrack!.id)
-  const others = snap.artists
-    .filter((a) => a.id !== artist.id)
-    .sort((a, b) => a.name.localeCompare(b.name))
 
   const commitRename = (): void => {
     setRenaming(false)
@@ -823,9 +816,11 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
               <User />
             </span>
           )}
-          <button onClick={() => setPickingImage(true)}>
-            <ImageIcon /> {artist.image ? uiText('auto.62a7b486b7ec') : uiText('auto.5375634e24c9')}
-          </button>
+          {editOpen && (
+            <button className="music-artist-art-change" onClick={() => setPickingImage(true)}>
+              <ImageIcon /> {artist.image ? uiText('auto.62a7b486b7ec') : uiText('auto.5375634e24c9')}
+            </button>
+          )}
         </div>
         <div className="music-pl-detail-info">
           <span className="music-pl-detail-kicker">{uiText('auto.6c3f3d320363')}</span>
@@ -892,31 +887,6 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
                   if (bioDraft.trim() !== (artist.bio ?? '').trim()) void store.setArtistBio(artist.id, bioDraft)
                 }}
               />
-              {others.length > 0 && (
-                <div className="music-artist-merge">
-                  <label htmlFor="music-artist-merge-select">{uiText('auto.ce9aabe53e9e')}</label>
-                  <SelectField
-                    value={mergeId}
-                    onChange={setMergeId}
-                    ariaLabel={uiText('auto.007c8adbef9d')}
-                    options={[
-                      { value: '', label: uiText('auto.007c8adbef9d') },
-                      ...others.map((a) => ({ value: a.id, label: a.name }))
-                    ]}
-                  />
-                  <button
-                    className="ghost"
-                    disabled={!mergeId}
-                    onClick={() => {
-                      if (!mergeId) return
-                      void store.mergeArtists(artist.id, mergeId)
-                      setMergeId('')
-                      setEditOpen(false)
-                    }}
-                  >
-                    {uiText('auto.ea8f0d02371e')}</button>
-                </div>
-              )}
             </div>
           )}
         </div>

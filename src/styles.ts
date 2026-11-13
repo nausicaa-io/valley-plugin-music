@@ -468,6 +468,9 @@ const CSS = `
 /* Artist detail — reuses the playlist-detail head, with a round portrait */
 .music-artist-art { border-radius:50%; }
 .music-artist-art .music-pl-detail-art-empty { font-size:48px; }
+.music-pl-detail-art.music-artist-art .music-artist-art-change { inset:50% auto auto 50%; transform:translate(-50%, -50%);
+  padding:7px 14px; border-radius:999px; white-space:nowrap; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); }
+.music-pl-detail-art.music-artist-art .music-artist-art-change:hover { background:rgba(0,0,0,.75); }
 .music-artist-bio { margin:2px 0 0; font-family:var(--body-font); font-size:0.78125rem; line-height:1.5; color:var(--text-secondary);
   max-width:640px; white-space:pre-wrap; }
 .music-artist-edit { display:flex; flex-direction:column; gap:10px; margin-top:8px; max-width:520px; }
@@ -475,13 +478,6 @@ const CSS = `
   line-height:1.5; padding:8px 10px; border-radius:8px; color:var(--text-color);
   background:var(--container-color-alt); border:1px solid var(--border-medium, rgba(128,128,128,.3)); outline:none; }
 .music-artist-bio-input:focus { border-color:var(--accent-color); }
-.music-artist-merge { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.music-artist-merge label { font-size:0.6875rem; font-weight:650; text-transform:uppercase; letter-spacing:.03em;
-  color:var(--text-secondary); }
-.music-artist-merge select { flex:1; min-width:140px; font-size:0.78125rem; padding:6px 8px; border-radius:8px;
-  color:var(--text-color); background:var(--container-color-alt);
-  border:1px solid var(--border-medium, rgba(128,128,128,.3)); outline:none; }
-.music-artist-merge select:focus { border-color:var(--accent-color); }
 
 .music-song-list { display:flex; flex-direction:column; gap:1px; }
 .music-pl-row { position:relative; }
