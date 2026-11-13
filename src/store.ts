@@ -73,10 +73,11 @@ const COMPACT_SETTINGS_KEY = 'playerCompact'
 const CROPS_SETTINGS_KEY = 'coverCrops'
 
 /** Which podcast view the content page shows while the library is in podcast mode. */
-export type PodcastView = { mode: 'home' } | { mode: 'show'; id: string }
+export type PodcastView = { mode: 'home' } | { mode: 'shows' } | { mode: 'show'; id: string }
 
 function narrowPodcastView(value: unknown): PodcastView {
   const record = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  if (record.mode === 'shows') return { mode: 'shows' }
   return record.mode === 'show' && typeof record.id === 'string' && record.id ? { mode: 'show', id: record.id } : { mode: 'home' }
 }
 
@@ -1504,6 +1505,12 @@ export class MusicStore {
 
   showPodcastHome(): void {
     this.navigatePodcast({ mode: 'home' }, false)
+  }
+
+  /** Open the list of every podcast show in the main page. */
+  showPodcastShows(): void {
+    this.pageSearch = ''
+    this.navigatePodcast({ mode: 'shows' }, true)
   }
 
   /** Open a show (its folder path) in the main page. */

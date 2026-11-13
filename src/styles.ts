@@ -93,6 +93,10 @@ const CSS = `
   font-weight:600; text-transform:uppercase; letter-spacing:.03em; cursor:pointer; }
 .music-section-head:hover { color:var(--text-color); }
 .music-section-title { flex:1; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.music-section-title.link { flex:0 1 auto; cursor:pointer; }
+.music-section-title.link ~ .music-section-count { margin-left:auto; }
+.music-section-title.link:hover, .music-page-section-link:hover { text-decoration:underline; color:var(--text-color); }
+.music-page-section-link { cursor:pointer; }
 .music-section-count { font-variant-numeric:tabular-nums; color:var(--text-tertiary); }
 .music-section-body { display:flex; flex-direction:column; }
 .music-section-action { border:none; background:none; color:var(--text-tertiary); cursor:pointer;

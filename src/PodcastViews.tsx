@@ -260,7 +260,7 @@ export const PodcastPanelBody: FC = () => {
               })}
             </Section>
           )}
-          <Section id="shows" title={uiText('music.podcast.shows')} icon={<Podcast />} count={snap.shows.length} open={showsOpen} onOpenChange={setShowsOpen}>
+          <Section id="shows" title={uiText('music.podcast.shows')} icon={<Podcast />} count={snap.shows.length} open={showsOpen} onOpenChange={setShowsOpen} onTitleClick={() => store.showPodcastShows()}>
             {snap.shows.map(show => <ShowRow key={show.id} show={show} onOpen={openShow(show.id)} />)}
           </Section>
         </>
@@ -399,7 +399,7 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const view = navState.podcastView
   const show = view.mode === 'show' ? snap.shows.find(item => item.id === view.id) ?? null : null
   const current = snap.currentTrack && showIndex.has(snap.currentTrack.id) ? snap.currentTrack : null
-  const header = show ? show.name : uiText('music.podcast.tabTitle')
+  const header = show ? show.name : view.mode === 'shows' ? uiText('music.podcast.shows') : uiText('music.podcast.tabTitle')
   const goHome = (event: React.MouseEvent): void => navigateOrOpenTab(event, store, { kind: 'podcasts' }, () => { nav.setPageSearch(''); nav.showPodcastHome() })
   const results = q ? snap.episodes.filter(episode => episode.title.toLowerCase().includes(q) || (showIndex.get(episode.id)?.name ?? '').toLowerCase().includes(q)) : null
   const resume = continueListening(snap)
@@ -423,6 +423,21 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
     )
   } else if (show) {
     body = <ShowDetail show={show} onMenu={openSongMenu} />
+  } else if (view.mode === 'shows') {
+    body = (
+      <div className="music-page-body">
+        <div className="music-page-section">
+          <div className="music-page-section-head">
+            <Podcast />
+            <h2>{uiText('music.podcast.shows')}</h2>
+            <span className="count">{snap.shows.length}</span>
+          </div>
+          <div className="music-pl-grid">
+            {snap.shows.map(item => <ShowCard key={item.id} show={item} onOpen={openShow(item.id)} />)}
+          </div>
+        </div>
+      </div>
+    )
   } else if (snap.episodes.length === 0) {
     body = <div className="music-page-body"><LibraryState className="music-page-empty podcast-empty" /></div>
   } else {
@@ -445,7 +460,8 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
         <div className="music-page-section">
           <div className="music-page-section-head">
             <Podcast />
-            <h2>{uiText('music.podcast.shows')}</h2>
+            <h2 className="music-page-section-link" role="link" tabIndex={0} onClick={() => nav.showPodcastShows()}
+              onKeyDown={(e) => e.key === 'Enter' && nav.showPodcastShows()}>{uiText('music.podcast.shows')}</h2>
             <span className="count">{snap.shows.length}</span>
           </div>
           <div className="music-pl-grid">

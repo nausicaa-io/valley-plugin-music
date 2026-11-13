@@ -243,13 +243,34 @@ export const Section: FC<{
   open: boolean
   onOpenChange: (open: boolean) => void
   action?: ReactNode
-}> = ({ id, title, icon, count, children, open, onOpenChange, action }) => {
+  /** Makes the title a link (e.g. to a page listing everything in the section). */
+  onTitleClick?: () => void
+}> = ({ id, title, icon, count, children, open, onOpenChange, action, onTitleClick }) => {
   return (
     <div className="music-section" data-music-section={id}>
       <button className="music-section-head" onClick={() => onOpenChange(!open)}>
         {open ? <ChevronDown /> : <ChevronRight />}
         {icon}
-        <span className="music-section-title">{title}</span>
+        {onTitleClick ? (
+          <span
+            className="music-section-title link"
+            role="link"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation()
+              onTitleClick()
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              e.stopPropagation()
+              onTitleClick()
+            }}
+          >
+            {title}
+          </span>
+        ) : (
+          <span className="music-section-title">{title}</span>
+        )}
         {action}
         <span className="music-section-count">{count}</span>
       </button>

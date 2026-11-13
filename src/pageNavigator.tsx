@@ -34,6 +34,7 @@ export interface PageNavigator {
   goPageHistory(delta: -1 | 1): void
   showPodcastShow(id: string): void
   showPodcastHome(): void
+  showPodcastShows(): void
   goPodcastHistory(delta: -1 | 1): void
 }
 
@@ -141,6 +142,7 @@ function globalNavigator(store: MusicStore): PageNavigator {
     goPageHistory: (delta) => (delta < 0 ? store.goPageBack() : store.goPageForward()),
     showPodcastShow: (id) => store.showPodcastShow(id),
     showPodcastHome: () => store.showPodcastHome(),
+    showPodcastShows: () => store.showPodcastShows(),
     goPodcastHistory: (delta) => store.goPodcastHistory(delta)
   }
   globals.set(store, nav)
@@ -238,6 +240,11 @@ class PinnedPageNavigator implements PageNavigator {
 
   showPodcastHome(): void {
     this.pushPodcast({ mode: 'home' })
+  }
+
+  showPodcastShows(): void {
+    this.search = ''
+    this.pushPodcast({ mode: 'shows' })
   }
 
   goPodcastHistory(delta: -1 | 1): void {
