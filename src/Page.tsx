@@ -844,12 +844,12 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
               {artist.name}
             </h1>
           )}
+          {artist.bio && !editOpen && <p className="music-artist-bio">{artist.bio}</p>}
           <span className="music-pl-detail-meta">
             {musicCount(tracks.length, 'song')}
             {plays > 0 ? ` · ${musicCount(plays, 'play')}` : ''}
             {totalSeconds > 0 ? ` · ${formatTime(totalSeconds)}` : ''}
           </span>
-          {artist.bio && !editOpen && <p className="music-artist-bio">{artist.bio}</p>}
           <div className="music-pl-detail-actions">
             <button
               className="primary"
@@ -874,7 +874,7 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
             >
               <Shuffle /> {uiText('auto.5b772b7bfd0a')}</button>
             <button className={`ghost ${editOpen ? 'active' : ''}`} onClick={() => setEditOpen((v) => !v)}>
-              <Pencil /> {uiText('auto.5301648dcf6b')}</button>
+              {editOpen ? uiText('auto.e9b450d14bc2') : <><Pencil /> {uiText('auto.5301648dcf6b')}</>}</button>
           </div>
           {editOpen && (
             <div className="music-artist-edit">

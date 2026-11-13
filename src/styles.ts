@@ -471,10 +471,10 @@ const CSS = `
 .music-pl-detail-art.music-artist-art .music-artist-art-change { inset:50% auto auto 50%; transform:translate(-50%, -50%);
   padding:7px 14px; border-radius:999px; white-space:nowrap; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); }
 .music-pl-detail-art.music-artist-art .music-artist-art-change:hover { background:rgba(0,0,0,.75); }
-.music-artist-bio { margin:2px 0 0; font-family:var(--body-font); font-size:0.78125rem; line-height:1.5; color:var(--text-secondary);
+.music-artist-bio { margin:0; font-family:var(--body-font); font-size:0.78125rem; line-height:1.5; color:var(--text-secondary);
   max-width:640px; white-space:pre-wrap; }
 .music-artist-edit { display:flex; flex-direction:column; gap:10px; margin-top:8px; max-width:520px; }
-.music-artist-bio-input { width:100%; min-height:64px; resize:vertical; font-family:var(--body-font); font-size:0.78125rem;
+.music-artist-bio-input { box-sizing:border-box; width:100%; height:72px; resize:none; font-family:var(--body-font); font-size:0.78125rem;
   line-height:1.5; padding:8px 10px; border-radius:8px; color:var(--text-color);
   background:var(--container-color-alt); border:1px solid var(--border-medium, rgba(128,128,128,.3)); outline:none; }
 .music-artist-bio-input:focus { border-color:var(--accent-color); }
