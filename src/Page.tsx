@@ -129,13 +129,15 @@ const CoverPicker: FC<{
   current: string | null
   crop?: CoverCrop | null
   shape?: 'round' | 'square'
+  /** Open straight in the framing editor for this image; Back then closes the picker. */
+  editOnly?: string | null
   onPick: (fileName: string | null, crop: CoverCrop | null) => void
   onClose: () => void
-}> = ({ current, crop = null, shape = 'square', onPick, onClose }) => {
+}> = ({ current, crop = null, shape = 'square', editOnly = null, onPick, onClose }) => {
   const entries = useMusicIndex()
   const [query, setQuery] = React.useState('')
   const [dragOver, setDragOver] = React.useState(false)
-  const [editing, setEditing] = React.useState<string | null>(null)
+  const [editing, setEditing] = React.useState<string | null>(editOnly)
   const images = React.useMemo(() => {
     const all = entries.map((e) => e.relPath)
       .filter((p) => (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(p)))
@@ -206,7 +208,7 @@ const CoverPicker: FC<{
             relPath={editing}
             initial={crop}
             shape={shape}
-            onBack={() => setEditing(null)}
+            onBack={() => (editOnly ? onClose() : setEditing(null))}
             onSave={(next) => onPick(editing, next)}
           />
         ) : (<>
@@ -772,7 +774,7 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
   const [nameDraft, setNameDraft] = React.useState(summary?.artist.name ?? '')
   const [editOpen, setEditOpen] = React.useState(false)
   const [bioDraft, setBioDraft] = React.useState(summary?.artist.bio ?? '')
-  const [pickingImage, setPickingImage] = React.useState(false)
+  const [pickingImage, setPickingImage] = React.useState<false | 'pick' | 'edit'>(false)
 
   React.useEffect(() => {
     setNameDraft(summary?.artist.name ?? '')
@@ -817,9 +819,27 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
             </span>
           )}
           {editOpen && (
-            <button className="music-artist-art-change" onClick={() => setPickingImage(true)}>
-              <ImageIcon /> {artist.image ? uiText('auto.62a7b486b7ec') : uiText('auto.5375634e24c9')}
-            </button>
+            <div className="music-artist-art-actions">
+              {imagePath && (
+                <button onClick={() => setPickingImage('edit')}>
+                  <Pencil /> {uiText('music.artist.editImage')}
+                </button>
+              )}
+              <button onClick={() => setPickingImage('pick')}>
+                <ImageIcon /> {artist.image ? uiText('auto.62a7b486b7ec') : uiText('auto.5375634e24c9')}
+              </button>
+              {artist.image && (
+                <button
+                  className="danger"
+                  onClick={() => {
+                    store.setCoverCrop(`artist:${artist.id}`, null)
+                    void store.setArtistImage(artist.id, null)
+                  }}
+                >
+                  <Trash /> {uiText('auto.5f94b03c2e6a')}
+                </button>
+              )}
+            </div>
           )}
         </div>
         <div className="music-pl-detail-info">
@@ -919,6 +939,7 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
           current={artist.image ?? null}
           crop={snap.coverCrops[`artist:${artist.id}`]}
           shape="round"
+          editOnly={pickingImage === 'edit' ? imagePath : null}
           onPick={(fileName, crop) => {
             setPickingImage(false)
             store.setCoverCrop(`artist:${artist.id}`, crop)
