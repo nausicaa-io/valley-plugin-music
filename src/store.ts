@@ -31,7 +31,7 @@ import {
   upsertArtists
 } from './artists'
 import type { Artist, CoverCrop, HistoryEntry, Playlist, RepeatMode, Track } from './types'
-import type { MusicPlaybackAction, MusicPlaybackSnapshot } from './playback'
+import { nextIndex as nextQueueIndex, type MusicPlaybackAction, type MusicPlaybackSnapshot } from './playback'
 export { nextIndex } from './playback'
 import { api as runtimeApi } from './runtime'
 import { MUSIC_PLUGIN_ID, navStateTitle, pinnedNavigator } from './pageNavigator'
@@ -192,6 +192,9 @@ export interface MusicSnapshot {
   repeatMode: RepeatMode
   /** Upcoming tracks after the current one. */
   upNext: Track[]
+  /** Whether Previous / Next have a track to go to (the backend's own rules, including repeat). */
+  canPlayPrevious: boolean
+  canPlayNext: boolean
   /** Track the idle player offers to resume (current, else last played). */
   resumeTrack: Track | null
   /** Bumped whenever an embedded-cover blob URL resolves. */
@@ -371,9 +374,10 @@ export class MusicStore {
       if (next !== realm) { this.metadataRevoked = true; this.metadata.dispose() }
     })
     this.offMetadata = () => { offRealm(); offRoot() }
+    this.rebuildSnapshot()
+    // After the first snapshot: a focused ⌘-clicked tab builds its navigator, which reads the snapshot.
     this.observeActiveTab(api.getState().activePluginTab)
     this.offActiveTab = api.subscribeState(['activePluginTab'], state => this.observeActiveTab(state.state.activePluginTab))
-    this.rebuildSnapshot()
     this.listeners.add(() => this.syncMainTabTitle())
     // The views stay usable on the library while the backend is unavailable: playback shows why it cannot start.
     const unavailable = (error: unknown): void => {
@@ -523,6 +527,8 @@ export class MusicStore {
       playError: this.playError,
       shuffle: this.shuffle,
       repeatMode: this.repeatMode,
+      canPlayPrevious: Boolean(this.currentTrack) && this.queueIndex >= 0 && (this.queueIndex > 0 || (this.repeatMode === 'all' && this.queue.length > 1)),
+      canPlayNext: Boolean(this.currentTrack) && this.queueIndex >= 0 && (this.repeatMode === 'one' || nextQueueIndex(this.queue.length, this.queueIndex, this.repeatMode) !== null),
       resumeTrack:
         this.currentTrack ?? (lastHistory ? this.trackById.get(lastHistory.songId) ?? null : null),
       coverVersion: this.coverVersion,
@@ -805,6 +811,44 @@ export class MusicStore {
     if (nav?.library !== library) return false
     nav.open(view)
     return true
+  }
+
+  /** The library a ⌘-clicked tab was switched to with the sidebar toggle, so it survives reloads. */
+  tabLibrary(instanceId: string): LibraryMode | null {
+    const saved = this.api.settings.get().tabLibraries
+    const value = saved && typeof saved === 'object' ? (saved as Record<string, unknown>)[instanceId] : undefined
+    return value === 'music' || value === 'podcast' ? value : null
+  }
+
+  /** Remember (or forget, with null) a ⌘-clicked tab's library; keeps the newest 200 tabs. */
+  saveTabLibrary(instanceId: string, library: LibraryMode | null): void {
+    const saved = this.api.settings.get().tabLibraries
+    const next: Record<string, LibraryMode> = { ...(saved && typeof saved === 'object' && !Array.isArray(saved) ? saved as Record<string, LibraryMode> : {}) }
+    delete next[instanceId]
+    if (library) next[instanceId] = library
+    const keys = Object.keys(next)
+    for (const key of keys.slice(0, Math.max(0, keys.length - 200))) delete next[key]
+    void this.api.settings.set('tabLibraries', next).catch(() => {})
+  }
+
+  /**
+   * The open-page button: nothing while a Music tab is focused; otherwise the open tab of what is
+   * playing, else the first open Music or Podcast tab, else the main Music tab in the sidebar's library.
+   */
+  revealLibraryPage(panelLibrary: LibraryMode): void {
+    const workspace = this.api.workspace
+    if (this.api.getState().activePluginTab?.pluginId === MUSIC_PLUGIN_ID) return
+    const open = typeof workspace.getOpenMainTabs === 'function' ? workspace.getOpenMainTabs() : []
+    const library = (id: string) => pinnedNavigator(this, id)?.library
+    const track = this.isPlaying ? this.currentTrack : null
+    const playing: LibraryMode | null = track ? (isEpisode(track, this.podcastPath()) ? 'podcast' : 'music') : null
+    const playingTab = playing ? open.find(id => library(id) === playing) : undefined
+    if (playingTab) { workspace.openMainTab({ instanceId: playingTab }); return }
+    if (playing && this.libraryMode() === playing) { workspace.openMainTab(); return }
+    const first = open.find(id => library(id))
+    if (first) { workspace.openMainTab({ instanceId: first }); return }
+    this.setLibraryMode(panelLibrary)
+    workspace.openMainTab()
   }
 
   /** The sidebar toggle: switches the focused Music tab, so the sidebar and the page always show one library. */

@@ -35,6 +35,8 @@ const EMPTY: MusicSnapshot = {
   shuffle: false,
   repeatMode: 'off',
   upNext: [],
+  canPlayPrevious: false,
+  canPlayNext: false,
   resumeTrack: null,
   coverVersion: 0,
   pageView: { mode: 'home' },

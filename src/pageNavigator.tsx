@@ -174,8 +174,8 @@ class PinnedPageNavigator implements PageNavigator {
   private pendingSong: string | null = null
   private state: PageNavState
 
-  constructor(private store: MusicStore, readonly instanceId: string, target: PageTarget, private notify: () => void) {
-    this.currentLibrary = targetLibrary(target)
+  constructor(private store: MusicStore, readonly instanceId: string, private target: PageTarget, private notify: () => void) {
+    this.currentLibrary = store.tabLibrary(instanceId) ?? targetLibrary(target)
     this.podcastHistory = [target.kind === 'show' ? { mode: 'show', id: target.id } : { mode: 'home' }]
     let view: PageView = { mode: 'home' }
     if (target.kind === 'playlist' || target.kind === 'artist') view = { mode: target.kind, id: target.id }
@@ -272,6 +272,7 @@ class PinnedPageNavigator implements PageNavigator {
   setLibrary(library: LibraryMode): void {
     if (library === this.currentLibrary) return
     this.currentLibrary = library
+    this.store.saveTabLibrary(this.instanceId, library === targetLibrary(this.target) ? null : library)
     if (library === 'podcast') {
       this.search = ''
       this.pushPodcast({ mode: 'home' })
@@ -347,6 +348,19 @@ class PinnedPageNavigator implements PageNavigator {
 interface PinnedRegistry {
   tabs: Map<string, PinnedPageNavigator>
   listeners: Set<() => void>
+  titles: Map<string, string>
+}
+
+/** Every ⌘-clicked tab is titled after its page, shown or hidden: Music or Podcasts at home, else the playlist, artist, song or show. */
+function syncPinnedTitles(store: MusicStore, entry: PinnedRegistry): void {
+  const snap = store.getSnapshot()
+  if (!snap || snap.loading) return
+  for (const [id, nav] of entry.tabs) {
+    const title = navStateTitle(snap, nav.library, nav.getState())
+    if (entry.titles.get(id) === title) continue
+    entry.titles.set(id, title)
+    api.workspace.setMainTabTitle(title, id)
+  }
 }
 
 const registries = new WeakMap<MusicStore, PinnedRegistry>()
@@ -355,8 +369,10 @@ const MAX_PINNED = 200
 function registry(store: MusicStore): PinnedRegistry {
   let entry = registries.get(store)
   if (!entry) {
-    entry = { tabs: new Map(), listeners: new Set() }
-    registries.set(store, entry)
+    const created: PinnedRegistry = { tabs: new Map(), listeners: new Set(), titles: new Map() }
+    registries.set(store, created)
+    store.subscribe(() => syncPinnedTitles(store, created))
+    entry = created
   }
   return entry
 }
@@ -368,9 +384,17 @@ export function pinnedNavigator(store: MusicStore, instanceId: string | undefine
   const entry = registry(store)
   let nav = entry.tabs.get(instanceId)
   if (!nav) {
-    nav = new PinnedPageNavigator(store, instanceId, target, () => entry.listeners.forEach((listener) => listener()))
+    nav = new PinnedPageNavigator(store, instanceId, target, () => {
+      entry.listeners.forEach((listener) => listener())
+      syncPinnedTitles(store, entry)
+    })
     entry.tabs.set(instanceId, nav)
-    if (entry.tabs.size > MAX_PINNED) entry.tabs.delete(entry.tabs.keys().next().value!)
+    if (entry.tabs.size > MAX_PINNED) {
+      const oldest = entry.tabs.keys().next().value!
+      entry.tabs.delete(oldest)
+      entry.titles.delete(oldest)
+    }
+    syncPinnedTitles(store, entry)
   }
   return nav
 }

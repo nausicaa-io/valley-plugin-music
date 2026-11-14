@@ -357,11 +357,11 @@ const MusicPlayer: FC = () => {
           >
             <Shuffle />
           </button>
-          <button title={uiText('auto.50f94286ba30')} aria-label={uiText('auto.50f94286ba30')} onClick={() => store.prev()}>
+          <button title={uiText('auto.50f94286ba30')} aria-label={uiText('auto.50f94286ba30')} disabled={!snap.canPlayPrevious} onClick={() => store.prev()}>
             <SkipBack />
           </button>
           <PlayerPlayButton />
-          <button title={uiText('auto.bc981983e7f5')} aria-label={uiText('auto.bc981983e7f5')} onClick={() => store.next()}>
+          <button title={uiText('auto.bc981983e7f5')} aria-label={uiText('auto.bc981983e7f5')} disabled={!snap.canPlayNext} onClick={() => store.next()}>
             <SkipForward />
           </button>
           <button

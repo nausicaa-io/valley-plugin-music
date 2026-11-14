@@ -1035,10 +1035,6 @@ const PinnedPage: FC<MainWorkspaceViewProps & { navigator: PageNavigator }> = ({
   const { snap } = useMusic(false)
   const state = usePageNavState(navigator)
   const library = navigator.library ?? 'music'
-  const title = snap.loading ? null : navStateTitle(snap, library, state)
-  React.useEffect(() => {
-    if (title && navigator.instanceId) api.workspace.setMainTabTitle(title, navigator.instanceId)
-  }, [navigator, title])
   // Its destination resolves against the library; showing it before that would flash "not found".
   if (snap.loading) return null
   return (

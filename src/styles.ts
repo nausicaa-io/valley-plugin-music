@@ -213,6 +213,7 @@ const CSS = `
   color:var(--tint-red-text, #b91c1c); font-size:0.6875rem; line-height:1.35; text-align:left; }
 .player-controls { display:flex; align-items:center; justify-content:center; gap:20px; }
 .player-controls button { border:none; background:none; color:var(--text-color); cursor:pointer; font-size:20px; display:grid; place-items:center; }
+.player-controls button:disabled { color:var(--text-tertiary); opacity:0.5; cursor:default; }
 .player-playbtn { width:46px; height:46px; border-radius:50%; background:var(--text-color) !important;
   color:var(--container-color-alt) !important; font-size:21px !important; }
 .player-playbtn:hover { opacity:.85; }

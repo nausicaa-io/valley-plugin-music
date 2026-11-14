@@ -428,6 +428,16 @@
         "description": "Zoom and position of artist pictures and playlist covers."
       },
       {
+        "key": "tabLibraries",
+        "label": "Tab libraries",
+        "type": "custom",
+        "settingsVisible": false,
+        "schema": {
+          "type": "object"
+        },
+        "description": "The library each ⌘-clicked Music tab shows after it was switched with the sidebar toggle."
+      },
+      {
         "key": "breadcrumbMode",
         "label": "Breadcrumb display",
         "type": "custom",

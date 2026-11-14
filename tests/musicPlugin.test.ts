@@ -3111,9 +3111,14 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       fireEvent.click(document.querySelector('.music-mode-toggle')!)
       expect(pinnedNavigator(store, podcastTab)!.library).toBe('music')
       expect(store.getSnapshot()).toMatchObject({ libraryMode: 'music', panelLibraryMode: 'music' })
+      // The switched library is remembered for reloads, and the tab is retitled even while hidden.
+      await vi.waitFor(() => expect(mock.api.settings.get().tabLibraries).toEqual({ [podcastTab]: 'music' }))
+      expect(mock.api.workspace.setMainTabTitle).toHaveBeenCalledWith('Music', podcastTab)
       fireEvent.click(document.querySelector('.music-mode-toggle')!)
       expect(pinnedNavigator(store, podcastTab)!.library).toBe('podcast')
       expect(store.getSnapshot()).toMatchObject({ libraryMode: 'music', panelLibraryMode: 'podcast' })
+      await vi.waitFor(() => expect(mock.api.settings.get().tabLibraries).toEqual({}))
+      expect(mock.api.workspace.setMainTabTitle).toHaveBeenLastCalledWith('Podcasts', podcastTab)
     } finally { await dispose() }
   })
 
@@ -3219,6 +3224,80 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       expect(mock.api.workspace.openFile).toHaveBeenLastCalledWith('Music/canopy.mp3', undefined, { newTab: true })
       open.onSelect!()
       expect(mock.api.workspace.openFile).toHaveBeenLastCalledWith('Music/canopy.mp3')
+    } finally { await dispose() }
+  })
+
+  it('starts with a focused ⌘-clicked tab and follows its library from the first snapshot', async () => {
+    const mock = createMockValleyApi({ realm: { path: '/realm', name: 'realm', displayName: 'Realm' }, settings: { musicPath: 'Music', tabLibraries: { 'home::s1': 'podcast' } }, tracks: [track('canopy', 'Music/canopy.mp3')], indexEntries: [asset('Music/canopy.mp3')] })
+    mock.emitState({ activePluginTab: { pluginId: 'music', instanceId: 'home::s1' } })
+    const dispose = register(mock.api)
+    try {
+      const store = getStore()!
+      await vi.waitFor(() => expect(store.getSnapshot().loading).toBe(false))
+      expect(store.getSnapshot()).toMatchObject({ libraryMode: 'music', panelLibraryMode: 'podcast' })
+      expect(mock.api.workspace.setMainTabTitle).toHaveBeenCalledWith('Podcasts', 'home::s1')
+    } finally { await dispose() }
+  })
+
+  it('opens the page of what is playing from the open-page button, and does nothing on a Music tab', async () => {
+    const { mock, store, dispose, openMainTab } = await setup()
+    try {
+      const calls = (mock.api.registerView as unknown as { mock: { calls: [string, React.ComponentType][] } }).mock.calls
+      render(React.createElement(calls.find(([key]) => key === 'music.panel')![1]))
+      const musicTab = formatPageTarget({ kind: 'home' }, 'o1'), podcastTab = formatPageTarget({ kind: 'podcasts' }, 'o2')
+      mock.api.workspace.getOpenMainTabs = vi.fn(() => [podcastTab, musicTab])
+      const openPage = () => fireEvent.click(document.querySelector('.plugin-open-page')!)
+      act(() => mock.emitState({ activePluginTab: { pluginId: 'music', instanceId: musicTab } }))
+      openMainTab.mockClear()
+      openPage()
+      expect(openMainTab).not.toHaveBeenCalled()
+      act(() => mock.emitState({ activePluginTab: { pluginId: 'todo' } }))
+      openPage()
+      expect(openMainTab).toHaveBeenLastCalledWith({ instanceId: podcastTab })
+      await act(async () => { store.playQueue(store.getSnapshot().tracks, 0) })
+      await vi.waitFor(() => expect(store.getSnapshot().isPlaying).toBe(true))
+      act(() => mock.emitState({ activePluginTab: { pluginId: 'todo' } }))
+      openPage()
+      expect(openMainTab).toHaveBeenLastCalledWith({ instanceId: musicTab })
+    } finally { await dispose() }
+  })
+
+  it('greys Previous and Next when there is no track to go to', async () => {
+    const { mock, store, dispose } = await setup()
+    try {
+      const calls = (mock.api.registerView as unknown as { mock: { calls: [string, React.ComponentType][] } }).mock.calls
+      render(React.createElement(calls.find(([key]) => key === 'music.player')![1]))
+      const tracks = store.getSnapshot().tracks
+      expect(store.getSnapshot()).toMatchObject({ canPlayPrevious: false, canPlayNext: false })
+      await act(async () => { store.playQueue(tracks, 0) })
+      await vi.waitFor(() => expect(store.getSnapshot().currentTrack?.id).toBe(tracks[0].id))
+      expect(store.getSnapshot()).toMatchObject({ canPlayPrevious: false, canPlayNext: true })
+      expect((screen.getByLabelText(uiText('auto.50f94286ba30')) as HTMLButtonElement).disabled).toBe(true)
+      expect((screen.getByLabelText(uiText('auto.bc981983e7f5')) as HTMLButtonElement).disabled).toBe(false)
+      await act(async () => { store.playQueue(tracks, tracks.length - 1) })
+      await vi.waitFor(() => expect(store.getSnapshot().currentTrack?.id).toBe(tracks[tracks.length - 1].id))
+      expect(store.getSnapshot()).toMatchObject({ canPlayPrevious: true, canPlayNext: false })
+      await act(async () => { store.cycleRepeat() })
+      await vi.waitFor(() => expect(store.getSnapshot().repeatMode).toBe('all'))
+      expect(store.getSnapshot()).toMatchObject({ canPlayPrevious: true, canPlayNext: true })
+    } finally { await dispose() }
+  })
+
+  it('animates only the tabs of the library that is playing, never Music and Podcast tabs together', async () => {
+    const { mock, store, dispose } = await setup()
+    try {
+      const provided = mock.api.interop.extensions.providers(PLUGIN_SURFACE_V1)
+      const main = provided.find(({ extension }) => extension.surface === 'main_workspace')!.extension
+      const player = provided.find(({ extension }) => extension.surface === 'right_sidebar')!.extension
+      const podcastTab = formatPageTarget({ kind: 'podcasts' }, 'a1')
+      const real = store.getSnapshot()
+      const playing = (file: string) => vi.spyOn(store, 'getSnapshot').mockReturnValue({ ...real, podcastPath: 'Podcasts', isPlaying: true, currentTrack: { ...real.tracks[0], file } })
+      const moving = () => [main.getSnapshot()!.visual, main.getSnapshot(podcastTab)!.visual, player.getSnapshot()!.visual].map((visual) => (visual as { playing?: boolean }).playing)
+      expect(moving()).toEqual([false, false, false])
+      playing('Music/canopy.mp3')
+      expect(moving()).toEqual([true, false, true])
+      playing('Podcasts/Forest Talks/one.mp3')
+      expect(moving()).toEqual([false, true, true])
     } finally { await dispose() }
   })
 })

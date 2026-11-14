@@ -448,10 +448,11 @@ export function registerMusicSurfaces(api: ValleyPluginApi, store: MusicStore): 
     { id: 'refresh', label: uiText('music.refreshLibrary'), icon: <RefreshCw />, onSelect: () => store.refresh() },
     { id: 'settings', label: uiText('auto.c7f73bb54d92'), icon: <Settings />, onSelect: () => api.workspace.openOwnSettings() }
   ]
-  // The tab shows its library's icon, animated (`<icon>-playing`) while anything plays.
+  // The tab shows its library's icon, animated (`<icon>-playing`) only while that library plays: a song moves the Music tabs, an episode the Podcast tabs, never both.
   const libraryVisual = (library: 'music' | 'podcast') => {
-    const snapshot = store.getSnapshot()
-    return tabVisual(library, Boolean(snapshot.isPlaying && snapshot.currentTrack))
+    const snapshot = store.getSnapshot(), track = snapshot.currentTrack
+    const playing = Boolean(snapshot.isPlaying && track) && (isEpisode(track!, snapshot.podcastPath) ? 'podcast' : 'music') === library
+    return tabVisual(library, playing)
   }
   // A tab pinned with ⌘-click reports and restores its own view; it never reads or writes the main page.
   const pinnedSnapshot = (nav: NonNullable<ReturnType<typeof pinnedNavigator>>) => {

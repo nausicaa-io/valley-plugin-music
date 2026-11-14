@@ -380,8 +380,7 @@ export const Panel: FC = () => {
       openPageTargetInNewTab(store, { kind: podcastMode ? 'podcasts' : 'home' })
       return
     }
-    store.showLibrary(podcastMode ? 'podcast' : 'music')
-    api.workspace.openMainTab()
+    store.revealLibraryPage(podcastMode ? 'podcast' : 'music')
   }
   const switchLabel = uiText(podcastMode ? 'music.mode.toMusic' : 'music.mode.toPodcasts')
   const header = (

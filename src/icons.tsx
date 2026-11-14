@@ -219,11 +219,16 @@ export const Headphones = (p: IconProps): ReactElement => (
 
 
 const tabIconSrc = (body: string): string => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`)}`
-// Separate shapes so the host's playing motion pulses the ear cups and the band in turn.
 export const HEADPHONES_ICON_SRC = tabIconSrc('<path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>')
-const HEADPHONES_TAB_ICON = tabIconSrc('<path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 14h-3a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2z"/>')
 const PODCAST_TAB_ICON = tabIconSrc('<path d="M16.85 18.58a9 9 0 1 0-9.7 0"/><path d="M8 14a5 5 0 1 1 8 0"/><circle cx="12" cy="11" r="1"/><path d="M13 17a1 1 0 1 0-2 0l.5 4.5a.5.5 0 1 0 1 0Z"/>')
 
-/** The Music tab icon: headphones or podcast, animated by the host while playing. Older hosts show the manifest icon. */
+const filledIconSrc = (body: string): string => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="currentColor">${body}</svg>`)}`
+// Music at rest: the two beamed notes (Ionicons' musical notes), still.
+const NOTE_TAB_ICON = filledIconSrc('<path d="M406.3 48.2c-4.7.9-202 39.2-206.2 40-4.2.8-8.1 3.6-8.1 8v240.1c0 1.6-.1 7.2-2.4 11.7-3.1 5.9-8.5 10.2-16.1 12.7-3.3 1.1-7.8 2.1-13.1 3.3-24.1 5.4-64.4 14.6-64.4 51.8 0 31.1 22.4 45.1 41.7 47.5 2.1.3 4.5.7 7.1.7 6.7 0 36-3.3 51.2-13.2 11-7.2 24.1-21.4 24.1-47.8V190.5c0-3.8 2.7-7.1 6.4-7.8l152-30.7c5-1 9.6 2.8 9.6 7.8v130.9c0 4.1-.2 8.9-2.5 13.4-3.1 5.9-8.5 10.2-16.2 12.7-3.3 1.1-8.8 2.1-14.1 3.3-24.1 5.4-64.4 14.5-64.4 51.7 0 33.7 25.4 47.2 41.8 48.3 6.5.4 11.2.3 19.4-.9s23.5-5.5 36.5-13c17.9-10.3 27.5-26.8 27.5-48.2V55.9c-.1-4.4-3.8-8.9-9.8-7.7z"/>')
+// Music playing: the same notes as two overlapping halves, each carrying the whole beam, so the host's playing motion bounces them in turn without opening a gap.
+// The empty groups only move the right note to the fifth child, half a beat after the first in the host's staggered delays.
+const NOTES_TAB_ICON = filledIconSrc('<path d="M406.3 48.2c-4.7.9-202 39.2-206.2 40-4.2.8-8.1 3.6-8.1 8v240.1c0 1.6-.1 7.2-2.4 11.7-3.1 5.9-8.5 10.2-16.1 12.7-3.3 1.1-7.8 2.1-13.1 3.3-24.1 5.4-64.4 14.6-64.4 51.8 0 31.1 22.4 45.1 41.7 47.5 2.1.3 4.5.7 7.1.7 6.7 0 36-3.3 51.2-13.2 11-7.2 24.1-21.4 24.1-47.8V190.5c0-3.8 2.7-7.1 6.4-7.8l152-30.7c5-1 9.6 2.8 9.6 7.8L416.1 154.2V55.9c-.1-4.4-3.8-8.9-9.8-7.7z"/><g/><g/><g/><path d="M406.3 48.2c-4.7.9-202 39.2-206.2 40-4.2.8-8.1 3.6-8.1 8V189.7L378.5 152c5-1 9.6 2.8 9.6 7.8v130.9c0 4.1-.2 8.9-2.5 13.4-3.1 5.9-8.5 10.2-16.2 12.7-3.3 1.1-8.8 2.1-14.1 3.3-24.1 5.4-64.4 14.5-64.4 51.7 0 33.7 25.4 47.2 41.8 48.3 6.5.4 11.2.3 19.4-.9s23.5-5.5 36.5-13c17.9-10.3 27.5-26.8 27.5-48.2V55.9c-.1-4.4-3.8-8.9-9.8-7.7z"/>')
+
+/** The Music tab icon: the musical notes (bouncing in turn while music plays) or the podcast icon, animated by the host while playing. Older hosts show the manifest icon. */
 export const tabVisual = (library: 'music' | 'podcast', playing: boolean): UiIconVisual =>
-  ({ kind: 'icon', src: library === 'podcast' ? PODCAST_TAB_ICON : HEADPHONES_TAB_ICON, playing })
+  ({ kind: 'icon', src: library === 'podcast' ? PODCAST_TAB_ICON : playing ? NOTES_TAB_ICON : NOTE_TAB_ICON, playing })
