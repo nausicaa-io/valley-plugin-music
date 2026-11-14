@@ -49,6 +49,7 @@ const EMPTY: MusicSnapshot = {
   rightPanelScrollTop: 0,
   rightViewNonce: 0,
   libraryMode: 'music',
+  panelLibraryMode: 'music',
   podcastView: { mode: 'home' },
   podcastCanGoBack: false,
   podcastCanGoForward: false,

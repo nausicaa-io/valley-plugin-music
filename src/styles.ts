@@ -12,6 +12,7 @@ const CSS = `
 .music-empty.small { padding:6px 14px 10px; }
 .music-empty code { font-size:0.6875rem; background:var(--container-color-light); border-radius:4px; padding:1px 4px; }
 
+.music-properties-frame { display:flex; flex-direction:column; flex:1; height:100%; min-height:0; min-width:0; }
 .music-info .props-info-value { overflow-wrap:anywhere; white-space:pre-wrap; }
 .music-info-heading { margin:18px 0 8px; padding:0 var(--space-3, 12px); font-size:0.8125rem; font-weight:600; color:var(--text-color); }
 

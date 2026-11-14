@@ -1,6 +1,10 @@
 import { React, api } from './runtime'
 import { uiText } from './localization'
 import type { MusicSnapshot, MusicStore, PageTarget, PageView, PodcastView } from './store'
+import type { LibraryMode } from './podcasts'
+
+/** The Music plugin id, as the host reports it in `activePluginTab`. */
+export const MUSIC_PLUGIN_ID = 'music'
 
 /** The page state one Music page renders: the global page, or one pinned tab's own. */
 export interface PageNavState {
@@ -72,6 +76,11 @@ export function onMiddleClick(open: (event: React.MouseEvent) => void): (event: 
     event.preventDefault()
     open(event)
   }
+}
+
+/** The library a destination belongs to: shows and the show list are podcasts, everything else music. */
+export function targetLibrary(target: PageTarget): LibraryMode {
+  return target.kind === 'show' || target.kind === 'podcasts' ? 'podcast' : 'music'
 }
 
 export function targetTitle(snap: MusicSnapshot, target: PageTarget): string {
@@ -153,7 +162,7 @@ const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.str
 
 /** One pinned tab's page: local history and search, resolved through the store but never stored in it. */
 class PinnedPageNavigator implements PageNavigator {
-  readonly library: 'music' | 'podcast'
+  private currentLibrary: LibraryMode
   private listeners = new Set<() => void>()
   private history: PageView[]
   private index = 0
@@ -166,7 +175,7 @@ class PinnedPageNavigator implements PageNavigator {
   private state: PageNavState
 
   constructor(private store: MusicStore, readonly instanceId: string, target: PageTarget, private notify: () => void) {
-    this.library = target.kind === 'show' || target.kind === 'podcasts' ? 'podcast' : 'music'
+    this.currentLibrary = targetLibrary(target)
     this.podcastHistory = [target.kind === 'show' ? { mode: 'show', id: target.id } : { mode: 'home' }]
     let view: PageView = { mode: 'home' }
     if (target.kind === 'playlist' || target.kind === 'artist') view = { mode: target.kind, id: target.id }
@@ -252,6 +261,33 @@ class PinnedPageNavigator implements PageNavigator {
     if (next < 0 || next >= this.podcastHistory.length) return
     this.podcastIndex = next
     this.changed()
+  }
+
+  /** The library this tab shows; it starts with its destination's and the sidebar toggle switches it. */
+  get library(): LibraryMode {
+    return this.currentLibrary
+  }
+
+  /** Switch this tab to the other library's home page (the sidebar toggle while this tab is focused). */
+  setLibrary(library: LibraryMode): void {
+    if (library === this.currentLibrary) return
+    this.currentLibrary = library
+    if (library === 'podcast') {
+      this.search = ''
+      this.pushPodcast({ mode: 'home' })
+    } else {
+      this.push({ mode: 'home' }, true)
+    }
+  }
+
+  /** Show a view picked outside the page (the left sidebar, the player) in this tab. */
+  open(view: PageView | PodcastView): void {
+    if (this.library === 'podcast') {
+      this.search = ''
+      this.pushPodcast(view as PodcastView)
+    } else {
+      this.push(view as PageView, true)
+    }
   }
 
   /** Apply a captured view (reload resume or a bookmark) to this tab only. */

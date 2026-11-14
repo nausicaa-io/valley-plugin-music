@@ -3,6 +3,7 @@
   "main": "runtime/index.js",
   "assets": "runtime/assets",
   "indexState": "scoped",
+  "keepTabIcon": true,
   "uiSlots": {
     "left_sidebar": "music.panel",
     "right_sidebar": "music.player",

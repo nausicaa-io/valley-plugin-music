@@ -23,7 +23,7 @@ import {
   Podcast
 } from './icons'
 import { PodcastPanelBody } from './PodcastViews'
-import { navigateOrOpenTab, onMiddleClick } from './pageNavigator'
+import { isNewTabClick, navigateOrOpenTab, onMiddleClick, openPageTargetInNewTab } from './pageNavigator'
 
 export const Cover: FC<{ trackId?: string; size?: number }> = ({ trackId, size = 32 }) => {
   const { store } = useMusic(false)
@@ -373,7 +373,16 @@ export const Panel: FC = () => {
     if (name) await store.createPlaylist(name)
   }
 
-  const podcastMode = snap.libraryMode === 'podcast'
+  const podcastMode = snap.panelLibraryMode === 'podcast'
+  // ⌘/middle click opens the sidebar's library in a new tab; a plain click shows it in the main Music tab.
+  const openLibraryPage = (event: React.MouseEvent): void => {
+    if (isNewTabClick(event)) {
+      openPageTargetInNewTab(store, { kind: podcastMode ? 'podcasts' : 'home' })
+      return
+    }
+    store.showLibrary(podcastMode ? 'podcast' : 'music')
+    api.workspace.openMainTab()
+  }
   const switchLabel = uiText(podcastMode ? 'music.mode.toMusic' : 'music.mode.toPodcasts')
   const header = (
     <div className="panel-header">
@@ -383,7 +392,7 @@ export const Panel: FC = () => {
           className="music-mode-toggle"
           onClick={() => {
             store.setLeftPanelSearch('')
-            store.setLibraryMode(podcastMode ? 'music' : 'podcast')
+            store.showLibrary(podcastMode ? 'music' : 'podcast')
           }}
           aria-label={switchLabel}
           title={switchLabel}
@@ -392,7 +401,8 @@ export const Panel: FC = () => {
         </button>
         <button
           className="plugin-open-page"
-          onClick={() => api.workspace.openMainTab()}
+          onClick={openLibraryPage}
+          onAuxClick={onMiddleClick(openLibraryPage)}
           aria-label={uiText('auto.9ee309dcedc9')}
           title={uiText('auto.9ee309dcedc9')}
         />

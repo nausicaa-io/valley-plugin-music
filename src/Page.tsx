@@ -1027,11 +1027,6 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
 export const Page: FC<MainWorkspaceViewProps> = (props) => {
   const { store, snap } = useMusic(false)
   const pinned = React.useMemo(() => (store ? pinnedNavigator(store, props.instanceId) : null), [store, props.instanceId])
-  const podcast = snap.libraryMode === 'podcast'
-  React.useEffect(() => {
-    if (pinned) return
-    api.workspace.setMainTabTitle(uiText(podcast ? 'music.podcast.tabTitle' : 'plugin.music.name'), props.instanceId)
-  }, [pinned, podcast, props.instanceId])
   if (pinned) return <PinnedPage {...props} navigator={pinned} />
   return snap.libraryMode === 'podcast' ? <PodcastPage {...props} /> : <MusicPage {...props} />
 }

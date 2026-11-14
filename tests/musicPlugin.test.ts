@@ -28,6 +28,7 @@ import { Player } from '../src/Player'
 import { NowPlaying } from '../src/surfaces'
 import { Cover } from '../src/Panel'
 import { formatPageTarget, parsePageTarget, pinnedNavigator } from '../src/pageNavigator'
+import { uiText } from '../src/localization'
 import {
   normalizeArtistName,
   resolveArtist,
@@ -3071,6 +3072,48 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       expect(openMainTab).not.toHaveBeenCalled()
       store.revealSong('moss')
       expect(store.getSnapshot().pageView).toEqual(store.resolveSongView('moss'))
+    } finally { await dispose() }
+  })
+
+  it('switches the left sidebar to the focused tab library and routes sidebar navigation into that tab', async () => {
+    const { mock, store, dispose, openMainTab } = await setup()
+    try {
+      const calls = (mock.api.registerView as unknown as { mock: { calls: [string, React.ComponentType][] } }).mock.calls
+      render(React.createElement(calls.find(([key]) => key === 'music.panel')![1]))
+      const openPage = document.querySelector('.plugin-open-page') as HTMLElement
+      fireEvent.click(openPage, { metaKey: true })
+      expect(openMainTab).toHaveBeenLastCalledWith({ instanceId: expect.stringMatching(/^home::/), title: expect.any(String), newTab: true })
+
+      const podcastTab = formatPageTarget({ kind: 'podcasts' }, 'p1')
+      const musicTab = formatPageTarget({ kind: 'home' }, 'm1')
+      act(() => mock.emitState({ activePluginTab: { pluginId: 'music', instanceId: podcastTab } }))
+      expect(store.getSnapshot()).toMatchObject({ libraryMode: 'music', panelLibraryMode: 'podcast' })
+      expect(document.querySelector('.music-mode-toggle')!.getAttribute('aria-label')).toBe(uiText('music.mode.toMusic'))
+      act(() => mock.emitState({ activePluginTab: null }))
+      expect(store.getSnapshot().panelLibraryMode).toBe('podcast')
+
+      act(() => mock.emitState({ activePluginTab: { pluginId: 'music', instanceId: musicTab } }))
+      expect(store.getSnapshot().panelLibraryMode).toBe('music')
+      openMainTab.mockClear()
+      act(() => store.showPlaylist('forest'))
+      expect(pinnedNavigator(store, musicTab)!.getState().pageView).toEqual({ mode: 'playlist', id: 'forest' })
+      expect(store.getSnapshot().pageView).toEqual({ mode: 'home' })
+      expect(openMainTab).not.toHaveBeenCalled()
+
+      act(() => mock.emitState({ activePluginTab: { pluginId: 'music' } }))
+      expect(store.getSnapshot().panelLibraryMode).toBe('music')
+      act(() => store.showPlaylist('forest'))
+      expect(store.getSnapshot().pageView).toEqual({ mode: 'playlist', id: 'forest' })
+      expect(mock.api.workspace.setMainTabTitle).toHaveBeenLastCalledWith('Forest Mix')
+
+      // The toggle switches the focused tab itself, so the sidebar and the page never disagree.
+      act(() => mock.emitState({ activePluginTab: { pluginId: 'music', instanceId: podcastTab } }))
+      fireEvent.click(document.querySelector('.music-mode-toggle')!)
+      expect(pinnedNavigator(store, podcastTab)!.library).toBe('music')
+      expect(store.getSnapshot()).toMatchObject({ libraryMode: 'music', panelLibraryMode: 'music' })
+      fireEvent.click(document.querySelector('.music-mode-toggle')!)
+      expect(pinnedNavigator(store, podcastTab)!.library).toBe('podcast')
+      expect(store.getSnapshot()).toMatchObject({ libraryMode: 'music', panelLibraryMode: 'podcast' })
     } finally { await dispose() }
   })
 

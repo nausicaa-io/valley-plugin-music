@@ -34,6 +34,7 @@ import type { Artist, CoverCrop, HistoryEntry, Playlist, RepeatMode, Track } fro
 import type { MusicPlaybackAction, MusicPlaybackSnapshot } from './playback'
 export { nextIndex } from './playback'
 import { api as runtimeApi } from './runtime'
+import { MUSIC_PLUGIN_ID, navStateTitle, pinnedNavigator } from './pageNavigator'
 import { MediaMetadata, MetadataCancelled } from './mediaMetadata'
 import { MOMENT_LABEL_LIMIT, MOMENT_LIMIT, isEpisode, podcastShows, readMoments, readPodcastRate, readProgress, resumePosition, type EpisodeMoment, type EpisodeProgress, type LibraryMode, type PodcastShow } from './podcasts'
 
@@ -210,6 +211,8 @@ export interface MusicSnapshot {
   rightPanelScrollTop: number
   rightViewNonce: number
   libraryMode: LibraryMode
+  /** The library the left sidebar shows: the focused Music tab's, else `libraryMode`. */
+  panelLibraryMode: LibraryMode
   podcastView: PodcastView
   podcastCanGoBack: boolean
   podcastCanGoForward: boolean
@@ -276,6 +279,10 @@ export class MusicStore {
   private observedMusicPath: string
   private observedPodcastPath: string
   private libraryModeOverride: LibraryMode | null = null
+  /** The library of the focused pinned Music tab; null while the main Music tab is focused. */
+  private activeTabLibrary: LibraryMode | null = null
+  private offActiveTab: () => void
+  private mainTabTitle = ''
   private observedLibraryMode: LibraryMode
   private podcastView: PodcastView = { mode: 'home' }
   private podcastHistory: PodcastView[] = [{ mode: 'home' }]
@@ -364,7 +371,10 @@ export class MusicStore {
       if (next !== realm) { this.metadataRevoked = true; this.metadata.dispose() }
     })
     this.offMetadata = () => { offRealm(); offRoot() }
+    this.observeActiveTab(api.getState().activePluginTab)
+    this.offActiveTab = api.subscribeState(['activePluginTab'], state => this.observeActiveTab(state.state.activePluginTab))
     this.rebuildSnapshot()
+    this.listeners.add(() => this.syncMainTabTitle())
     // The views stay usable on the library while the backend is unavailable: playback shows why it cannot start.
     const unavailable = (error: unknown): void => {
       this.playError = uiText('music.playbackUnavailable', { reason: (error instanceof Error ? error.message : String(error)).replace(/^(Error:\s*)+/, '') })
@@ -542,6 +552,7 @@ export class MusicStore {
       rightPanelScrollTop: this.rightPanelScrollTop,
       rightViewNonce: this.rightViewNonce,
       libraryMode: this.libraryMode(),
+      panelLibraryMode: this.activeTabLibrary ?? this.libraryMode(),
       podcastView: this.podcastView,
       podcastCanGoBack: this.podcastHistoryIndex > 0,
       podcastCanGoForward: this.podcastHistoryIndex < this.podcastHistory.length - 1
@@ -777,8 +788,55 @@ export class MusicStore {
     return persisted
   }
 
+  /** Focusing a Music tab switches the left sidebar to that tab's library; other tabs leave it as it is. */
+  private observeActiveTab(tab: { pluginId: string; instanceId?: string } | null | undefined): void {
+    if (this.disposed || tab?.pluginId !== MUSIC_PLUGIN_ID) return
+    const next = tab.instanceId ? pinnedNavigator(this, tab.instanceId)?.library ?? null : null
+    if (next === this.activeTabLibrary) return
+    this.activeTabLibrary = next
+    this.emitView()
+  }
+
+  /** Navigation from outside the page goes to the focused pinned tab when it shows that library. */
+  private openInFocusedTab(library: LibraryMode, view: PageView | PodcastView): boolean {
+    const tab = this.api.getState().activePluginTab
+    if (tab?.pluginId !== MUSIC_PLUGIN_ID || !tab.instanceId) return false
+    const nav = pinnedNavigator(this, tab.instanceId)
+    if (nav?.library !== library) return false
+    nav.open(view)
+    return true
+  }
+
+  /** The sidebar toggle: switches the focused Music tab, so the sidebar and the page always show one library. */
+  showLibrary(mode: LibraryMode): void {
+    const tab = this.api.getState().activePluginTab
+    const nav = tab?.pluginId === MUSIC_PLUGIN_ID && tab.instanceId ? pinnedNavigator(this, tab.instanceId) : null
+    if (!nav) {
+      this.setLibraryMode(mode)
+      return
+    }
+    nav.setLibrary(mode)
+    this.activeTabLibrary = mode
+    this.emitView()
+  }
+
+  /** The main Music tab is titled after its page: Music or Podcasts at home, else the playlist, artist, song or show. */
+  private syncMainTabTitle(): void {
+    const snap = this.snapshot
+    if (this.disposed || !snap || snap.loading) return
+    const title = navStateTitle(snap, snap.libraryMode, snap)
+    if (title === this.mainTabTitle) return
+    this.mainTabTitle = title
+    this.api.workspace.setMainTabTitle(title)
+  }
+
   setLibraryMode(mode: LibraryMode): void {
-    if (mode === this.libraryMode()) return
+    const followedTab = this.activeTabLibrary !== null
+    this.activeTabLibrary = null
+    if (mode === this.libraryMode()) {
+      if (followedTab) this.emitView()
+      return
+    }
     this.libraryModeOverride = mode
     this.observedLibraryMode = mode
     this.emitView()
@@ -1253,6 +1311,8 @@ export class MusicStore {
   // emits, and surfaces the singleton Music tab.
 
   private navigate(view: PageView, openTab: boolean): void {
+    if (openTab && this.openInFocusedTab('music', view)) return
+    if (openTab) this.setLibraryMode('music')
     const current = this.pageHistory[this.pageHistoryIndex]
     if (JSON.stringify(current) !== JSON.stringify(view)) {
       const base = this.pageHistory.slice(0, this.pageHistoryIndex + 1)
@@ -1520,6 +1580,8 @@ export class MusicStore {
   }
 
   private navigatePodcast(view: PodcastView, openTab: boolean): void {
+    if (openTab && this.openInFocusedTab('podcast', view)) return
+    if (openTab) this.setLibraryMode('podcast')
     if (JSON.stringify(this.podcastHistory[this.podcastHistoryIndex]) !== JSON.stringify(view)) {
       this.podcastHistory = [...this.podcastHistory.slice(0, this.podcastHistoryIndex + 1), view].slice(-20)
       this.podcastHistoryIndex = this.podcastHistory.length - 1
@@ -1925,6 +1987,7 @@ export class MusicStore {
     this.offBackendPlayback()
     this.offDatasets()
     this.offMetadata()
+    this.offActiveTab()
     this.offPlaybackCover?.()
     this.metadata.dispose()
     this.listeners.clear()
