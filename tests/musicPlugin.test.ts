@@ -3262,6 +3262,21 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
     } finally { await dispose() }
   })
 
+  it('keeps a ⌘-clicked tab mounted through a library reload, so the page never jumps to the top', async () => {
+    const { mock, store, dispose } = await setup()
+    try {
+      const Page = (mock.api.registerView as unknown as { mock: { calls: [string, React.ComponentType<Record<string, unknown>>][] } }).mock.calls.find(([key]) => key === 'music.page')![1]
+      render(React.createElement(Page, { instanceId: formatPageTarget({ kind: 'home' }, 'k1'), navigation: { setController: vi.fn() } }))
+      const page = await waitFor(() => { const el = document.querySelector('.music-page'); expect(el).not.toBeNull(); return el! })
+      let sawLoading = false
+      const off = store.subscribe(() => { if (store.getSnapshot().loading) sawLoading = true })
+      await act(async () => { await store.refresh() })
+      off()
+      expect(sawLoading).toBe(true)
+      expect(document.querySelector('.music-page')).toBe(page)
+    } finally { await dispose() }
+  })
+
   it('greys Previous and Next when there is no track to go to', async () => {
     const { mock, store, dispose } = await setup()
     try {

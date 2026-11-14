@@ -279,7 +279,7 @@ const ShowCard: FC<{ show: PodcastShow; onOpen: (event: React.MouseEvent) => voi
     <div className={`music-pl-card ${active ? 'active' : ''}`} role="button" tabIndex={0} onClick={onOpen} onAuxClick={onMiddleClick(onOpen)}>
       <div className="music-pl-card-art">
         <ShowArt show={show} className="" emptyClassName="music-pl-card-art-empty" />
-        {active && <EqBars playing={snap.isPlaying} className="music-card-eq" />}
+        {active && <EqBars playing={snap.isPlaying} className="podcast-card-eq" />}
         <button
           className="music-pl-card-play"
           title={label}
@@ -312,8 +312,8 @@ const EpisodeCard: FC<{ track: Track; show?: PodcastShow; onPlay: () => void; on
       <span className="music-track-card-art">
         <Podcast />
         {src && <img src={src} alt="" loading="lazy" />}
-        {active && <EqBars playing={snap.isPlaying} className="music-card-eq" />}
-        {fraction > 0 && <span className="podcast-card-progress" aria-hidden><span style={{ width: `${fraction * 100}%` }} /></span>}
+        {active && <EqBars playing={snap.isPlaying} className="podcast-card-eq" />}
+        {fraction > 0 && <span className="podcast-card-progress" aria-hidden><span><span style={{ width: `${fraction * 100}%` }} /></span></span>}
       </span>
       <span className="music-track-card-title">{track.title}</span>
       <span className="music-track-card-sub">{[show?.name, episodeDetail(snap.episodeProgress[track.id], track)].filter(Boolean).join(' · ')}</span>
@@ -416,9 +416,11 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
     return () => navigation.setController(null)
   }, [navigation, navState.podcastCanGoBack, navState.podcastCanGoForward, nav])
 
+  // Only a different podcast page starts at the top; a reload or playback never moves the page.
+  const podcastPage = JSON.stringify(navState.podcastView)
   React.useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
-  }, [navState.podcastView])
+  }, [podcastPage])
 
   if (!store || !nav) return null
   const openShow = (id: string) => (event: React.MouseEvent): void => navigateOrOpenTab(event, store, { kind: 'show', id }, () => nav.showPodcastShow(id))

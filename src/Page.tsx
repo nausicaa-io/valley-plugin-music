@@ -1035,8 +1035,11 @@ const PinnedPage: FC<MainWorkspaceViewProps & { navigator: PageNavigator }> = ({
   const { snap } = useMusic(false)
   const state = usePageNavState(navigator)
   const library = navigator.library ?? 'music'
-  // Its destination resolves against the library; showing it before that would flash "not found".
-  if (snap.loading) return null
+  // Its destination resolves against the library; showing it before the first load would flash "not found".
+  // Later reloads (a play writes history) keep the page mounted, so it never jumps back to the top.
+  const loadedOnce = React.useRef(false)
+  if (!snap.loading) loadedOnce.current = true
+  if (!loadedOnce.current) return null
   return (
     <PageNavigatorProvider navigator={navigator}>
       {library === 'podcast' ? <PodcastPage {...props} /> : <MusicPage {...props} />}

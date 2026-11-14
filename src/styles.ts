@@ -26,9 +26,21 @@ const CSS = `
 .music-mode-toggle svg { width:var(--shell-glyph-default); height:var(--shell-glyph-default); }
 .podcast-progress { display:block; height:2px; margin-top:3px; border-radius:1px; overflow:hidden;
   background:var(--container-color-light); }
-.podcast-progress span, .podcast-card-progress span { display:block; height:100%; background:var(--accent-color); }
-.podcast-card-progress { position:absolute; left:8px; right:8px; bottom:8px; height:3px; border-radius:2px;
-  overflow:hidden; background:rgba(0,0,0,.45); }
+.podcast-progress span { display:block; height:100%; background:var(--accent-color); }
+/* Podcast covers: the progress bar sits on a soft fade along the bottom edge, so it reads on any artwork. */
+.podcast-card-progress { position:absolute; left:0; right:0; bottom:0; height:40%; display:flex; align-items:flex-end;
+  padding:0 10px 10px; pointer-events:none; background:linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,.55)); }
+.podcast-card-progress > span { flex:1; height:4px; border-radius:2px; overflow:hidden; background:rgba(255,255,255,.25); }
+.podcast-card-progress > span > span { display:block; height:100%; border-radius:2px; background:var(--accent-color); }
+/* Podcast now-playing mark: a small frosted badge in the corner, white bars moving while it plays. */
+.podcast-card-eq { position:absolute; top:8px; left:8px; width:26px; height:26px; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; gap:2px; pointer-events:none; background:rgba(0,0,0,.45);
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+.podcast-card-eq .music-row-wave-bar { width:2.5px; height:11px; border-radius:1.5px; background:#fff;
+  animation:music-wave .85s ease-in-out infinite alternate; }
+.podcast-card-eq .music-row-wave-bar:nth-child(2) { animation-delay:.2s; }
+.podcast-card-eq .music-row-wave-bar:nth-child(3) { animation-delay:.4s; }
+.podcast-card-eq.paused .music-row-wave-bar { animation:none; transform:scaleY(.45); }
 .podcast-empty { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
 .podcast-settings-link { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border:1px solid var(--border-light);
   border-radius:var(--radius-sm, 4px); background:none; color:var(--text-color); font:inherit; cursor:pointer; }
