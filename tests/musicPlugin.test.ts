@@ -2478,7 +2478,7 @@ describe('Music panel navigation and file actions', () => {
       const select = (label: string): void => {
         const item = mock.menus[0].find((candidate) => 'label' in candidate && candidate.label === label)
         expect(item).toBeDefined()
-        if (item && 'onSelect' in item) item.onSelect?.()
+        if (item && 'onSelect' in item) item.onSelect?.({ newTab: false })
       }
 
       select('Open file in Valley')
@@ -2507,7 +2507,7 @@ describe('Music panel navigation and file actions', () => {
       const create = addMenu?.submenu?.find((item) => item.label === 'New playlist from this song')
       expect(create).toBeDefined()
       await act(async () => {
-        await create?.onSelect?.()
+        await create?.onSelect?.({ newTab: false })
       })
 
       await waitFor(() => {
@@ -2800,7 +2800,7 @@ describe('Music song editing and presentation', () => {
       fireEvent.contextMenu(screen.getByText(song.title, { selector: '.music-row-title' }))
       const items = openMenu.mock.calls.at(-1)![0]
       const edit = items.find(item => item.label === 'Edit song')!
-      await act(async () => { await edit.onSelect?.() })
+      await act(async () => { await edit.onSelect?.({ newTab: false }) })
       expect(screen.getByLabelText('Songwriter')).toBeInTheDocument()
       fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Cancelled edit' } })
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -3222,7 +3222,7 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       const open = openMenu.mock.calls.at(-1)![0].find((item) => item.label === 'Open file in Valley')!
       ;(open.onSelect as (context?: { newTab?: boolean }) => void)({ newTab: true })
       expect(mock.api.workspace.openFile).toHaveBeenLastCalledWith('Music/canopy.mp3', undefined, { newTab: true })
-      open.onSelect!()
+      open.onSelect!({ newTab: false })
       expect(mock.api.workspace.openFile).toHaveBeenLastCalledWith('Music/canopy.mp3')
     } finally { await dispose() }
   })

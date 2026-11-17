@@ -80,7 +80,7 @@ const CoverField: FC<{
   )
 }
 
-const Field: FC<{ label: string; value: string; onChange: (value: string) => void; autoFocus?: boolean; required?: boolean; type?: string; placeholder?: string; inputMode?: 'numeric' }> = ({ label, value, onChange, ...input }) => (
+const Field: FC<{ label: string; value: string; onChange: (value: string) => void; autoFocus?: boolean; required?: boolean; placeholder?: string; inputMode?: 'numeric' }> = ({ label, value, onChange, ...input }) => (
   <label>{label}<input value={value} onChange={event => onChange(event.target.value)} {...input} /></label>
 )
 
@@ -160,7 +160,7 @@ const EpisodeEditor: FC<{ track: Track; store: MusicStore; onClose(): void }> = 
           <div className="music-edit-grid three">
             <Field label={uiText('music.edit.season')} value={draft.details.season ?? ''} onChange={value => setDetail('season', value)} inputMode="numeric" />
             <Field label={uiText('music.edit.episodeNumber')} value={draft.details.episode ?? ''} onChange={value => setDetail('episode', value)} inputMode="numeric" />
-            <Field label={uiText('music.edit.published')} value={draft.details.published ?? ''} onChange={value => setDetail('published', value)} type="date" />
+            <label>{uiText('music.edit.published')}<api.ui.settings.DateField ariaLabel={uiText('music.edit.published')} value={draft.details.published ?? ''} disabled={busy} onChange={value => setDetail('published', value)} /></label>
           </div>
           <Field label={uiText('music.edit.guests')} value={draft.details.guests ?? ''} onChange={value => setDetail('guests', value)} />
         </section>
