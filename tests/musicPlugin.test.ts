@@ -1267,6 +1267,7 @@ describe('MusicStore', () => {
       tracks: [episode],
       indexEntries: [asset(episode.file)]
     })
+    const set = vi.spyOn(mock.api.settings, 'set')
     try {
       await vi.waitFor(() => expect(store.getSnapshot().episodes).toHaveLength(1))
       store.playEpisodes(store.getSnapshot().episodes, 0)
@@ -1274,7 +1275,27 @@ describe('MusicStore', () => {
       expect(media.get(mock)!.getSnapshot()?.state.positionSeconds).toBe(120)
       store.pause()
       await store.flushPersistence()
-      await vi.waitFor(() => expect((mock.api.settings.get().podcastProgress as Record<string, { position: number }>).ep.position).toBe(120))
+      await vi.waitFor(async () => expect((JSON.parse((await mock.api.data.files.readText('podcast-progress.json')) ?? '{}') as Record<string, { position: number } | undefined>).ep?.position).toBe(120), { timeout: 4000 })
+      // The setting is no longer written: it only seeds older positions (GODS G6).
+      expect(set.mock.calls.some(([key]) => key === 'podcastProgress')).toBe(false)
+    } finally { await store.dispose() }
+  })
+
+  it('resumes from the progress file over the older position kept in the settings (GODS G6)', async () => {
+    const episode: Track = { id: 'ep', title: 'Episode', artist: '', file: 'Podcasts/Show/ep.mp3' }
+    const mock = createMockValleyApi({
+      settings: { musicPath: 'Music', podcastPath: 'Podcasts', podcastProgress: { ep: { position: 120, duration: 1800, updatedAt: '2026-11-01T00:00:00.000Z' } } },
+      tracks: [episode],
+      indexEntries: [asset(episode.file)]
+    })
+    await mock.api.data.files.writeTextGuarded('podcast-progress.json', JSON.stringify({ ep: { position: 300, duration: 1800, updatedAt: '2026-11-02T00:00:00.000Z' } }), null)
+    const store = new MusicStore(mock.api)
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().episodes).toHaveLength(1))
+      await vi.waitFor(() => expect(store.getSnapshot().episodeProgress.ep?.position).toBe(300))
+      store.playEpisodes(store.getSnapshot().episodes, 0)
+      await store.flushPersistence()
+      expect(media.get(mock)!.getSnapshot()?.state.positionSeconds).toBe(300)
     } finally { await store.dispose() }
   })
 

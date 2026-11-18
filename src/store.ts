@@ -65,6 +65,9 @@ interface DatasetStore {
 
 const PLAYER_SETTINGS_KEY = 'player'
 const PROGRESS_SETTINGS_KEY = 'podcastProgress'
+// Listening positions live in a plugin data file, not in the settings: a save every 30 s while an episode plays went through
+// the settings writer and every settings listener (GODS G6). The setting stays as the read-only source of older positions.
+const PROGRESS_FILE = 'podcast-progress.json'
 const PROGRESS_LIMIT = 300
 const MOMENTS_SETTINGS_KEY = 'podcastMoments'
 const RATE_SETTINGS_KEY = 'podcastRate'
@@ -296,6 +299,8 @@ export class MusicStore {
   private episodeProgress: Record<string, EpisodeProgress>
   private progressTimer: number | null = null
   private progressWrite: Promise<boolean> = Promise.resolve(true)
+  private progressLoaded: Promise<void> = Promise.resolve()
+  private recordedSinceStart: Record<string, EpisodeProgress> = {}
   private progressSavedAt = 0
   private resumedEpisodeId: string | null = null
   private episodeMoments: Record<string, EpisodeMoment[]> = {}
@@ -361,6 +366,14 @@ export class MusicStore {
     this.observedPodcastPath = this.podcastPath()
     this.observedLibraryMode = this.libraryMode()
     this.episodeProgress = readProgress(api.settings.get()[PROGRESS_SETTINGS_KEY])
+    this.progressLoaded = api.data.files.readText(PROGRESS_FILE).then(text => {
+      if (!text || this.disposed) return
+      let saved: unknown
+      try { saved = JSON.parse(text) } catch { return }
+      // Positions recorded before the file was read win over the saved ones; the file wins over the old setting.
+      this.episodeProgress = { ...this.episodeProgress, ...readProgress(saved), ...this.recordedSinceStart }
+      this.emit()
+    }, () => undefined)
     this.episodeMoments = readMoments(api.settings.get()[MOMENTS_SETTINGS_KEY])
     this.podcastRate = readPodcastRate(api.settings.get()[RATE_SETTINGS_KEY])
     this.playerCompact = api.settings.get()[COMPACT_SETTINGS_KEY] === true
@@ -1312,6 +1325,7 @@ export class MusicStore {
       .sort((a, b) => b[1].updatedAt.localeCompare(a[1].updatedAt))
       .slice(0, PROGRESS_LIMIT)
     this.episodeProgress = Object.fromEntries(entries)
+    this.recordedSinceStart[id] = this.episodeProgress[id]
     if (this.progressTimer !== null) window.clearTimeout(this.progressTimer)
     this.progressTimer = window.setTimeout(() => this.flushProgress(), 1500)
   }
@@ -1319,7 +1333,17 @@ export class MusicStore {
   private flushProgress(): void {
     if (this.progressTimer !== null) window.clearTimeout(this.progressTimer)
     this.progressTimer = null
-    this.progressWrite = this.api.settings.set(PROGRESS_SETTINGS_KEY, this.episodeProgress).then(result => result.ok, () => false)
+    const previous = this.progressWrite
+    this.progressWrite = previous.then(async () => {
+      await this.progressLoaded
+      const text = JSON.stringify(this.episodeProgress)
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const current = await this.api.data.files.readTextBaseline(PROGRESS_FILE).catch(() => null)
+        const result = await this.api.data.files.writeTextGuarded(PROGRESS_FILE, text, current?.baseline ?? null)
+        if (result.ok) return true
+      }
+      return false
+    }).catch(() => false)
   }
 
   /** Play episodes from a list, resuming the chosen one where it was left. */

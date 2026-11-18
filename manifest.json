@@ -2,7 +2,7 @@
   "apiVersion": 5,
   "id": "music",
   "name": "Music & Podcasts",
-  "version": "3.1.2",
+  "version": "3.1.3",
   "description": "Music library and player with workspace-aware browser, panel, and player views that never roll back live playlists, queues, or playback.",
   "author": [
     "nausicaa"

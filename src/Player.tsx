@@ -113,7 +113,7 @@ const PlayerScrub: FC<{ fallbackDuration: number; moments?: readonly { at: numbe
   const [near, setNear] = React.useState<number | null>(null)
   React.useEffect(() => {
     if (!isPlaying || buffering) return
-    return visibleTimer(rootRef.current?.ownerDocument ?? document, () => updateClock(value => value + 1), CLOCK_INTERVAL_MS)
+    return visibleTimer(rootRef.current?.ownerDocument ?? document, () => updateClock(value => value + 1), CLOCK_INTERVAL_MS, rootRef.current)
   }, [isPlaying, buffering])
   const scrubber = useScrubber(value => store?.seek(value) ?? Promise.resolve())
   const shownTime = scrubber.value ?? livePosition(snap, total)

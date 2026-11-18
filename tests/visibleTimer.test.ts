@@ -23,4 +23,31 @@ describe('visibleTimer', () => {
     stop()
     expect(vi.getTimerCount()).toBe(0)
   })
+
+  it('also stops while its element is off screen in a visible document (GODS G6)', () => {
+    const observers: Array<{ callback: (entries: Array<{ isIntersecting: boolean }>) => void; disconnect: ReturnType<typeof vi.fn> }> = []
+    class FakeObserver {
+      disconnect = vi.fn()
+      constructor(public callback: (entries: Array<{ isIntersecting: boolean }>) => void) { observers.push(this) }
+      observe(): void {}
+    }
+    const original = (window as { IntersectionObserver?: unknown }).IntersectionObserver
+    ;(window as { IntersectionObserver?: unknown }).IntersectionObserver = FakeObserver
+    try {
+      const tick = vi.fn()
+      const stop = visibleTimer(document, tick, 1000, document.createElement('div'))
+      expect(tick).toHaveBeenCalledTimes(1)
+      observers[0].callback([{ isIntersecting: false }])
+      expect(vi.getTimerCount()).toBe(0)
+      vi.advanceTimersByTime(5000)
+      expect(tick).toHaveBeenCalledTimes(1)
+      observers[0].callback([{ isIntersecting: true }])
+      expect(tick).toHaveBeenCalledTimes(2)
+      vi.advanceTimersByTime(1000)
+      expect(tick).toHaveBeenCalledTimes(3)
+      stop()
+      expect(observers[0].disconnect).toHaveBeenCalledOnce()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally { (window as { IntersectionObserver?: unknown }).IntersectionObserver = original }
+  })
 })
