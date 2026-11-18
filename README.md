@@ -2,7 +2,7 @@
 
 Music library and player with workspace-aware browser, panel, and player views that never roll back live playlists, queues, or playback.
 
-Version 3 targets Valley plugin API 5 and uses SDK 6, tools 5, and testkit 6. Existing library data requires no migration. Valley’s persistent media runtime streams local files and prepares the next queued track without reading or decoding the entire file. Music’s backend owns queue advancement, shuffle, repeat, and play history, so closing application windows leaves local playback running. Queue transitions follow confirmed end events and are not sample-accurate gapless transitions. Playlist and artist relationships load every page; writes remain atomic. Removing more relationships than the host's 1,000-operation transaction limit reports an error without partially saving them.
+Version 3 targets Valley plugin API 5 and uses SDK 6, tools 5, and testkit 6. Existing library data requires no migration. Valley’s persistent media runtime streams local files and prepares the next queued track without reading or decoding the entire file. Music’s backend owns queue advancement, shuffle, repeat, and play history, so closing application windows leaves local playback running. The backend starts with the realm (`runtime.activation.backend: ["startup"]`): it owns the local player and the restorable playback session, which Valley cannot yet wake on demand. Queue transitions follow confirmed end events and are not sample-accurate gapless transitions. Playlist and artist relationships load every page; writes remain atomic. Removing more relationships than the host's 1,000-operation transaction limit reports an error without partially saving them.
 
 ## Install
 
