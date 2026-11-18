@@ -2,8 +2,8 @@ import { React, api } from './runtime'
 import type { FC, ReactNode } from 'react'
 import { IMAGE_EXTENSIONS, assetUrlForRelPath, fileExtension } from '@valley/plugin-sdk/fileTypes'
 import { useMusicCover, useMusicIndex } from './hooks'
-import { baseName, formatTime, resolveCoverPath } from './data'
-import { isEpisode, showFolder, MOMENT_LABEL_LIMIT, type EpisodeMoment } from './podcasts'
+import { baseName, formatTime, imagesInFolder, resolveCoverPath } from './data'
+import { episodeShowId, isEpisode, MOMENT_LABEL_LIMIT, type EpisodeMoment } from './podcasts'
 import type { MusicStore } from './store'
 import type { Track } from './types'
 import { uiText } from './localization'
@@ -47,7 +47,8 @@ const CoverField: FC<{
 }> = ({ track, store, value, fallbackPath, episode, busy, setBusy, onError, onChange, children }) => {
   const entries = useMusicIndex()
   const inputRef = React.useRef<HTMLInputElement>(null)
-  const images = React.useMemo(() => entries.filter(entry => (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(entry.relPath))), [entries])
+  const folder = episode ? store.getSnapshot().podcastPath : store.getSnapshot().musicPath
+  const images = React.useMemo(() => imagesInFolder(entries, folder), [entries, folder])
   const chosen = resolveCoverPath(entries, value)
   const { url: embedded, ref } = useMusicCover(store, chosen ? undefined : track.id, { eager: true })
   const src = chosen ? assetUrlForRelPath(chosen) : embedded ?? (fallbackPath ? assetUrlForRelPath(fallbackPath) : null)
@@ -68,7 +69,7 @@ const CoverField: FC<{
           {src ? <img src={src} alt={uiText('music.surface.cover')} /> : episode ? <Podcast /> : <Music />}
         </span>
         <span className="music-edit-cover-source" title={chosen ?? undefined}>{source}</span>
-        <api.ui.ComboField ariaLabel={uiText('music.surface.cover')} value={value} onChange={onChange} options={images.map(entry => ({ value: entry.relPath, label: baseName(entry.relPath) }))} />
+        <api.ui.ComboField ariaLabel={uiText('music.surface.cover')} value={value} onChange={onChange} options={images.map(path => ({ value: path, label: baseName(path) }))} />
         <div className="music-edit-cover-actions">
           <button type="button" onClick={() => inputRef.current?.click()}>{uiText('music.edit.addImage')}</button>
           {value && <button type="button" onClick={() => onChange('')}>{uiText('music.edit.removeImage')}</button>}
@@ -123,7 +124,7 @@ const MusicEditor: FC<{ track: Track; store: MusicStore; onClose(): void }> = ({
 }
 
 /** `h:mm:ss`, `m:ss` or plain seconds → seconds; null when it is not a time. */
-export function parseMomentTime(value: string): number | null {
+function parseMomentTime(value: string): number | null {
   const parts = value.trim().split(':')
   if (!parts.length || parts.length > 3 || parts.some(part => !/^\d+(\.\d+)?$/.test(part))) return null
   return parts.reduce((total, part) => total * 60 + Number(part), 0)
@@ -133,7 +134,7 @@ type MomentDraft = { key: number; time: string; label: string }
 
 const EpisodeEditor: FC<{ track: Track; store: MusicStore; onClose(): void }> = ({ track, store, onClose }) => {
   const snapshot = store.getSnapshot()
-  const show = snapshot.shows.find(item => item.id === showFolder(track.file, snapshot.podcastPath))
+  const show = snapshot.shows.find(item => item.id === episodeShowId(track))
   const nextKey = React.useRef(0)
   const toDraft = (moment: EpisodeMoment): MomentDraft => ({ key: nextKey.current++, time: formatTime(moment.at), label: moment.label })
   const [moments, setMoments] = React.useState<MomentDraft[]>(() => (snapshot.episodeMoments[track.id] ?? []).map(toDraft))

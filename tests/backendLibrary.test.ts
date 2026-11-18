@@ -266,13 +266,13 @@ describe('backend Music library owner', () => {
       'music.playlists': [{ id: 'walk', name: 'Walk' }],
       'music.playlist_tracks': [{ playlistId: 'walk', trackId: 'fern', position: 0 }],
       'music.play_events': [{ id: 'played', songId: 'fern', playedAt: '2026-09-29T10:00:00.000Z' }]
-    }, indexEntries: ['Music/fern.mp3', 'Archive/moved.mp3', 'Music/new.mp3'].map(asset) })
+    }, indexEntries: ['Music/fern.mp3', 'Music/Archive/moved.mp3', 'Archive/lost.mp3', 'Music/new.mp3'].map(asset) })
     try {
       const initial = await f.invoke('library.list', { kind: 'tracks' })
       const result = await f.invoke('library.rescan', { expectedRevision: initial.revision })
       expect(result).toMatchObject({ added: 1, healed: 1, updated: 1, missing: ['lost'] })
       expect((await f.invoke('track.read', { id: 'fern' })).value).toEqual(manual)
-      expect((await f.invoke('track.read', { id: 'moss' })).value.file).toBe('Archive/moved.mp3')
+      expect((await f.invoke('track.read', { id: 'moss' })).value.file).toBe('Music/Archive/moved.mp3')
       expect(f.metadata.mock.calls).toEqual([['Music/new.mp3']])
       expect(f.datasets.get('music.tracks')).toEqual(expect.arrayContaining([expect.objectContaining({ file: 'Music/new.mp3', title: 'Embedded title', artist: 'Embedded artist', album: 'Embedded album' })]))
       expect((await f.invoke('playlist.read', { id: 'walk' })).value.songIds).toEqual(['fern'])

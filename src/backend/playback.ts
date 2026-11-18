@@ -146,11 +146,19 @@ export class MusicPlayback {
     }
   }
 
+  /** Set once the player has switched to the current track: the host can only show a source it has loaded. */
+  private loadedSource(): string | null {
+    const media = this.media, current = this.queue[this.index]
+    if (!media || !current || media.descriptor.path !== current.file || media.state.status === 'loading' || media.state.status === 'error') return null
+    return `${media.target.sessionId}:${media.target.sessionGeneration}:${media.target.sourceGeneration}`
+  }
+
   snapshot(): MusicPlaybackSnapshot {
     const state = this.media?.state
     return {
       revision: this.revision,
       sessionId: this.media?.target.sessionId ?? this.player?.sessionId ?? null,
+      source: this.loadedSource(),
       queue: [...this.queue], index: this.index, playlistId: this.playlistId,
       current: this.queue[this.index] ?? null,
       playing: state?.status === 'playing', buffering: state?.status === 'loading' || state?.status === 'buffering',

@@ -816,6 +816,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -880,6 +890,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -1015,6 +1040,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -1220,6 +1260,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -1284,6 +1334,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -1419,6 +1484,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -1608,6 +1688,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -1672,6 +1762,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -1807,6 +1912,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -1996,6 +2116,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -2060,6 +2190,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -2195,6 +2340,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -2384,6 +2544,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -2448,6 +2618,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -2583,6 +2768,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -2772,6 +2972,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -2836,6 +3046,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -2971,6 +3196,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -3160,6 +3400,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -3224,6 +3474,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -3359,6 +3624,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -3548,6 +3828,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -3612,6 +3902,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -3747,6 +4052,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -3936,6 +4256,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -4000,6 +4330,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -4135,6 +4480,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -4324,6 +4684,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -4388,6 +4758,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -4523,6 +4908,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -4712,6 +5112,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -4776,6 +5186,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -4911,6 +5336,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -5100,6 +5540,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -5164,6 +5614,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -5299,6 +5764,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -5518,6 +5998,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -5582,6 +6072,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -5717,6 +6222,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -5913,6 +6433,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -5977,6 +6507,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -6112,6 +6657,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -6309,6 +6869,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -6373,6 +6943,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -6508,6 +7093,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -6716,6 +7316,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -6780,6 +7390,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -6915,6 +7540,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -7111,6 +7751,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -7175,6 +7825,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -7310,6 +7975,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -7506,6 +8186,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -7570,6 +8260,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -7705,6 +8410,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -7906,6 +8626,16 @@
                       }
                     ]
                   },
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "queue": {
                     "type": "array",
                     "items": {
@@ -7970,6 +8700,21 @@
                                   "type": "string"
                                 },
                                 "cover": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "episode": {
+                                  "type": "string"
+                                },
+                                "season": {
+                                  "type": "string"
+                                },
+                                "published": {
+                                  "type": "string"
+                                },
+                                "guests": {
                                   "type": "string"
                                 },
                                 "edited": {
@@ -8105,6 +8850,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -8386,6 +9146,26 @@
                                       "type": "string",
                                       "maxLength": 4096
                                     },
+                                    "description": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "episode": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "season": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "published": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "guests": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
                                     "edited": {
                                       "type": "boolean"
                                     }
@@ -8648,6 +9428,26 @@
                                     "type": "string",
                                     "maxLength": 4096
                                   },
+                                  "description": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "episode": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "season": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "published": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "guests": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
                                   "edited": {
                                     "type": "boolean"
                                   }
@@ -8811,6 +9611,26 @@
                             "type": "string",
                             "maxLength": 4096
                           },
+                          "description": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "episode": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "season": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "published": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
+                          "guests": {
+                            "type": "string",
+                            "maxLength": 4096
+                          },
                           "edited": {
                             "type": "boolean"
                           }
@@ -8907,6 +9727,26 @@
                                     "maxLength": 200000
                                   },
                                   "cover": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "description": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "episode": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "season": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "published": {
+                                    "type": "string",
+                                    "maxLength": 4096
+                                  },
+                                  "guests": {
                                     "type": "string",
                                     "maxLength": 4096
                                   },
@@ -9202,6 +10042,26 @@
                                 "type": "string",
                                 "maxLength": 4096
                               },
+                              "description": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "episode": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "season": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "published": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "guests": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
                               "edited": {
                                 "type": "boolean"
                               }
@@ -9312,6 +10172,26 @@
                                 "maxLength": 200000
                               },
                               "cover": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "description": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "episode": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "season": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "published": {
+                                "type": "string",
+                                "maxLength": 4096
+                              },
+                              "guests": {
                                 "type": "string",
                                 "maxLength": 4096
                               },
@@ -10743,6 +11623,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -10807,6 +11697,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -10942,6 +11847,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -11127,6 +12047,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -11191,6 +12121,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -11326,6 +12271,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -11527,6 +12487,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -11591,6 +12561,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -11726,6 +12711,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -11911,6 +12911,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -11975,6 +12985,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -12110,6 +13135,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -12311,6 +13351,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -12375,6 +13425,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -12510,6 +13575,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -12695,6 +13775,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -12759,6 +13849,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -12894,6 +13999,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -13095,6 +14215,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -13159,6 +14289,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -13294,6 +14439,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -13479,6 +14639,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -13543,6 +14713,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -13678,6 +14863,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -13879,6 +15079,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -13943,6 +15153,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -14078,6 +15303,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -14263,6 +15503,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -14327,6 +15577,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -14462,6 +15727,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -14663,6 +15943,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -14727,6 +16017,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -14862,6 +16167,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -15047,6 +16367,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -15111,6 +16441,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -15246,6 +16591,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -15447,6 +16807,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -15511,6 +16881,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -15646,6 +17031,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -15831,6 +17231,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -15895,6 +17305,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -16030,6 +17455,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -16231,6 +17671,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -16295,6 +17745,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -16430,6 +17895,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -16615,6 +18095,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -16679,6 +18169,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -16814,6 +18319,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -17015,6 +18535,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -17079,6 +18609,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -17214,6 +18759,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -17399,6 +18959,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -17463,6 +19033,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -17598,6 +19183,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -17799,6 +19399,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -17863,6 +19473,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -17998,6 +19623,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -18183,6 +19823,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -18247,6 +19897,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -18382,6 +20047,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -18583,6 +20263,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -18647,6 +20337,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -18782,6 +20487,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -18967,6 +20687,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -19031,6 +20761,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -19166,6 +20911,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -19367,6 +21127,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -19431,6 +21201,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -19566,6 +21351,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -19751,6 +21551,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -19815,6 +21625,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -19950,6 +21775,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -20151,6 +21991,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -20215,6 +22065,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -20350,6 +22215,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -20578,6 +22458,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -20642,6 +22532,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -20777,6 +22682,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -20978,6 +22898,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -21042,6 +22972,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -21177,6 +23122,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -21374,6 +23334,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -21438,6 +23408,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -21573,6 +23558,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -21774,6 +23774,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -21838,6 +23848,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -21973,6 +23998,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -22171,6 +24211,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -22235,6 +24285,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -22370,6 +24435,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -22571,6 +24651,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -22635,6 +24725,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -22770,6 +24875,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -22976,6 +25096,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -23040,6 +25170,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -23175,6 +25320,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -23376,6 +25536,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -23440,6 +25610,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -23575,6 +25760,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -23772,6 +25972,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -23836,6 +26046,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -23971,6 +26196,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -24172,6 +26412,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -24236,6 +26486,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -24371,6 +26636,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -24568,6 +26848,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -24632,6 +26922,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -24767,6 +27072,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -24968,6 +27288,16 @@
                             }
                           ]
                         },
+                        "source": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
                         "queue": {
                           "type": "array",
                           "items": {
@@ -25032,6 +27362,21 @@
                                         "type": "string"
                                       },
                                       "cover": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      },
+                                      "episode": {
+                                        "type": "string"
+                                      },
+                                      "season": {
+                                        "type": "string"
+                                      },
+                                      "published": {
+                                        "type": "string"
+                                      },
+                                      "guests": {
                                         "type": "string"
                                       },
                                       "edited": {
@@ -25167,6 +27512,21 @@
                                           "type": "string"
                                         },
                                         "cover": {
+                                          "type": "string"
+                                        },
+                                        "description": {
+                                          "type": "string"
+                                        },
+                                        "episode": {
+                                          "type": "string"
+                                        },
+                                        "season": {
+                                          "type": "string"
+                                        },
+                                        "published": {
+                                          "type": "string"
+                                        },
+                                        "guests": {
                                           "type": "string"
                                         },
                                         "edited": {
@@ -25374,6 +27734,16 @@
                         }
                       ]
                     },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "queue": {
                       "type": "array",
                       "items": {
@@ -25438,6 +27808,21 @@
                                     "type": "string"
                                   },
                                   "cover": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "episode": {
+                                    "type": "string"
+                                  },
+                                  "season": {
+                                    "type": "string"
+                                  },
+                                  "published": {
+                                    "type": "string"
+                                  },
+                                  "guests": {
                                     "type": "string"
                                   },
                                   "edited": {
@@ -25573,6 +27958,21 @@
                                       "type": "string"
                                     },
                                     "cover": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "episode": {
+                                      "type": "string"
+                                    },
+                                    "season": {
+                                      "type": "string"
+                                    },
+                                    "published": {
+                                      "type": "string"
+                                    },
+                                    "guests": {
                                       "type": "string"
                                     },
                                     "edited": {
@@ -25833,6 +28233,26 @@
                                             "maxLength": 200000
                                           },
                                           "cover": {
+                                            "type": "string",
+                                            "maxLength": 4096
+                                          },
+                                          "description": {
+                                            "type": "string",
+                                            "maxLength": 4096
+                                          },
+                                          "episode": {
+                                            "type": "string",
+                                            "maxLength": 4096
+                                          },
+                                          "season": {
+                                            "type": "string",
+                                            "maxLength": 4096
+                                          },
+                                          "published": {
+                                            "type": "string",
+                                            "maxLength": 4096
+                                          },
+                                          "guests": {
                                             "type": "string",
                                             "maxLength": 4096
                                           },
@@ -26100,6 +28520,26 @@
                                         "type": "string",
                                         "maxLength": 4096
                                       },
+                                      "description": {
+                                        "type": "string",
+                                        "maxLength": 4096
+                                      },
+                                      "episode": {
+                                        "type": "string",
+                                        "maxLength": 4096
+                                      },
+                                      "season": {
+                                        "type": "string",
+                                        "maxLength": 4096
+                                      },
+                                      "published": {
+                                        "type": "string",
+                                        "maxLength": 4096
+                                      },
+                                      "guests": {
+                                        "type": "string",
+                                        "maxLength": 4096
+                                      },
                                       "edited": {
                                         "type": "boolean"
                                       }
@@ -26346,6 +28786,26 @@
                                           "type": "string",
                                           "maxLength": 4096
                                         },
+                                        "description": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "episode": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "season": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "published": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "guests": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
                                         "edited": {
                                           "type": "boolean"
                                         }
@@ -26515,6 +28975,26 @@
                                       "maxLength": 200000
                                     },
                                     "cover": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "description": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "episode": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "season": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "published": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "guests": {
                                       "type": "string",
                                       "maxLength": 4096
                                     },
@@ -26691,6 +29171,26 @@
                                           "maxLength": 200000
                                         },
                                         "cover": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "description": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "episode": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "season": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "published": {
+                                          "type": "string",
+                                          "maxLength": 4096
+                                        },
+                                        "guests": {
                                           "type": "string",
                                           "maxLength": 4096
                                         },
@@ -26883,6 +29383,46 @@
                                 "control": "text"
                               }
                             },
+                            "description": {
+                              "type": "string",
+                              "maxLength": 4096,
+                              "title": "songwriter",
+                              "ui": {
+                                "control": "text"
+                              }
+                            },
+                            "episode": {
+                              "type": "string",
+                              "maxLength": 4096,
+                              "title": "songwriter",
+                              "ui": {
+                                "control": "text"
+                              }
+                            },
+                            "season": {
+                              "type": "string",
+                              "maxLength": 4096,
+                              "title": "songwriter",
+                              "ui": {
+                                "control": "text"
+                              }
+                            },
+                            "published": {
+                              "type": "string",
+                              "maxLength": 4096,
+                              "title": "songwriter",
+                              "ui": {
+                                "control": "text"
+                              }
+                            },
+                            "guests": {
+                              "type": "string",
+                              "maxLength": 4096,
+                              "title": "songwriter",
+                              "ui": {
+                                "control": "text"
+                              }
+                            },
                             "edited": {
                               "type": "boolean",
                               "title": "edited"
@@ -26987,6 +29527,26 @@
                                       "maxLength": 200000
                                     },
                                     "cover": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "description": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "episode": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "season": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "published": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "guests": {
                                       "type": "string",
                                       "maxLength": 4096
                                     },
@@ -27262,6 +29822,26 @@
                                       "type": "string",
                                       "maxLength": 4096
                                     },
+                                    "description": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "episode": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "season": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "published": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
+                                    "guests": {
+                                      "type": "string",
+                                      "maxLength": 4096
+                                    },
                                     "edited": {
                                       "type": "boolean"
                                     }
@@ -27472,6 +30052,26 @@
                                   "type": "string",
                                   "maxLength": 4096
                                 },
+                                "description": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "episode": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "season": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "published": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "guests": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
                                 "edited": {
                                   "type": "boolean"
                                 }
@@ -27593,6 +30193,26 @@
                                   "maxLength": 200000
                                 },
                                 "cover": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "description": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "episode": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "season": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "published": {
+                                  "type": "string",
+                                  "maxLength": 4096
+                                },
+                                "guests": {
                                   "type": "string",
                                   "maxLength": 4096
                                 },

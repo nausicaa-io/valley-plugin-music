@@ -10,7 +10,7 @@ import { formatTime, isVideoFile } from './data'
 import type { Track } from './types'
 import { uiText } from './localization'
 import { playbackPosition } from './playback'
-import { isEpisode, nextPodcastRate, resumePosition, showFolder, type PodcastShow } from './podcasts'
+import { episodeShowId, isEpisode, nextPodcastRate, resumePosition, type PodcastShow } from './podcasts'
 import type { MusicSnapshot } from './store'
 import {
   Bookmark,
@@ -84,10 +84,14 @@ function useScrubber(seek: (value: number) => Promise<unknown>): {
 
 const CLOCK_INTERVAL_MS = 250
 
-function useVideoSurface(sessionId: string | null): React.ReactNode {
-  return React.useMemo(() => sessionId
-    ? <api.ui.MediaSurface sessionId={sessionId} fit="contain" controls={false} style={{ width: '100%', height: '100%', borderRadius: 2, background: 'transparent' }} />
-    : null, [sessionId])
+/**
+ * The video, mounted afresh for every loaded source. The host announces a new source before its player has switched,
+ * and a surface placed in that gap is refused and not placed again, so the surface waits for the loaded source.
+ */
+function useVideoSurface(sessionId: string | null, source: string | null): React.ReactNode {
+  return React.useMemo(() => sessionId && source
+    ? <api.ui.MediaSurface key={source} sessionId={sessionId} fit="contain" controls={false} style={{ width: '100%', height: '100%', borderRadius: 2, background: 'transparent' }} />
+    : null, [sessionId, source])
 }
 
 /** Where playback is right now, extrapolated from the last sample. */
@@ -289,7 +293,7 @@ const MusicPlayer: FC = () => {
     if (listsRef.current) listsRef.current.scrollTop = rightPanelScrollTop
   }, [rightViewNonce, rightPanelScrollTop])
   const { url: coverUrl, ref: coverRef } = useMusicCover(store, track?.id, { eager: true })
-  const videoSurface = useVideoSurface(snap.sessionId)
+  const videoSurface = useVideoSurface(snap.sessionId, snap.mediaSource)
 
   if (!store) return null
 
@@ -558,10 +562,10 @@ const PodcastPlayer: FC<{ track: Track }> = ({ track }) => {
   const [videoMode, setVideoMode] = React.useState(false)
   const [open, setOpen] = React.useState({ moments: true, notes: true, more: true })
   const hasVideo = isVideoFile(track.file)
-  const show: PodcastShow | undefined = snap.shows.find(item => item.id === showFolder(track.file, snap.podcastPath))
+  const show: PodcastShow | undefined = snap.shows.find(item => item.id === episodeShowId(track))
   const { url: embeddedCover, ref: coverRef } = useMusicCover(store, track.id, { eager: true })
   const coverUrl = embeddedCover ?? (show?.coverPath ? assetUrlForRelPath(show.coverPath) : null)
-  const videoSurface = useVideoSurface(snap.sessionId)
+  const videoSurface = useVideoSurface(snap.sessionId, snap.mediaSource)
   const moments = snap.episodeMoments[track.id] ?? []
   const details = track.details ?? {}
   const meta = [

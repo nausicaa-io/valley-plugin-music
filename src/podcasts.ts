@@ -5,14 +5,16 @@ import type { Track } from './types'
 
 export type LibraryMode = 'music' | 'podcast'
 
-/** One show: a direct subfolder of the podcast folder (loose files form a show named after the folder itself). */
+/** One show: every episode whose Show (album) says so, wherever it sits in the podcast folder. */
 export interface PodcastShow {
-  /** Realm-relative folder path; stable identity for navigation. */
+  /** The show name folded to lower case; stable identity for navigation and saved choices. */
   id: string
   name: string
+  /** The folder that holds every episode of the show (the podcast folder when they are spread out). */
+  folder: string
   /** Numbered files newest first; otherwise alphabetical by title. */
   episodes: Track[]
-  /** Image inside the show folder, preferring cover/folder/artwork names. */
+  /** Image beside the episodes: one named after the show, else a cover/folder/artwork image in a folder only this show uses. */
   coverPath: string | null
 }
 
@@ -29,18 +31,24 @@ export function isEpisode(track: Pick<Track, 'file'>, podcastPath: string): bool
   return Boolean(podcastPath) && track.file.startsWith(`${podcastPath}/`)
 }
 
-export function showFolder(file: string, podcastPath: string): string {
-  const rest = file.slice(podcastPath.length + 1).split('/')
-  return rest.length > 1 ? `${podcastPath}/${rest[0]}` : podcastPath
+const parentFolder = (path: string): string => path.slice(0, Math.max(0, path.lastIndexOf('/')))
+const folderTitle = (folder: string): string => trackDetailsFromFileName(`${baseName(folder)}.folder`).title || baseName(folder)
+
+/** An episode's show: its Show tag or edited Show, else the name of the folder it sits in. */
+function episodeShowName(track: Pick<Track, 'file' | 'album'>): string {
+  return track.album?.trim() || folderTitle(parentFolder(track.file))
+}
+
+export function episodeShowId(track: Pick<Track, 'file' | 'album'>): string {
+  return episodeShowName(track).toLocaleLowerCase()
 }
 
 /** Images directly inside each folder, by folder path. */
 function folderImages(entries: readonly PluginIndexEntry[]): Map<string, string[]> {
   const byFolder = new Map<string, string[]>()
   for (const { relPath: path } of entries) {
-    const slash = path.lastIndexOf('/')
-    if (slash < 0 || !(IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(path))) continue
-    const folder = path.slice(0, slash)
+    if (!(IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(path))) continue
+    const folder = parentFolder(path)
     const list = byFolder.get(folder)
     if (list) list.push(path)
     else byFolder.set(folder, [path])
@@ -48,17 +56,18 @@ function folderImages(entries: readonly PluginIndexEntry[]): Map<string, string[
   return byFolder
 }
 
-function showCover(images: readonly string[] | undefined): string | null {
-  if (!images) return null
-  const sorted = [...images].sort(collator.compare)
-  return sorted.find(path => COVER_NAMES.includes(rawTitleFromFileName(path).toLowerCase())) ?? sorted[0] ?? null
+function commonFolder(files: readonly string[], fallback: string): string {
+  let common = parentFolder(files[0] ?? '')
+  for (const file of files) while (common && !file.startsWith(`${common}/`)) common = parentFolder(common)
+  return common.startsWith(`${fallback}/`) ? common : fallback
 }
 
-/** The shared album tag when every episode carries the same one, else the humanized folder name. */
-function showName(folder: string, episodes: readonly Track[]): string {
-  const albums = new Set(episodes.map(episode => episode.album?.trim() ?? ''))
-  const [album] = albums
-  return albums.size === 1 && album ? album : trackDetailsFromFileName(`${baseName(folder)}.folder`).title || baseName(folder)
+function showCover(id: string, folders: ReadonlySet<string>, shared: ReadonlySet<string>, images: ReadonlyMap<string, string[]>): string | null {
+  const candidates = [...folders].flatMap(folder => images.get(folder) ?? []).sort(collator.compare)
+  const named = candidates.find(path => rawTitleFromFileName(path).toLocaleLowerCase() === id)
+  if (named) return named
+  const own = candidates.filter(path => !shared.has(parentFolder(path)))
+  return own.find(path => COVER_NAMES.includes(rawTitleFromFileName(path).toLowerCase())) ?? own[0] ?? null
 }
 
 function sortEpisodes(episodes: Track[]): Track[] {
@@ -70,20 +79,25 @@ function sortEpisodes(episodes: Track[]): Track[] {
 
 export function podcastShows(episodes: readonly Track[], podcastPath: string, entries: readonly PluginIndexEntry[]): PodcastShow[] {
   if (!podcastPath) return []
-  const byFolder = new Map<string, Track[]>()
+  const byShow = new Map<string, { name: string; episodes: Track[]; folders: Set<string> }>()
+  const showsInFolder = new Map<string, Set<string>>()
   for (const episode of episodes) {
-    const folder = showFolder(episode.file, podcastPath)
-    const list = byFolder.get(folder)
-    if (list) list.push(episode)
-    else byFolder.set(folder, [episode])
+    const id = episodeShowId(episode), folder = parentFolder(episode.file)
+    const show = byShow.get(id) ?? { name: episodeShowName(episode), episodes: [], folders: new Set<string>() }
+    show.episodes.push(episode)
+    show.folders.add(folder)
+    byShow.set(id, show)
+    showsInFolder.set(folder, (showsInFolder.get(folder) ?? new Set()).add(id))
   }
+  const shared = new Set([...showsInFolder].filter(([, ids]) => ids.size > 1).map(([folder]) => folder))
   const images = folderImages(entries)
-  return [...byFolder.entries()]
-    .map(([id, list]) => ({
+  return [...byShow.entries()]
+    .map(([id, show]) => ({
       id,
-      name: showName(id, list),
-      episodes: sortEpisodes(list),
-      coverPath: showCover(images.get(id))
+      name: show.name,
+      folder: commonFolder(show.episodes.map(episode => episode.file), podcastPath),
+      episodes: sortEpisodes(show.episodes),
+      coverPath: showCover(id, show.folders, shared, images)
     }))
     .sort((a, b) => collator.compare(a.name, b.name))
 }
@@ -119,7 +133,7 @@ export interface EpisodeMoment {
 
 export const MOMENT_LIMIT = 100
 export const MOMENT_LABEL_LIMIT = 120
-export const PODCAST_RATES = [0.75, 1, 1.25, 1.5, 1.75, 2] as const
+const PODCAST_RATES = [0.75, 1, 1.25, 1.5, 1.75, 2] as const
 
 export function readMoments(value: unknown): Record<string, EpisodeMoment[]> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}

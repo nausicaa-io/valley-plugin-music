@@ -1,6 +1,6 @@
 import type { DatasetPage, DatasetReadResult, DatasetRecord, DatasetRevisionGuard, DatasetTransactionOperation, PluginBackendApi, PluginIndexEntry } from '@valley/plugin-sdk'
 import { normalizeRelPath } from '@valley/plugin-sdk/paths'
-import { computeLibrarySync, mediaFilesInFolder, newTrackId, rawTitleFromFileName, trackDetailsFromFileName } from './data'
+import { computeLibrarySync, libraryRoots, mediaFilesInFolder, newTrackId, rawTitleFromFileName, trackDetailsFromFileName } from './data'
 import { mergeArtistMetadata, patchArtistMetadata, sameArtist, upsertArtists } from './artists'
 import { MetadataCancelled } from './mediaMetadata'
 import { isEpisode } from './podcasts'
@@ -190,16 +190,23 @@ export class MusicLibrary {
     return { source, target, sourceRevision: result.revisions[0], revision: result.revisions[1], aliasesRevision: result.aliasesRevision }
   }
 
-  async index(signal?: AbortSignal): Promise<PluginIndexEntry[]> {
+  /** The index entries under the given folders (the Music and Podcast folders), read page by page. */
+  async index(folders: readonly string[], signal?: AbortSignal): Promise<PluginIndexEntry[]> {
+    const entries: PluginIndexEntry[] = []
+    for (const pathPrefix of libraryRoots(folders)) entries.push(...await this.folderEntries(pathPrefix, signal))
+    return entries
+  }
+
+  private async folderEntries(pathPrefix: string, signal?: AbortSignal): Promise<PluginIndexEntry[]> {
     let wake: (() => void) | undefined
-    const observation = await this.api.index.observe({ fields: [] }, () => wake?.())
+    const observation = await this.api.index.observe({ pathPrefix, fields: [] }, () => wake?.())
     const abort = () => wake?.()
     signal?.addEventListener('abort', abort)
     try {
       let page = await observation.read({ limit: 128 })
       while (page.status === 'loading') {
         signal?.throwIfAborted()
-        await new Promise<void>(resolve => { wake = resolve; const timer = setTimeout(resolve, 100); wake = () => { clearTimeout(timer); resolve() } })
+        await new Promise<void>(resolve => { const timer = setTimeout(resolve, 100); wake = () => { clearTimeout(timer); resolve() } })
         page = await observation.read({ limit: 128 })
       }
       if (page.status !== 'ready' || !page.version) throw refusal('NOT_READY', page.error ?? 'Realm index is unavailable')
@@ -209,7 +216,7 @@ export class MusicLibrary {
         page = await observation.read({ version, offset: page.next, limit: 128 })
         if (page.status !== 'ready' || page.version?.revision !== version.revision || page.version.scopeGeneration !== version.scopeGeneration || page.version.realmGeneration !== version.realmGeneration) throw refusal('REVISION_CONFLICT', 'Realm index changed during scan; retry the rescan')
         entries.push(...page.entries)
-        if (entries.length > 100000) throw refusal('RESOURCE_LIMIT', 'Realm index exceeds the scan limit')
+        if (entries.length > 100000) throw refusal('RESOURCE_LIMIT', 'Music folder exceeds the scan limit')
       }
       return entries
     } finally { signal?.removeEventListener('abort', abort); await observation.dispose() }
@@ -239,7 +246,7 @@ export class MusicLibrary {
     const knownProbed = probed.size
     const previousPodcast = scanned !== null && scanned !== podcastPath ? scanned : ''
     if (!musicPath && !podcastPath && !previousPodcast) return { revision: observed.revision, added: 0, healed: 0, updated: 0, missing: [] as string[] }
-    const entries = indexed ?? await this.index(signal)
+    const entries = indexed ?? await this.index([musicPath, podcastPath], signal)
     const folderFiles = [...new Set([...(musicPath ? mediaFilesInFolder(entries, musicPath) : []), ...(podcastPath ? mediaFilesInFolder(entries, podcastPath) : [])])]
     const sync = computeLibrarySync(current, folderFiles, entries)
     const next = new Map(current.map(track => [track.id, track])), changed: Track[] = [], removed: string[] = []

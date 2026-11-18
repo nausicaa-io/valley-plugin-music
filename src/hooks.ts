@@ -1,5 +1,6 @@
-import type { PluginIndexEntry } from '@valley/plugin-sdk'
-import { React } from './runtime'
+import type { PluginIndexEntry, PluginIndexSnapshot } from '@valley/plugin-sdk'
+import { React, api } from './runtime'
+import { createFolderIndex } from './folderIndex'
 import { getStore, type MusicSnapshot, type MusicStore } from './store'
 
 const EMPTY: MusicSnapshot = {
@@ -20,6 +21,7 @@ const EMPTY: MusicSnapshot = {
   missing: new Set(),
   playlistCovers: {},
   sessionId: null,
+  mediaSource: null,
   playbackRevision: -1,
   playbackRate: 1,
   playbackSampledAt: 0,
@@ -104,4 +106,25 @@ const emptyIndex = () => EMPTY_INDEX
 export function useMusicIndex(): readonly PluginIndexEntry[] {
   const store = getStore()
   return React.useSyncExternalStore(store ? store.subscribeIndex : noopSubscribe, store ? store.getIndexEntries : emptyIndex)
+}
+
+const FOLDER_SETTLE_MS = 250
+const FOLDER_LOADING: PluginIndexSnapshot = Object.freeze({ status: 'loading', version: null, entries: EMPTY_INDEX })
+
+/** The index under one folder while it is being typed (Settings), observed once the typing pauses. */
+export function useFolderIndex(folder: string): PluginIndexSnapshot {
+  const [settled, setSettled] = React.useState(folder)
+  React.useEffect(() => {
+    const timer = setTimeout(() => setSettled(folder), FOLDER_SETTLE_MS)
+    return () => clearTimeout(timer)
+  }, [folder])
+  const [snapshot, setSnapshot] = React.useState<PluginIndexSnapshot>(FOLDER_LOADING)
+  React.useEffect(() => {
+    const index = createFolderIndex(api, [settled])
+    const publish = (): void => setSnapshot(index.getSnapshot())
+    const off = index.subscribe(publish)
+    publish()
+    return () => { off(); void index.dispose() }
+  }, [settled])
+  return snapshot
 }

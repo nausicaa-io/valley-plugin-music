@@ -1,5 +1,5 @@
 import type { PluginIndexEntry } from '@valley/plugin-sdk'
-import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
+import { AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
 import type { CSSProperties } from 'react'
 import type { CoverCrop, HistoryEntry, Playlist, QueueEntry, Track } from './types'
 
@@ -104,7 +104,7 @@ export function searchTracks(tracks: readonly Track[], q: string, withFile: bool
 export const MUSIC_AUDIO_EXTENSIONS: readonly string[] = [...AUDIO_EXTENSIONS, '.m4b', '.mka', '.weba', '.3ga']
 export const MUSIC_VIDEO_EXTENSIONS: readonly string[] = [...VIDEO_EXTENSIONS, '.3gp', '.3g2', '.f4v']
 export const isVideoFile = (path: string): boolean => MUSIC_VIDEO_EXTENSIONS.includes(fileExtension(path))
-export const MEDIA_EXTENSIONS: ReadonlySet<string> = new Set([...MUSIC_AUDIO_EXTENSIONS, ...MUSIC_VIDEO_EXTENSIONS])
+const MEDIA_EXTENSIONS: ReadonlySet<string> = new Set([...MUSIC_AUDIO_EXTENSIONS, ...MUSIC_VIDEO_EXTENSIONS])
 
 /** Last path segment, e.g. `a/b/song.mp4` → `song.mp4`. */
 export function baseName(path: string): string {
@@ -145,7 +145,22 @@ export function trackDetailsFromFileName(path: string): { title: string; artist:
   }
 }
 
-/** Media files inside the music folder, from the realm index. */
+/** The library folders worth indexing: empty ones dropped, and a folder inside another one observed through the outer folder. */
+export function libraryRoots(folders: readonly string[]): string[] {
+  const unique = [...new Set(folders.filter(Boolean))]
+  return unique.filter(folder => !unique.some(other => other !== folder && folder.startsWith(`${other}/`))).sort()
+}
+
+/** Images inside one library folder (and its subfolders), sorted by file name. */
+export function imagesInFolder(entries: readonly PluginIndexEntry[], folder: string): string[] {
+  if (!folder) return []
+  const prefix = `${folder}/`
+  return entries.map(entry => entry.relPath)
+    .filter(path => path.startsWith(prefix) && (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(path)))
+    .sort((a, b) => baseName(a).localeCompare(baseName(b), undefined, { numeric: true, sensitivity: 'base' }))
+}
+
+/** Media files inside a library folder, from the index. */
 export function mediaFilesInFolder(entries: readonly PluginIndexEntry[], musicPath: string): string[] {
   const prefix = musicPath.replace(/\/+$/, '') + '/'
   return entries
@@ -158,19 +173,19 @@ export interface LibrarySync {
   toAdd: string[]
   /** Tracks whose file vanished but whose file name exists elsewhere — heal to that path. */
   toHeal: { track: Track; newPath: string }[]
-  /** Track ids whose file is gone and not found anywhere in the realm. */
+  /** Track ids whose file is gone from the library folders. */
   missing: Set<string>
 }
 
 /**
- * Diff the on-disk music folder against the tracks dataset: new files get rows,
- * tracks whose file moved are re-matched by file name anywhere in the realm
- * (the "search for filename" recovery), tracks whose file is gone are flagged.
+ * Diff the library folders against the tracks dataset: new files get rows,
+ * tracks whose file moved inside the Music or Podcast folder are re-matched by
+ * file name, tracks whose file is gone from both folders are flagged.
  */
 export function computeLibrarySync(
   tracks: Track[],
   folderFiles: string[],
-  allEntries: readonly PluginIndexEntry[]
+  libraryEntries: readonly PluginIndexEntry[]
 ): LibrarySync {
   const known = new Set(tracks.map((t) => t.file))
   const present = new Set(folderFiles)
@@ -180,10 +195,10 @@ export function computeLibrarySync(
   const lost = tracks.filter((track) => !present.has(track.file))
   if (!lost.length) return { toAdd, toHeal, missing }
 
-  const realmPaths = new Set(allEntries.map(entry => entry.relPath))
-  // Realm-wide media basename → paths, for healing moved files.
+  const libraryPaths = new Set(libraryEntries.map(entry => entry.relPath))
+  // Media basename → paths in the library folders, for healing moved files.
   const byBase = new Map<string, string[]>()
-  for (const entry of allEntries) {
+  for (const entry of libraryEntries) {
     if (!MEDIA_EXTENSIONS.has(fileExtension(entry.relPath))) continue
     const base = baseName(entry.relPath).toLowerCase()
     const list = byBase.get(base)
@@ -197,8 +212,7 @@ export function computeLibrarySync(
   const healedAdds = new Map<string, number>()
   const claimed = new Set([...known, ...toAdd])
   for (const track of lost) {
-    const inRealm = realmPaths.has(track.file)
-    if (inRealm) continue // moved out of the music folder but still valid
+    if (libraryPaths.has(track.file)) continue
     const candidates = (byBase.get(baseName(track.file).toLowerCase()) ?? []).filter(
       (p) => !claimed.has(p) || (pending.get(p) ?? 0) > 0
     )

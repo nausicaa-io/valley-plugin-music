@@ -79,11 +79,11 @@ export function onMiddleClick(open: (event: React.MouseEvent) => void): (event: 
 }
 
 /** The library a destination belongs to: shows and the show list are podcasts, everything else music. */
-export function targetLibrary(target: PageTarget): LibraryMode {
+function targetLibrary(target: PageTarget): LibraryMode {
   return target.kind === 'show' || target.kind === 'podcasts' ? 'podcast' : 'music'
 }
 
-export function targetTitle(snap: MusicSnapshot, target: PageTarget): string {
+function targetTitle(snap: MusicSnapshot, target: PageTarget): string {
   if (target.kind === 'home') return uiText('plugin.music.name')
   if (target.kind === 'podcasts') return uiText('music.podcasts')
   const name = target.kind === 'playlist' ? snap.playlists.find((item) => item.id === target.id)?.name

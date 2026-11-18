@@ -1,10 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createMockValleyApi, loadPackageWasm } from '@valley/plugin-testkit'
 import type { PluginIndexEntry } from '@valley/plugin-sdk'
-import { IMAGE_EXTENSIONS, AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
+import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS, fileExtension } from '@valley/plugin-sdk/fileTypes'
 import { installCreditsKernel, libraryCredits, normalizeArtistName, trackArtists, tracksForArtist, upsertArtists } from '../src/artists'
 import { loadCreditsKernel, type CreditsKernel } from '../src/credits'
-import { computeLibrarySync, mostListened, rawTitleFromFileName, resolveCoverPath, searchTracks, trackDetailsFromFileName } from '../src/data'
+import { computeLibrarySync, imagesInFolder, libraryRoots, mostListened, resolveCoverPath, searchTracks, trackDetailsFromFileName } from '../src/data'
 import { podcastShows } from '../src/podcasts'
 import type { Artist, Track } from '../src/types'
 
@@ -149,13 +149,6 @@ const reference = {
     if (exact) return exact.relPath
     if (cover.includes('/')) return cover
     return entries.find((e) => base(e.relPath).toLowerCase() === base(cover).toLowerCase())?.relPath ?? null
-  },
-  showCover(folder: string, entries: readonly PluginIndexEntry[]): string | null {
-    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
-    const images = entries.map(e => e.relPath)
-      .filter(p => p.startsWith(`${folder}/`) && !p.slice(folder.length + 1).includes('/') && (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(p)))
-      .sort(collator.compare)
-    return images.find(p => ['cover', 'folder', 'artwork', 'poster', 'show', 'podcast'].includes(rawTitleFromFileName(p).toLowerCase())) ?? images[0] ?? null
   }
 }
 
@@ -198,16 +191,32 @@ describe('indexed library paths match the implementations they replaced', () => 
     }
   })
 
-  it('podcastShows picks the same show covers', () => {
+  it('podcastShows groups episodes by their Show, wherever they sit, and finds each show its cover', () => {
     const entries = [
       'Podcasts/alpha/cover.jpg', 'Podcasts/alpha/b.png', 'Podcasts/alpha/sub/cover.jpg', 'Podcasts/beta/z.webp', 'Podcasts/beta/Artwork.PNG',
-      'Podcasts/gamma/notes.md', 'Podcasts/loose.jpg', 'Podcasts/alpha-extra/cover.jpg', 'Other/cover.jpg'
+      'Podcasts/gamma/notes.md', 'Podcasts/mixed/Tide Talk.jpg', 'Podcasts/mixed/cover.jpg', 'Other/cover.jpg'
     ].map(entry)
-    const episodes: Track[] = ['Podcasts/alpha/01 one.mp3', 'Podcasts/alpha/02 two.mp3', 'Podcasts/beta/b.mkv', 'Podcasts/gamma/g.mp4', 'Podcasts/root.mp3']
-      .map((file, i) => ({ id: `e${i}`, title: trackDetailsFromFileName(file).title, artist: '', file }))
-    const shows = podcastShows(episodes, 'Podcasts', entries)
-    expect(shows.map(show => show.coverPath)).toEqual(shows.map(show => reference.showCover(show.id, entries)))
-    expect(shows.find(show => show.id === 'Podcasts/alpha')?.coverPath).toBe('Podcasts/alpha/cover.jpg')
+    const episode = (file: string, album?: string): Track => ({ id: file, title: trackDetailsFromFileName(file).title, artist: '', file, ...(album ? { album } : {}) })
+    const shows = podcastShows([
+      episode('Podcasts/alpha/01 one.mp3'), episode('Podcasts/alpha/02 two.mp3'), episode('Podcasts/beta/b.mkv'), episode('Podcasts/gamma/g.mp4'),
+      episode('Podcasts/mixed/t1.mp3', 'Tide Talk'), episode('Podcasts/elsewhere/2024/t2.mp3', 'tide talk'), episode('Podcasts/mixed/r1.mp3', 'Rain Hour')
+    ], 'Podcasts', entries)
+    expect(shows.map(show => [show.id, show.name, show.folder, show.coverPath, show.episodes.map(item => item.file)])).toEqual([
+      ['alpha', 'Alpha', 'Podcasts/alpha', 'Podcasts/alpha/cover.jpg', ['Podcasts/alpha/02 two.mp3', 'Podcasts/alpha/01 one.mp3']],
+      ['beta', 'Beta', 'Podcasts/beta', 'Podcasts/beta/Artwork.PNG', ['Podcasts/beta/b.mkv']],
+      ['gamma', 'Gamma', 'Podcasts/gamma', null, ['Podcasts/gamma/g.mp4']],
+      ['rain hour', 'Rain Hour', 'Podcasts/mixed', null, ['Podcasts/mixed/r1.mp3']],
+      ['tide talk', 'Tide Talk', 'Podcasts', 'Podcasts/mixed/Tide Talk.jpg', ['Podcasts/mixed/t1.mp3', 'Podcasts/elsewhere/2024/t2.mp3']]
+    ])
+  })
+
+  it('imagesInFolder offers only the images inside one library folder, and libraryRoots indexes each folder once', () => {
+    const entries = ['Music/b.png', 'Music/Covers/A.JPG', 'Music/song.mp3', 'Musical/x.png', 'Podcasts/show.webp', 'Pictures/c.png'].map(entry)
+    expect(imagesInFolder(entries, 'Music')).toEqual(['Music/Covers/A.JPG', 'Music/b.png'])
+    expect(imagesInFolder(entries, 'Podcasts')).toEqual(['Podcasts/show.webp'])
+    expect(imagesInFolder(entries, '')).toEqual([])
+    expect(libraryRoots(['Music', 'Music/Podcasts', '', 'Audio'])).toEqual(['Audio', 'Music'])
+    expect(libraryRoots(['Music', 'Musical'])).toEqual(['Music', 'Musical'])
   })
 
   it('searchTracks matches the per-keystroke lowercase filters', () => {

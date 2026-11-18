@@ -94,6 +94,40 @@ describe('persistent Music queue', () => {
     await f.backend.dispose()
   })
 
+  it('names the loaded source only once the player has switched to the current track', async () => {
+    const f = fixture()
+    expect(f.backend.snapshot().source).toBeNull()
+    await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss'], index: 0 })
+    const first = f.backend.snapshot().source
+    expect(first).toBe('music-session:1:1')
+    f.observe({ status: 'loading' })
+    expect(f.backend.snapshot().source).toBeNull()
+    f.observe({ status: 'buffering' })
+    expect(f.backend.snapshot().source).toBe(first)
+    let release!: () => void
+    const load = vi.mocked(f.player.load).getMockImplementation()!
+    vi.mocked(f.player.load).mockImplementationOnce(async (descriptor, options) => { await new Promise<void>(resolve => { release = resolve }); return load(descriptor, options) })
+    const next = f.backend.dispatch({ type: 'next' })
+    await vi.waitFor(() => expect(f.backend.snapshot().current?.id).toBe('moss'))
+    expect(f.backend.snapshot().source).toBeNull()
+    release()
+    await next
+    expect(f.backend.snapshot().source).toBe('music-session:1:2')
+    await f.backend.dispose()
+  })
+
+  it('restarts the first song from 0:00 on Previous instead of leaving it', async () => {
+    const f = fixture()
+    await f.backend.dispatch({ type: 'start', ids: ['fern', 'moss'], index: 0 })
+    f.observe({ positionSeconds: 2 })
+    await f.backend.dispatch({ type: 'previous' })
+    expect(f.backend.snapshot()).toMatchObject({ index: 0, position: 0 })
+    expect(f.backend.snapshot().current?.id).toBe('fern')
+    expect(f.player.seek).toHaveBeenLastCalledWith(0)
+    expect(f.player.load).toHaveBeenCalledTimes(1)
+    await f.backend.dispose()
+  })
+
   it('uses the admitted API for player actions, datasets and persisted settings', async () => {
     const f = fixture()
     await f.backend.read()

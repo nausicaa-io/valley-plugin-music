@@ -318,7 +318,7 @@ function podcastProperties(snapshot: MusicSnapshot, view: PodcastView): PluginPr
         readOnly('hosts', 'music.edit.host', 'Host', [...new Set(show.episodes.map(episode => episode.artist).filter(Boolean))].join(', ')),
         readOnly('episodes', 'music.podcast.episodes', 'Episodes', show.episodes.length),
         readOnly('cover', 'music.surface.cover', 'Cover', show.coverPath ?? ''),
-        readOnly('folder', 'music.properties.folder', 'Folder', show.id)
+        readOnly('folder', 'music.properties.folder', 'Folder', show.folder)
       ]
     : [
         readOnly('folder', 'music.settings.podcastFolder', 'Podcast folder', snapshot.podcastPath),

@@ -15,7 +15,7 @@ import { PageHeader } from './PageHeader'
 import { navigateOrOpenTab, onMiddleClick, usePageNavState, usePageNavigator } from './pageNavigator'
 import { AlertTriangle, Clock, FolderOpen, ListMusic, Pause, Play, Podcast, Search, Settings, X } from './icons'
 
-export function episodeCount(count: number): string {
+function episodeCount(count: number): string {
   return uiText(`music.count.episode.${count === 1 ? 'one' : 'other'}`, { count })
 }
 
@@ -360,7 +360,7 @@ const ShowDetail: FC<{ show: PodcastShow; onMenu: (e: React.MouseEvent, track: T
             >
               {playingHere && snap.isPlaying ? <Pause /> : <Play />}
             </button>
-            <button className="ghost" onClick={() => api.workspace.revealInFiles(show.id)}>
+            <button className="ghost" onClick={() => api.workspace.revealInFiles(show.folder)}>
               <FolderOpen /> {uiText('music.menu.showInFiles')}
             </button>
           </div>
@@ -380,6 +380,7 @@ const ShowDetail: FC<{ show: PodcastShow; onMenu: (e: React.MouseEvent, track: T
       </div>
       {picking && (
         <CoverPicker
+          folder={snap.podcastPath}
           current={show.coverPath}
           crop={snap.coverCrops[`show:${show.id}`]}
           shape="square"
@@ -428,7 +429,6 @@ export const PodcastPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const q = query.trim().toLowerCase()
   const view = navState.podcastView
   const show = view.mode === 'show' ? snap.shows.find(item => item.id === view.id) ?? null : null
-  const current = snap.currentTrack && showIndex.has(snap.currentTrack.id) ? snap.currentTrack : null
   const header = show ? show.name : view.mode === 'shows' ? uiText('music.podcast.shows') : uiText('music.podcast.tabTitle')
   const goHome = (event: React.MouseEvent): void => navigateOrOpenTab(event, store, { kind: 'podcasts' }, () => { nav.setPageSearch(''); nav.showPodcastHome() })
   const results = q ? snap.episodes.filter(episode => episode.title.toLowerCase().includes(q) || (showIndex.get(episode.id)?.name ?? '').toLowerCase().includes(q)) : null

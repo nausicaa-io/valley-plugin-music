@@ -282,7 +282,7 @@ describe('Music Properties and explicit automation', () => {
       tracks: songs,
       artists: [{ id: 'fern-artist', name: 'Fern', aliases: ['Fern alias'] }, { id: 'canopy-artist', name: 'Canopy' }],
       playlists: [{ id: 'forest', name: 'Forest', cover: 'fern.png', songIds: songs.map(song => song.id) }],
-      indexEntries: [...songs.map(song => asset(song.file)), asset('Images/fern.png')]
+      indexEntries: [...songs.map(song => asset(song.file)), asset('Music/Images/fern.png'), asset('Images/fern.png')]
     })
     const off = register(mock.api)
     try {
@@ -291,7 +291,7 @@ describe('Music Properties and explicit automation', () => {
       const segment = mock.api.interop.extensions.providers(METADATA_PANEL_SEGMENT_V1)[0].extension
       const { container } = render(React.createElement(React.Fragment, null, segment.render({ relPath: '', kind: 'unsupported', subject })))
       const values = Object.fromEntries([...container.querySelectorAll('.props-info-row')].map(row => [row.querySelector('dt')?.textContent, row.querySelector('dd')?.textContent]))
-      expect(values).toMatchObject({ Name: 'Forest', Cover: 'Images/fern.png', Tracks: '3', 'Total time': '5:00', 'Tracks without duration': '1', Artists: '2', Fern: '2 songs · 5 min', Canopy: '2 songs · 2 min' })
+      expect(values).toMatchObject({ Name: 'Forest', Cover: 'Music/Images/fern.png', Tracks: '3', 'Total time': '5:00', 'Tracks without duration': '1', Artists: '2', Fern: '2 songs · 5 min', Canopy: '2 songs · 2 min' })
       expect(container.querySelector('input, textarea, img, button')).toBeNull()
     } finally { off() }
   })
@@ -592,7 +592,7 @@ describe('MusicStore', () => {
 
   it('waits for complete path hydration before marking tracks missing or resolving covers', async () => {
     const song = track('a', 'Music/a.mp3')
-    const entries = [...Array.from({ length: 128 }, (_, i) => asset(`Notes/${i}.md`)), asset(song.file), asset('Images/cover.png')]
+    const entries = [...Array.from({ length: 128 }, (_, i) => asset(`Music/Notes/${i}.md`)), asset(song.file), asset('Music/Images/cover.png'), asset('Notes/outside.md')]
     const mock = createMockValleyApi({ tracks: [song], playlists: [{ id: 'mix', name: 'Mix', songIds: ['a'], cover: 'cover.png' }], indexEntries: entries })
     const observe = mock.api.index.observe
     let release!: (page: PluginIndexPage) => void
@@ -621,9 +621,9 @@ describe('MusicStore', () => {
       expect(store.getIndexEntries()).toHaveLength(130)
       expect(Object.keys(store.getIndexEntries()[0])).toEqual(['relPath'])
       expect(store.getSnapshot().missing.size).toBe(0)
-      expect(store.getSnapshot().playlistCovers.mix).toBe('Images/cover.png')
+      expect(store.getSnapshot().playlistCovers.mix).toBe('Music/Images/cover.png')
       expect(mock.api.index.observe).toHaveBeenCalledOnce()
-      expect(mock.api.index.observe).toHaveBeenCalledWith({ fields: [] }, expect.any(Function))
+      expect(mock.api.index.observe).toHaveBeenCalledWith({ pathPrefix: 'Music', fields: [] }, expect.any(Function))
     } finally { release(captured!); await store.dispose() }
   })
 
@@ -640,11 +640,11 @@ describe('MusicStore', () => {
     try {
       await vi.waitFor(() => expect(store.getSnapshot().loading).toBe(false))
       await store.syncLibrary()
-      mock.emitState({ indexEntries: [asset('Archive/a.mp3')] })
-      mock.emitState({ indexEntries: [asset('Archive/a.mp3'), asset('Images/cover.png')] })
-      await vi.waitFor(() => expect(store.getSnapshot().playlistCovers.mix).toBe('Images/cover.png'))
+      mock.emitState({ indexEntries: [asset('Music/Archive/a.mp3')] })
+      mock.emitState({ indexEntries: [asset('Music/Archive/a.mp3'), asset('Music/Images/cover.png')] })
+      await vi.waitFor(() => expect(store.getSnapshot().playlistCovers.mix).toBe('Music/Images/cover.png'))
       await store.syncLibrary()
-      expect(store.getSnapshot().tracks[0].file).toBe('Archive/a.mp3')
+      expect(store.getSnapshot().tracks[0].file).toBe('Music/Archive/a.mp3')
       expect(store.getSnapshot().missing.size).toBe(0)
       expect(mock.api.getState().indexEntries).toEqual([])
     } finally { await store.dispose() }
@@ -1240,15 +1240,15 @@ describe('MusicStore', () => {
       const snap = store.getSnapshot()
       expect(snap.tracks.map((item) => item.file)).toEqual(['Music/song.mp3'])
       expect(snap.shows.map((show) => [show.id, show.coverPath, show.episodes.map((episode) => episode.file)])).toEqual([
-        ['Podcasts/Daily', 'Podcasts/Daily/cover.png', ['Podcasts/Daily/002-next.mp3', 'Podcasts/Daily/001-intro.mp3']],
-        ['Podcasts', null, ['Podcasts/loose.mp3']]
+        ['daily', 'Podcasts/Daily/cover.png', ['Podcasts/Daily/002-next.mp3', 'Podcasts/Daily/001-intro.mp3']],
+        ['podcasts', null, ['Podcasts/loose.mp3']]
       ])
       expect(snap.libraryMode).toBe('music')
       store.setLibraryMode('podcast')
       expect(store.getSnapshot().libraryMode).toBe('podcast')
       await vi.waitFor(() => expect(mock.api.settings.get().libraryMode).toBe('podcast'))
-      store.showPodcastShow('Podcasts/Daily')
-      expect(store.getSnapshot()).toMatchObject({ podcastView: { mode: 'show', id: 'Podcasts/Daily' }, podcastCanGoBack: true })
+      store.showPodcastShow('daily')
+      expect(store.getSnapshot()).toMatchObject({ podcastView: { mode: 'show', id: 'daily' }, podcastCanGoBack: true })
       store.goPodcastHistory(-1)
       expect(store.getSnapshot().podcastView).toEqual({ mode: 'home' })
     } finally { await store.dispose() }
@@ -1548,17 +1548,17 @@ describe('MusicStore', () => {
     store.dispose()
   })
 
-  it('persists playlist covers by filename and resolves them against the index', async () => {
+  it('persists playlist covers by filename and resolves them against the Music folder', async () => {
     const { store } = makeStore({
       playlists: [{ id: 'p1', name: 'Sommer', songIds: [] }],
-      indexEntries: [asset('Pictures/strand.jpg')]
+      indexEntries: [asset('Music/Pictures/strand.jpg'), asset('Pictures/strand.jpg')]
     })
     await vi.waitFor(() => expect(store.getSnapshot().playlists).toHaveLength(1))
 
     await store.setPlaylistCover('p1', 'strand.jpg')
     await vi.waitFor(() => {
       expect(store.getSnapshot().playlists[0].cover).toBe('strand.jpg')
-      expect(store.getSnapshot().playlistCovers['p1']).toBe('Pictures/strand.jpg')
+      expect(store.getSnapshot().playlistCovers['p1']).toBe('Music/Pictures/strand.jpg')
     })
 
     // A full realm path (as the picker now stores) round-trips verbatim.
@@ -3277,7 +3277,7 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
     } finally { await dispose() }
   })
 
-  it('greys Previous and Next when there is no track to go to', async () => {
+  it('greys Next when there is no track to go to and keeps Previous for restarting the first song', async () => {
     const { mock, store, dispose } = await setup()
     try {
       const calls = (mock.api.registerView as unknown as { mock: { calls: [string, React.ComponentType][] } }).mock.calls
@@ -3286,8 +3286,8 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       expect(store.getSnapshot()).toMatchObject({ canPlayPrevious: false, canPlayNext: false })
       await act(async () => { store.playQueue(tracks, 0) })
       await vi.waitFor(() => expect(store.getSnapshot().currentTrack?.id).toBe(tracks[0].id))
-      expect(store.getSnapshot()).toMatchObject({ canPlayPrevious: false, canPlayNext: true })
-      expect((screen.getByLabelText(uiText('auto.50f94286ba30')) as HTMLButtonElement).disabled).toBe(true)
+      expect(store.getSnapshot()).toMatchObject({ canPlayPrevious: true, canPlayNext: true })
+      expect((screen.getByLabelText(uiText('auto.50f94286ba30')) as HTMLButtonElement).disabled).toBe(false)
       expect((screen.getByLabelText(uiText('auto.bc981983e7f5')) as HTMLButtonElement).disabled).toBe(false)
       await act(async () => { store.playQueue(tracks, tracks.length - 1) })
       await vi.waitFor(() => expect(store.getSnapshot().currentTrack?.id).toBe(tracks[tracks.length - 1].id))

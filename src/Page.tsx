@@ -5,14 +5,14 @@ import { IMAGE_EXTENSIONS, assetUrlForRelPath, fileExtension } from '@valley/plu
 import { useMusic, useMusicCover, useMusicIndex } from './hooks'
 import { ArtistLinks } from './ArtistLinks'
 import { usePlaylistMenu, useSongMenu } from './SongMenu'
-import { COVER_ZOOM_MAX, baseName, coverCropStyle, formatTime, resolveCoverPath, searchTracks } from './data'
+import { COVER_ZOOM_MAX, baseName, coverCropStyle, formatTime, imagesInFolder, resolveCoverPath, searchTracks } from './data'
 import { Cover, SongRow } from './Panel'
 import type { Artist, CoverCrop, Playlist, Track } from './types'
 import { tracksForArtist } from './artists'
 import { PodcastPage } from './PodcastViews'
 import { PageHeader } from './PageHeader'
 import { musicCount, uiText } from './localization'
-import { PageNavigatorProvider, navStateTitle, navigateOrOpenTab, onMiddleClick, pinnedNavigator, usePageNavState, usePageNavigator, type PageNavigator } from './pageNavigator'
+import { PageNavigatorProvider, navigateOrOpenTab, onMiddleClick, pinnedNavigator, usePageNavState, usePageNavigator, type PageNavigator } from './pageNavigator'
 import {
   ChevronLeft,
   Clock,
@@ -124,8 +124,10 @@ const CoverCropEditor: FC<{
   )
 }
 
-/** Pick a cover from the realm's images, searched by file name, then frame it. */
+/** Pick a cover from the images in one library folder (Music or Podcasts), searched by file name, then frame it. */
 export const CoverPicker: FC<{
+  /** The library folder whose images are offered. */
+  folder: string
   current: string | null
   crop?: CoverCrop | null
   shape?: 'round' | 'square'
@@ -133,18 +135,17 @@ export const CoverPicker: FC<{
   editOnly?: string | null
   onPick: (fileName: string | null, crop: CoverCrop | null) => void
   onClose: () => void
-}> = ({ current, crop = null, shape = 'square', editOnly = null, onPick, onClose }) => {
+}> = ({ folder, current, crop = null, shape = 'square', editOnly = null, onPick, onClose }) => {
   const entries = useMusicIndex()
   const [query, setQuery] = React.useState('')
   const [dragOver, setDragOver] = React.useState(false)
   const [editing, setEditing] = React.useState<string | null>(editOnly)
+  const all = React.useMemo(() => imagesInFolder(entries, folder), [entries, folder])
   const images = React.useMemo(() => {
-    const all = entries.map((e) => e.relPath)
-      .filter((p) => (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(p)))
     const q = query.trim().toLowerCase()
     const filtered = q ? all.filter((p) => baseName(p).toLowerCase().includes(q)) : all
     return filtered.slice(0, 120)
-  }, [entries, query])
+  }, [all, query])
 
   /**
    * Drop an image onto the picker. An external file (dragged from Finder) is
@@ -170,12 +171,7 @@ export const CoverPicker: FC<{
     const droppedName = e.dataTransfer.getData('text/plain')
     if (!droppedName) return
     const name = baseName(droppedName).toLowerCase()
-    const match = entries.map((en) => en.relPath)
-      .find(
-        (p) =>
-          (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(p)) &&
-          baseName(p).toLowerCase() === name
-      )
+    const match = all.find((p) => baseName(p).toLowerCase() === name)
     if (match) setEditing(match)
   }
 
@@ -499,12 +495,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
     const dropped = e.dataTransfer.files?.[0]?.name ?? e.dataTransfer.getData('text/plain')
     if (!dropped) return setCoverDrop('idle')
     const name = baseName(dropped).toLowerCase()
-    const match = store.getIndexEntries().map((en) => en.relPath)
-      .find(
-        (p) =>
-          (IMAGE_EXTENSIONS as readonly string[]).includes(fileExtension(p)) &&
-          baseName(p).toLowerCase() === name
-      )
+    const match = imagesInFolder(store.getIndexEntries(), snap.musicPath).find((p) => baseName(p).toLowerCase() === name)
     if (match) {
       void store.setPlaylistCover(pl.id, match)
       setCoverDrop('idle')
@@ -756,6 +747,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
 
       {pickingCover && (
         <CoverPicker
+          folder={snap.musicPath}
           current={pl.cover ?? null}
           crop={snap.coverCrops[`playlist:${pl.id}`]}
           shape="square"
@@ -1003,6 +995,7 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
 
       {pickingImage && (
         <CoverPicker
+          folder={snap.musicPath}
           current={artist.image ?? null}
           crop={snap.coverCrops[`artist:${artist.id}`]}
           shape="round"
@@ -1033,7 +1026,7 @@ export const Page: FC<MainWorkspaceViewProps> = (props) => {
 
 const PinnedPage: FC<MainWorkspaceViewProps & { navigator: PageNavigator }> = ({ navigator, ...props }) => {
   const { snap } = useMusic(false)
-  const state = usePageNavState(navigator)
+  usePageNavState(navigator)
   const library = navigator.library ?? 'music'
   // Its destination resolves against the library; showing it before the first load would flash "not found".
   // Later reloads (a play writes history) keep the page mounted, so it never jumps back to the top.
@@ -1114,9 +1107,6 @@ const MusicPage: FC<MainWorkspaceViewProps> = ({ navigation }) => {
   const q = query.trim().toLowerCase()
   const searchResults = React.useMemo(() => q ? searchTracks(snap.tracks, q, true) : null, [q, snap.tracks])
 
-  const songId = pageView.mode === 'song' ? pageView.id : 'reveal' in pageView ? pageView.reveal : undefined
-  const playbackInView = pageView.mode === 'home' || (pageView.mode === 'playlist' && pageView.id === snap.currentPlaylistId)
-  const song = (playbackInView ? snap.currentTrack : null) ?? snap.tracks.find(item => item.id === songId)
   const playlistId = pageView.mode === 'playlist' ? pageView.id : null
   const playlist = snap.playlists.find(item => item.id === playlistId)
   const artist = pageView.mode === 'artist' ? snap.artists.find(item => item.id === pageView.id) : null

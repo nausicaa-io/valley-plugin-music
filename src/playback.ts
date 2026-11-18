@@ -3,6 +3,8 @@ import type { HistoryEntry, RepeatMode, Track } from './types'
 export interface MusicPlaybackSnapshot {
   revision: number
   sessionId: string | null
+  /** The media source the player has loaded for `current`; null while it is still switching to it. */
+  source?: string | null
   queue: Track[]
   index: number
   playlistId: string | null

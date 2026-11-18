@@ -6,12 +6,10 @@ import type {
   ValleyPluginApi,
   WorkspaceViewStateProvider
 } from '@valley/plugin-sdk'
-import { createIndexObserver } from '@valley/plugin-sdk'
 import { assetUrlForRelPath } from '@valley/plugin-sdk/fileTypes'
 import { normalizeRelPath } from '@valley/plugin-sdk/paths'
 import {
   dedupeHistory,
-  mediaFilesInFolder,
   mostListened,
   readCoverCrops,
   resolveCoverPath,
@@ -26,7 +24,6 @@ import {
   resolveArtist,
   sameArtist,
   trackArtists,
-  trackCredits,
   tracksForArtist,
   upsertArtists
 } from './artists'
@@ -36,6 +33,7 @@ export { nextIndex } from './playback'
 import { api as runtimeApi } from './runtime'
 import { MUSIC_PLUGIN_ID, navStateTitle, pinnedNavigator } from './pageNavigator'
 import { MediaMetadata, MetadataCancelled } from './mediaMetadata'
+import { createFolderIndex, type FolderIndex } from './folderIndex'
 import { MOMENT_LABEL_LIMIT, MOMENT_LIMIT, isEpisode, podcastShows, readMoments, readPodcastRate, readProgress, resumePosition, type EpisodeMoment, type EpisodeProgress, type LibraryMode, type PodcastShow } from './podcasts'
 
 const TRACKS_DATASET = 'music.tracks'
@@ -175,6 +173,8 @@ export interface MusicSnapshot {
   /** Playlist id → resolved realm path of its cover image (or null). */
   playlistCovers: Record<string, string | null>
   sessionId: string | null
+  /** The loaded media source of the current track (see MusicPlaybackSnapshot.source). */
+  mediaSource: string | null
   playbackRevision: number
   playbackRate: number
   playbackSampledAt: number
@@ -192,7 +192,7 @@ export interface MusicSnapshot {
   repeatMode: RepeatMode
   /** Upcoming tracks after the current one. */
   upNext: Track[]
-  /** Whether Previous / Next have a track to go to (the backend's own rules, including repeat). */
+  /** Previous always works while a track is loaded (it restarts the first song); Next needs a track to go to, repeat included. */
   canPlayPrevious: boolean
   canPlayNext: boolean
   /** Track the idle player offers to resume (current, else last played). */
@@ -319,6 +319,7 @@ export class MusicStore {
   private shuffle: boolean
   private repeatMode: RepeatMode
   private sessionId: string | null = null
+  private mediaSource: string | null = null
   private playbackRevision = -1
   private playbackRate = 1
   private playbackSampledAt = 0
@@ -340,7 +341,7 @@ export class MusicStore {
   private coverVersion = 0
 
   private snapshot!: MusicSnapshot
-  private index: ReturnType<typeof createIndexObserver>
+  private index: FolderIndex
   private offIndex: () => void
   private indexReady: { promise: Promise<void>; resolve(): void; reject(error: Error): void } | undefined
   private disposal: Promise<void> | undefined
@@ -365,7 +366,7 @@ export class MusicStore {
     this.coverCrops = readCoverCrops(api.settings.get()[CROPS_SETTINGS_KEY])
     this.showCovers = readShowCovers(api.settings.get()[SHOW_COVERS_SETTINGS_KEY])
     this.offSettings = api.settings.subscribe(() => this.onSettingsChanged())
-    this.index = createIndexObserver(api, { fields: [] })
+    this.index = createFolderIndex(api, [this.observedMusicPath, this.observedPodcastPath])
     this.metadata = new MediaMetadata(api)
     const realm = api.getState().realm?.path
     const offRealm = api.realm.onChanged(() => this.metadata.invalidate())
@@ -513,6 +514,7 @@ export class MusicStore {
     const lastHistory = this.historyEntries[this.historyEntries.length - 1]
     return {
       sessionId: this.sessionId,
+      mediaSource: this.mediaSource,
       playbackRevision: this.playbackRevision,
       playbackRate: this.playbackRate,
       playbackSampledAt: this.playbackSampledAt,
@@ -527,7 +529,7 @@ export class MusicStore {
       playError: this.playError,
       shuffle: this.shuffle,
       repeatMode: this.repeatMode,
-      canPlayPrevious: Boolean(this.currentTrack) && this.queueIndex >= 0 && (this.queueIndex > 0 || (this.repeatMode === 'all' && this.queue.length > 1)),
+      canPlayPrevious: Boolean(this.currentTrack) && this.queueIndex >= 0,
       canPlayNext: Boolean(this.currentTrack) && this.queueIndex >= 0 && (this.repeatMode === 'one' || nextQueueIndex(this.queue.length, this.queueIndex, this.repeatMode) !== null),
       resumeTrack:
         this.currentTrack ?? (lastHistory ? this.trackById.get(lastHistory.songId) ?? null : null),
@@ -1060,6 +1062,7 @@ export class MusicStore {
   }
 
   private async scanLibrary(generation: number): Promise<void> {
+    this.index.setFolders([this.musicPath(), this.podcastPath()])
     if (!this.musicPath() && !this.podcastPath()) return
     await this.waitForIndex()
     this.metadata.assertCurrent(generation)
@@ -1109,6 +1112,7 @@ export class MusicStore {
     if (path === this.observedMusicPath && podcastPath === this.observedPodcastPath) return
     this.observedMusicPath = path
     this.observedPodcastPath = podcastPath
+    this.index.setFolders([path, podcastPath])
     this.emit()
     void this.refresh().catch(() => {})
   }
@@ -1167,6 +1171,7 @@ export class MusicStore {
     const currentChanged = JSON.stringify(this.currentTrack) !== JSON.stringify(current)
     this.playbackRevision = state.revision
     this.sessionId = state.sessionId
+    this.mediaSource = state.source ?? null
     if (queueChanged) this.queue = queue
     this.queueIndex = state.index
     if (currentChanged) this.currentTrack = current
@@ -1646,7 +1651,7 @@ export class MusicStore {
     this.navigatePodcast({ mode: 'shows' }, true)
   }
 
-  /** Open a show (its folder path) in the main page. */
+  /** Open a show in the main page. */
   showPodcastShow(id: string): void {
     if (!this.snapshot.shows.some(show => show.id === id)) return
     this.pageSearch = ''
