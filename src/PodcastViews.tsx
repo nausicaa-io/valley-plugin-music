@@ -56,14 +56,15 @@ function playShow(store: NonNullable<ReturnType<typeof useMusic>['store']>, snap
   store.playEpisodes(show.episodes, resume?.index ?? 0)
 }
 
-const ShowArt: FC<{ show: PodcastShow; className: string; emptyClassName: string }> = ({ show, className, emptyClassName }) => {
+const ShowArt: FC<{ show: PodcastShow; className: string; emptyClassName: string; size?: number }> = ({ show, className, emptyClassName, size }) => {
   const { store, snap } = useMusic(false)
   const { url, ref } = useMusicCover(store, show.coverPath ? undefined : show.episodes[0]?.id)
   const src = show.coverPath ? assetUrlForRelPath(show.coverPath) : url
+  const box = size ? { width: size, height: size } : undefined
   const style = show.coverPath ? coverCropStyle(snap.coverCrops[`show:${show.id}`], show.coverPath) : undefined
   return src
-    ? <img ref={ref} className={className} src={src} alt="" loading="lazy" style={style} />
-    : <span ref={ref} className={emptyClassName}><Podcast /></span>
+    ? <img ref={ref} className={className} src={src} alt="" loading="lazy" style={{ ...box, ...style }} />
+    : <span ref={ref} className={emptyClassName} style={box}><Podcast /></span>
 }
 
 const EpisodeCover: FC<{ track: Track; show?: PodcastShow; size?: number }> = ({ track, show, size = 32 }) => {
@@ -156,9 +157,7 @@ const ShowRow: FC<{ show: PodcastShow; onOpen: (event: React.MouseEvent) => void
           else playShow(store, snap, show)
         }}
       >
-        <span className="music-cover" style={{ display: 'grid', width: 32, height: 32, overflow: 'hidden' }}>
-          <ShowArt show={show} className="music-cover" emptyClassName="music-cover music-cover-empty" />
-        </span>
+        <ShowArt show={show} size={32} className="music-cover" emptyClassName="music-cover music-cover-empty" />
         {active && <EqBars playing={snap.isPlaying} className="music-row-wave" />}
         <span className="music-row-playicon">{active && snap.isPlaying ? <Pause /> : <Play />}</span>
       </button>

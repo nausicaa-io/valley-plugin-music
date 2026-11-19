@@ -27,6 +27,7 @@ import { injectStyles } from '../src/styles'
 import { Player } from '../src/Player'
 import { NowPlaying } from '../src/surfaces'
 import { Cover } from '../src/Panel'
+import { PodcastPanelBody } from '../src/PodcastViews'
 import { formatPageTarget, parsePageTarget, pinnedNavigator } from '../src/pageNavigator'
 import { uiText } from '../src/localization'
 import {
@@ -1296,6 +1297,20 @@ describe('MusicStore', () => {
       await store.flushPersistence()
       await vi.waitFor(() => expect(media.get(mock)!.getSnapshot()?.state.rate).toBe(1))
     } finally { await store.dispose() }
+  })
+
+  it('fits a wide show cover into the sidebar row instead of showing its corner', async () => {
+    const episode: Track = { id: 'ep', title: 'Episode', artist: '', file: 'Podcasts/Show/ep.mp3' }
+    const mock = createMockValleyApi({ settings: { musicPath: 'Music', podcastPath: 'Podcasts' }, tracks: [episode], indexEntries: [asset(episode.file), asset('Podcasts/Show/cover.jpg')] })
+    const store = createRuntimeStore(mock)
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().shows[0]?.coverPath).toBe('Podcasts/Show/cover.jpg'))
+      const { container } = render(React.createElement(PodcastPanelBody))
+      const img = await vi.waitFor(() => { const found = container.querySelector<HTMLImageElement>('.music-row-play img'); expect(found).not.toBeNull(); return found! })
+      expect(img.parentElement).toHaveClass('music-row-play')
+      expect(img.style.width).toBe('32px')
+      expect(img.style.height).toBe('32px')
+    } finally { await disposeStore(mock.api, store) }
   })
 
   it('shows the podcast player with speed, ±seconds and key moments instead of the queue for an episode', async () => {
