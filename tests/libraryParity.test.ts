@@ -147,8 +147,10 @@ const reference = {
     const base = (p: string) => p.split('/').pop() ?? p
     const exact = entries.find((e) => e.relPath === cover)
     if (exact) return exact.relPath
-    if (cover.includes('/')) return cover
-    return entries.find((e) => base(e.relPath).toLowerCase() === base(cover).toLowerCase())?.relPath ?? null
+    if (cover.startsWith('.valley/')) return cover
+    const byBase = entries.find((e) => base(e.relPath).toLowerCase() === base(cover).toLowerCase())?.relPath
+    if (cover.includes('/')) return byBase ?? cover
+    return byBase ?? null
   }
 }
 
@@ -186,7 +188,7 @@ describe('indexed library paths match the implementations they replaced', () => 
 
   it('resolveCoverPath by exact path, explicit path and first basename match', () => {
     const entries = ['Covers/Sun.JPG', 'Art/sun.jpg', 'Art/moon.png', 'Notes/sun.jpg.md', 'trailing/', 'root.png'].map(entry)
-    for (const cover of [undefined, '', 'Covers/Sun.JPG', 'sun.jpg', 'SUN.JPG', 'moon.png', 'Missing/moon.png', 'nothing.png', 'root.png', '']) {
+    for (const cover of [undefined, '', 'Covers/Sun.JPG', 'sun.jpg', 'SUN.JPG', 'moon.png', 'Missing/moon.png', 'Gone/nothing.png', '.valley/moon.png', 'nothing.png', 'root.png', '']) {
       expect(resolveCoverPath(entries, cover)).toBe(reference.resolveCoverPath(entries, cover))
     }
   })

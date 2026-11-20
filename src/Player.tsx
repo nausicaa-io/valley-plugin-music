@@ -4,6 +4,7 @@ import { api, React } from './runtime'
 import type { FC } from 'react'
 import { useMusic, useMusicCover } from './hooks'
 import { useSongMenu } from './SongMenu'
+import { CoverPlaceholder } from './Panel'
 import { ArtistLinks } from './ArtistLinks'
 import { navigateOrOpenTab, onMiddleClick, openPageTargetInNewTab } from './pageNavigator'
 import { formatTime, isVideoFile } from './data'
@@ -313,9 +314,7 @@ const MusicPlayer: FC = () => {
               {coverUrl ? (
                 <img className="player-art-cover" src={coverUrl} alt="" {...(track ? compactHandlers(store, false) : {})} />
               ) : (
-                <span className="player-art-empty">
-                  <Music />
-                </span>
+                <CoverPlaceholder className="player-art-empty" />
               )}
             </>}
           </div>

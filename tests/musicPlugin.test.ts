@@ -537,6 +537,10 @@ describe('resolveCoverPath', () => {
   it('matches by basename, case-insensitively', () => {
     expect(resolveCoverPath(entries, 'summer.jpg')).toBe('Pictures/Summer.JPG')
   })
+  it('follows a stored path whose folder moved, and keeps an unlisted explicit path', () => {
+    expect(resolveCoverPath(entries, 'Old/Pictures/summer.jpg')).toBe('Pictures/Summer.JPG')
+    expect(resolveCoverPath(entries, '.valley/imported.png')).toBe('.valley/imported.png')
+  })
   it('returns null for unknown or empty covers', () => {
     expect(resolveCoverPath(entries, 'nope.png')).toBeNull()
     expect(resolveCoverPath(entries, undefined)).toBeNull()
@@ -1577,10 +1581,17 @@ describe('MusicStore', () => {
     })
 
     // A full realm path (as the picker now stores) round-trips verbatim.
-    await store.setPlaylistCover('p1', 'Pictures/strand.jpg')
+    await store.setPlaylistCover('p1', 'Music/Pictures/strand.jpg')
     await vi.waitFor(() => {
-      expect(store.getSnapshot().playlists[0].cover).toBe('Pictures/strand.jpg')
-      expect(store.getSnapshot().playlistCovers['p1']).toBe('Pictures/strand.jpg')
+      expect(store.getSnapshot().playlists[0].cover).toBe('Music/Pictures/strand.jpg')
+      expect(store.getSnapshot().playlistCovers['p1']).toBe('Music/Pictures/strand.jpg')
+    })
+
+    // A stored path outside the library folders whose file is in the library follows it (the folder moved).
+    await store.setPlaylistCover('p1', 'Old/Pictures/strand.jpg')
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().playlists[0].cover).toBe('Old/Pictures/strand.jpg')
+      expect(store.getSnapshot().playlistCovers['p1']).toBe('Music/Pictures/strand.jpg')
     })
 
     await store.setPlaylistCover('p1', null)

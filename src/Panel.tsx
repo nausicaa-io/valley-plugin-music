@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   Heart,
+  ImageOff,
   ListMusic,
   Music,
   Pause,
@@ -24,6 +25,20 @@ import {
 } from './icons'
 import { PodcastPanelBody } from './PodcastViews'
 import { isNewTabClick, navigateOrOpenTab, onMiddleClick, openPageTargetInNewTab } from './pageNavigator'
+
+/** The cover slot when a cover has no image, or its image fails to load: a centred image-off glyph. */
+export const CoverPlaceholder: FC<{ className?: string }> = ({ className = '' }) => (
+  <span className={`music-cover-placeholder ${className}`} aria-hidden>
+    <ImageOff />
+  </span>
+)
+
+/** An image that renders `fallback` instead of the browser's broken-image box when its file is missing. */
+export const CoverImg: FC<React.ImgHTMLAttributes<HTMLImageElement> & { fallback: ReactNode }> = ({ fallback, src, ...img }) => {
+  const [failed, setFailed] = React.useState<string | null>(null)
+  if (!src || failed === src) return <>{fallback}</>
+  return <img {...img} src={src} onError={() => setFailed(src)} />
+}
 
 export const Cover: FC<{ trackId?: string; size?: number }> = ({ trackId, size = 32 }) => {
   const { store } = useMusic(false)
@@ -141,19 +156,18 @@ const PlaylistRow: FC<{
           onAction()
         }}
       >
-        {coverPath ? (
-          <img
-            className="music-cover"
-            style={{ width: 32, height: 32, ...coverStyle }}
-            src={assetUrlForRelPath(coverPath)}
-            alt=""
-            loading="lazy"
-          />
-        ) : (
-          <span className="music-cover music-cover-empty" style={{ width: 32, height: 32 }}>
-            <ListMusic />
-          </span>
-        )}
+        <CoverImg
+          className="music-cover"
+          style={{ width: 32, height: 32, ...coverStyle }}
+          src={coverPath ? assetUrlForRelPath(coverPath) : undefined}
+          alt=""
+          loading="lazy"
+          fallback={
+            <span className="music-cover music-cover-empty" style={{ width: 32, height: 32 }}>
+              <ListMusic />
+            </span>
+          }
+        />
         {active && (
           <span className={`music-row-wave ${snap.isPlaying ? '' : 'paused'}`}>
             <span className="music-row-wave-bar" />

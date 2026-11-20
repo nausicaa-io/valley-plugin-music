@@ -252,10 +252,14 @@ export function resolveCoverPath(entries: readonly PluginIndexEntry[], cover: st
   if (!cover) return null
   const index = coverIndex(entries)
   if (index.paths.has(cover)) return cover
-  // An explicit realm path (e.g. an image imported into `.valley/`, which the
-  // index doesn't list) is trusted as-is; bare file names match by basename.
-  if (cover.includes('/')) return cover
-  return index.byBase.get(baseName(cover).toLowerCase()) ?? null
+  // An image imported into `.valley/` is never indexed and is trusted as-is.
+  if (cover.startsWith('.valley/')) return cover
+  // The index lists only the library folders, so a stored path outside them
+  // whose name is in the library is stale (its folder moved, e.g. `meadow/…`
+  // to `.meadow/…`) and follows the file; one with no match is kept.
+  const byBase = index.byBase.get(baseName(cover).toLowerCase())
+  if (cover.includes('/')) return byBase ?? cover
+  return byBase ?? null
 }
 
 export const COVER_ZOOM_MAX = 4

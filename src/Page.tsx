@@ -6,7 +6,7 @@ import { useMusic, useMusicCover, useMusicIndex } from './hooks'
 import { ArtistLinks } from './ArtistLinks'
 import { usePlaylistMenu, useSongMenu } from './SongMenu'
 import { COVER_ZOOM_MAX, baseName, coverCropStyle, formatTime, imagesInFolder, resolveCoverPath, searchTracks } from './data'
-import { Cover, SongRow } from './Panel'
+import { Cover, CoverImg, CoverPlaceholder, SongRow } from './Panel'
 import type { Artist, CoverCrop, Playlist, Track } from './types'
 import { tracksForArtist } from './artists'
 import { PodcastPage } from './PodcastViews'
@@ -284,12 +284,8 @@ const PlaylistArt: FC<{ coverPath: string | null; className: string; emptyClassN
   emptyClassName,
   style
 }) => {
-  if (coverPath) return <img className={className} src={assetUrlForRelPath(coverPath)} alt="" loading="lazy" style={style} />
-  return (
-    <span className={emptyClassName}>
-      <ListMusic />
-    </span>
-  )
+  const fallback = <CoverPlaceholder className={emptyClassName} />
+  return <CoverImg className={className} src={coverPath ? assetUrlForRelPath(coverPath) : undefined} alt="" loading="lazy" style={style} fallback={fallback} />
 }
 
 const PlaylistCard: FC<{
@@ -313,13 +309,7 @@ const PlaylistCard: FC<{
     onContextMenu={(e) => onMenu(e, pl.id)}
   >
     <div className="music-pl-card-art">
-      {coverPath ? (
-        <img src={assetUrlForRelPath(coverPath)} alt="" loading="lazy" style={coverStyle} />
-      ) : (
-        <span className="music-pl-card-art-empty">
-          <ListMusic />
-        </span>
-      )}
+      <CoverImg src={coverPath ? assetUrlForRelPath(coverPath) : undefined} alt="" loading="lazy" style={coverStyle} fallback={<CoverPlaceholder />} />
       {active && <EqBadge playing={playing} />}
       <button
         className="music-pl-card-play"
@@ -361,8 +351,7 @@ const TrackCard: FC<{
       onContextMenu={onMenu ? (e) => onMenu(e, track) : undefined}
     >
       <span className="music-track-card-art">
-        <Music />
-        {url && <img src={url} alt="" loading="lazy" />}
+        <CoverImg src={url ?? undefined} alt="" loading="lazy" fallback={<CoverPlaceholder />} />
         <button
           className={`music-track-card-fav ${fav ? 'on' : ''}`}
           title={uiText('auto.9704b6631f6a')}
