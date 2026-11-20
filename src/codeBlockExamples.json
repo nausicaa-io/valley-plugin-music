@@ -19,6 +19,24 @@
       "code": "artist: John Lennon\nlimit: 5"
     },
     {
+      "id": "podcast",
+      "label": "Podcast show",
+      "labelKey": "music.examples.show",
+      "code": "podcast: Night Shift Science"
+    },
+    {
+      "id": "podcast-latest",
+      "label": "Latest episodes of a podcast",
+      "labelKey": "music.examples.latest",
+      "code": "podcast: Field Notes Radio\nlimit: 2"
+    },
+    {
+      "id": "episode",
+      "label": "Podcast episode",
+      "labelKey": "music.examples.episode",
+      "code": "episode: The Chemistry of Coffee"
+    },
+    {
       "id": "automatic",
       "label": "Automatic lookup",
       "labelKey": "markdown.examples.automatic",

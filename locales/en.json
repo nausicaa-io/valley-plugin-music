@@ -348,5 +348,18 @@
   "music.cover.hint": "Drag to move · scroll to zoom · double-click to reset",
   "music.cover.back": "Back",
   "music.cover.reset": "Reset",
-  "music.cover.save": "Save"
+  "music.cover.save": "Save",
+  "music.fence.kind.song": "Song",
+  "music.fence.kind.playlist": "Playlist",
+  "music.fence.kind.artist": "Artist",
+  "music.fence.kind.show": "Podcast",
+  "music.fence.kind.episode": "Episode",
+  "music.fence.showNotFound": "Podcast “{{name}}” not found.",
+  "music.fence.episodeNotFound": "Episode “{{name}}” not found.",
+  "music.fence.openShow": "Open podcast",
+  "music.fence.more": "{{count}} more",
+  "music.fence.shufflePlay": "Shuffle play",
+  "music.examples.show": "Podcast show",
+  "music.examples.episode": "Podcast episode",
+  "music.examples.latest": "Latest episodes of a podcast"
 }

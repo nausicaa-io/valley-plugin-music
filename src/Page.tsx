@@ -566,7 +566,7 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
               {plPlaying ? <Pause /> : <Play />}
             </button>
             <button
-              className={`ghost ${snap.shuffle ? 'active' : ''}`}
+              className={`shuffle ${snap.shuffle ? 'active' : ''}`}
               title={snap.shuffle ? uiText('auto.785728cf2548') : uiText('auto.e59f975e2ba1')}
               aria-pressed={snap.shuffle}
               onClick={() => {
@@ -592,9 +592,10 @@ const PlaylistDetail: FC<{ playlistId: string; onBack: () => void }> = ({ playli
                       icon: <Trash />,
                       danger: true,
                       onSelect: () => api.ui.openMenu([
-                        { label: uiText('auto.77dfd2135f4d') },
+                        { label: uiText('auto.77dfd2135f4d'), icon: <X /> },
                         {
                           label: uiText('auto.b55b186d3a98'),
+                          icon: <Trash />,
                           danger: true,
                           onSelect: async () => {
                             await store.deletePlaylist(pl.id)
@@ -932,7 +933,7 @@ const ArtistDetail: FC<{ artistId: string; onBack: () => void }> = ({ artistId, 
               {playingHere && snap.isPlaying ? <Pause /> : <Play />}
             </button>
             <button
-              className={`ghost ${snap.shuffle ? 'active' : ''}`}
+              className={`shuffle ${snap.shuffle ? 'active' : ''}`}
               title={snap.shuffle ? uiText('auto.785728cf2548') : uiText('auto.e59f975e2ba1')}
               aria-pressed={snap.shuffle}
               onClick={() => {

@@ -1,7 +1,7 @@
 import { React, api } from './runtime'
 import { useMusic } from './hooks'
 import type { Track } from './types'
-import { Copy, Pencil, ValleyIcon, FolderOpen, ListMusic, ListPlus, PanelLeftOpen, Pause, Play, Plus, Shuffle, Trash } from './icons'
+import { Copy, Pencil, ValleyIcon, FolderOpen, ListMusic, ListPlus, PanelLeftOpen, Pause, Play, Plus, Shuffle, Trash, X } from './icons'
 import { SongEditor } from './SongEditor'
 import { isEpisode } from './podcasts'
 import { uiText } from './localization'
@@ -69,8 +69,8 @@ export function useSongMenu(onRemove?: (track: Track) => void): {
           icon: <Trash />,
           danger: true,
           onSelect: () => api.ui.openMenu([
-            { label: uiText('auto.77dfd2135f4d') },
-            { label: uiText('auto.ad3e5d8c1ce8'), danger: true, onSelect: () => onRemove(track) }
+            { label: uiText('auto.77dfd2135f4d'), icon: <X /> },
+            { label: uiText('auto.ad3e5d8c1ce8'), icon: <Trash />, danger: true, onSelect: () => onRemove(track) }
           ], point)
         }
       ] : [])

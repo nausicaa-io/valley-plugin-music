@@ -348,5 +348,18 @@
   "music.cover.hint": "拖动以移动 · 滚动以缩放 · 双击以重置",
   "music.cover.back": "返回",
   "music.cover.reset": "重置",
-  "music.cover.save": "保存"
+  "music.cover.save": "保存",
+  "music.fence.kind.song": "歌曲",
+  "music.fence.kind.playlist": "播放列表",
+  "music.fence.kind.artist": "艺人",
+  "music.fence.kind.show": "播客",
+  "music.fence.kind.episode": "单集",
+  "music.fence.showNotFound": "未找到播客“{{name}}”。",
+  "music.fence.episodeNotFound": "未找到单集“{{name}}”。",
+  "music.fence.openShow": "打开播客",
+  "music.fence.more": "还有 {{count}} 个",
+  "music.fence.shufflePlay": "随机播放",
+  "music.examples.show": "播客节目",
+  "music.examples.episode": "播客单集",
+  "music.examples.latest": "播客最新单集"
 }

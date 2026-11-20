@@ -274,6 +274,7 @@ export class MusicStore {
   private recentlyPlayedIds: string[] | null = null
   private missing = new Set<string>()
   private loading = true
+  private libraryLoaded = false
   private libraryError: string | null = null
   private navLoaded = false
   private pendingLinkState: Record<string, unknown> | null = null
@@ -917,11 +918,18 @@ export class MusicStore {
   }
 
   private async loadOnce(): Promise<void> {
-    this.loading = true
-    this.libraryError = null
-    this.emit()
+    // Only the first load shows the loading state: a reload after a dataset
+    // write (a like, a play recorded in history) keeps every view on the data
+    // it has, so code blocks and pages never blank and rebuild.
+    const first = !this.libraryLoaded
+    if (first || this.libraryError) {
+      this.loading = first
+      this.libraryError = null
+      this.emit()
+    }
     try {
       await this.loadLibrary()
+      this.libraryLoaded = true
     } catch (error) {
       this.libraryError = error instanceof Error ? error.message : String(error)
       throw error

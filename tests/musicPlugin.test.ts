@@ -30,6 +30,7 @@ import { Cover } from '../src/Panel'
 import { PodcastPanelBody } from '../src/PodcastViews'
 import { formatPageTarget, parsePageTarget, pinnedNavigator } from '../src/pageNavigator'
 import { uiText } from '../src/localization'
+import { MusicFence } from '../src/fence'
 import {
   normalizeArtistName,
   resolveArtist,
@@ -3288,7 +3289,7 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
     } finally { await dispose() }
   })
 
-  it('keeps a ⌘-clicked tab mounted through a library reload, so the page never jumps to the top', async () => {
+  it('keeps a ⌘-clicked tab mounted through a library reload, without a loading flash, so the page never jumps to the top', async () => {
     const { mock, store, dispose } = await setup()
     try {
       const Page = (mock.api.registerView as unknown as { mock: { calls: [string, React.ComponentType<Record<string, unknown>>][] } }).mock.calls.find(([key]) => key === 'music.page')![1]
@@ -3298,7 +3299,7 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       const off = store.subscribe(() => { if (store.getSnapshot().loading) sawLoading = true })
       await act(async () => { await store.refresh() })
       off()
-      expect(sawLoading).toBe(true)
+      expect(sawLoading).toBe(false)
       expect(document.querySelector('.music-page')).toBe(page)
     } finally { await dispose() }
   })
@@ -3340,5 +3341,68 @@ describe('Music pinned tabs (⌘-click opens a destination in a new tab)', () =>
       playing('Podcasts/Forest Talks/one.mp3')
       expect(moving()).toEqual([false, true, true])
     } finally { await dispose() }
+  })
+})
+
+describe('music code block', () => {
+  afterEach(cleanup)
+
+  it('updates in place when a song is liked or played: no loading state, the same card element', async () => {
+    const a = { ...track('a', 'Music/a.mp3'), title: 'Alder', artist: 'Forest Duo', duration: 100 }
+    const b = { ...track('b', 'Music/b.mp3'), title: 'Birch', artist: 'Forest Duo', duration: 200 }
+    const mock = createMockValleyApi({ settings: { musicPath: 'Music' }, tracks: [a, b], playlists: [{ id: 'forest', name: 'Forest Mix', songIds: [a.id, b.id] }], indexEntries: [asset(a.file), asset(b.file)] })
+    const store = createRuntimeStore(mock)
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().loading).toBe(false))
+      const { container } = render(React.createElement(MusicFence, { code: 'playlist: Forest Mix' }))
+      const card = await vi.waitFor(() => { const el = container.querySelector('.music-fence-card'); expect(el).not.toBeNull(); return el! })
+      expect(container.querySelector('.music-fence-kicker')?.textContent).toBe('Playlist')
+      expect(container.querySelectorAll('.music-fence-row')).toHaveLength(2)
+      expect(container.querySelector('.music-fence-art .music-fence-ph')).not.toBeNull()
+      const texts: string[] = []
+      const observer = new MutationObserver(() => texts.push(container.textContent ?? ''))
+      observer.observe(container, { subtree: true, childList: true, characterData: true })
+      await act(async () => { await store.toggleFavorite('a') })
+      await vi.waitFor(() => expect(store.getSnapshot().favorites.has('a')).toBe(true))
+      await act(async () => { fireEvent.click(container.querySelectorAll('.music-fence-row')[1]) })
+      await vi.waitFor(() => expect(store.getSnapshot().currentTrack?.id).toBe('b'))
+      await act(async () => { await store.flushPersistence() })
+      observer.disconnect()
+      expect(texts.some(text => text.includes(uiText('auto.78df555a3a52')))).toBe(false)
+      expect(container.querySelector('.music-fence-card')).toBe(card)
+      const current = container.querySelectorAll('.music-fence-row')[1]
+      expect(current).toHaveClass('current')
+      expect(current.querySelector('.music-fence-eq')).not.toBeNull()
+      expect(card).toHaveClass('active')
+    } finally { await disposeStore(mock.api, store) }
+  })
+
+  it('embeds a podcast with its episodes and a single episode', async () => {
+    const one: Track = { id: 'e1', title: 'Why Night', artist: 'Host', album: 'Night Shift', file: 'Podcasts/Night Shift/01 Why Night.mp3', duration: 1800 }
+    const two: Track = { id: 'e2', title: 'Coffee', artist: 'Host', album: 'Night Shift', file: 'Podcasts/Night Shift/02 Coffee.mp3', duration: 1200 }
+    const mock = createMockValleyApi({
+      settings: { musicPath: 'Music', podcastPath: 'Podcasts', podcastProgress: { e1: { position: 600, duration: 1800, updatedAt: '2026-11-01T00:00:00.000Z' } } },
+      tracks: [one, two],
+      indexEntries: [asset(one.file), asset(two.file)]
+    })
+    const store = createRuntimeStore(mock)
+    try {
+      await vi.waitFor(() => expect(store.getSnapshot().shows).toHaveLength(1))
+      const show = render(React.createElement(MusicFence, { code: 'podcast: Night Shift\nlimit: 1' }))
+      await vi.waitFor(() => expect(show.container.querySelector('.music-fence-title')?.textContent).toBe('Night Shift'))
+      expect(show.container.querySelectorAll('.music-fence-row')).toHaveLength(1)
+      expect(show.container.querySelector('.music-fence-more')?.textContent).toBe(uiText('music.fence.more', { count: 1 }))
+      show.unmount()
+      const episode = render(React.createElement(MusicFence, { code: 'episode: Why Night' }))
+      await vi.waitFor(() => expect(episode.container.querySelector('.music-fence-kicker')?.textContent).toBe('Episode'))
+      expect(episode.container.querySelector('.music-fence-sub')?.textContent).toContain('Night Shift')
+      expect(episode.container.querySelector<HTMLElement>('.music-fence-progress > span')?.style.width).toBe(`${(600 / 1800) * 100}%`)
+      await act(async () => { fireEvent.click(episode.container.querySelector('.music-fence-play')!) })
+      await vi.waitFor(() => expect(store.getSnapshot().currentTrack?.id).toBe('e1'))
+      await act(async () => { await store.flushPersistence() })
+      episode.unmount()
+      const missing = render(React.createElement(MusicFence, { code: 'podcast: Nowhere' }))
+      await vi.waitFor(() => expect(missing.container.textContent).toBe(uiText('music.fence.showNotFound', { name: 'Nowhere' })))
+    } finally { await disposeStore(mock.api, store) }
   })
 })

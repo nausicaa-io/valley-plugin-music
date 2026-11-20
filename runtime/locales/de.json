@@ -348,5 +348,18 @@
   "music.cover.hint": "Ziehen zum Verschieben · Scrollen zum Zoomen · Doppelklick zum Zurücksetzen",
   "music.cover.back": "Zurück",
   "music.cover.reset": "Zurücksetzen",
-  "music.cover.save": "Speichern"
+  "music.cover.save": "Speichern",
+  "music.fence.kind.song": "Titel",
+  "music.fence.kind.playlist": "Wiedergabeliste",
+  "music.fence.kind.artist": "Künstler",
+  "music.fence.kind.show": "Podcast",
+  "music.fence.kind.episode": "Folge",
+  "music.fence.showNotFound": "Podcast „{{name}}“ nicht gefunden.",
+  "music.fence.episodeNotFound": "Folge „{{name}}“ nicht gefunden.",
+  "music.fence.openShow": "Podcast öffnen",
+  "music.fence.more": "{{count}} weitere",
+  "music.fence.shufflePlay": "Zufällig abspielen",
+  "music.examples.show": "Podcast",
+  "music.examples.episode": "Podcast-Folge",
+  "music.examples.latest": "Neueste Folgen eines Podcasts"
 }

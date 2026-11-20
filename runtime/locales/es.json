@@ -348,5 +348,18 @@
   "music.cover.hint": "Arrastra para mover · desplaza para hacer zoom · doble clic para restablecer",
   "music.cover.back": "Atrás",
   "music.cover.reset": "Restablecer",
-  "music.cover.save": "Guardar"
+  "music.cover.save": "Guardar",
+  "music.fence.kind.song": "Canción",
+  "music.fence.kind.playlist": "Lista",
+  "music.fence.kind.artist": "Artista",
+  "music.fence.kind.show": "Pódcast",
+  "music.fence.kind.episode": "Episodio",
+  "music.fence.showNotFound": "No se encontró el pódcast «{{name}}».",
+  "music.fence.episodeNotFound": "No se encontró el episodio «{{name}}».",
+  "music.fence.openShow": "Abrir pódcast",
+  "music.fence.more": "{{count}} más",
+  "music.fence.shufflePlay": "Reproducir aleatoriamente",
+  "music.examples.show": "Pódcast",
+  "music.examples.episode": "Episodio de pódcast",
+  "music.examples.latest": "Últimos episodios de un pódcast"
 }

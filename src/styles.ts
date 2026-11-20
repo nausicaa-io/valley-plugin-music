@@ -199,6 +199,8 @@ const CSS = `
 .player-fav { border:none; background:none; color:var(--text-tertiary); cursor:pointer; font-size:20px; padding:2px; }
 .player-fav.on { color:var(--accent-color); }
 .player-fav.on svg { fill:currentColor; }
+.player-fav:focus:not(:focus-visible) { outline:none; }
+.player-fav:focus-visible { outline:2px solid var(--accent-color); outline-offset:1px; border-radius:4px; }
 .player-scrub { display:flex; flex-direction:column; gap:5px; width:100%; padding:0; }
 .player-times { display:flex; justify-content:space-between; font-size:0.625rem; color:var(--text-tertiary); font-variant-numeric:tabular-nums; }
 .player-error { width:100%; padding:6px 8px; border-radius:6px; background:var(--tint-red-bg, rgba(239,68,68,.12));
@@ -456,6 +458,14 @@ const CSS = `
 .music-pl-detail-actions .ghost:hover { background:var(--hover-bg); color:var(--text-color); }
 .music-pl-detail-actions .ghost.active { background:var(--accent-tint-bg); color:var(--accent-tint-text);
   border-color:var(--accent-color); }
+.music-pl-detail-actions .shuffle { display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 16px 0 14px;
+  border:none; border-radius:999px; background:var(--accent-color); color:#fff; font-size:0.78125rem; font-weight:650;
+  letter-spacing:.01em; cursor:pointer; white-space:nowrap; transition:filter .12s ease, transform .12s ease; }
+.music-pl-detail-actions .shuffle svg { width:15px; height:15px; stroke-width:2.4; }
+.music-pl-detail-actions .shuffle:hover { filter:brightness(1.1); }
+.music-pl-detail-actions .shuffle:active { transform:scale(.97); }
+.music-pl-detail-actions .shuffle.active { box-shadow:inset 0 0 0 2px rgba(255,255,255,.35); }
+.music-pl-detail-actions .shuffle:disabled { opacity:.5; cursor:default; filter:none; transform:none; }
 .music-pl-detail-actions .ghost.danger { color:var(--tint-red-text, #b91c1c); border-color:var(--tint-red-text, #b91c1c); }
 .music-page-back { display:inline-flex; align-items:center; gap:5px; align-self:flex-start; padding:5px 8px 5px 0;
   border:none; border-radius:6px; background:none; color:var(--text-secondary); font-size:0.78125rem;
